@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linux Fundamentals — Developer এর জন্য</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Anek+Bangla:wdth,wght@75..100,400..700&family=Noto+Serif+Bengali:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF1EA;
+  --bar:#DCE5D2;
+  --bar-soft:#E5EBDE;
+  --ink:#191C17;
+  --ink-2:#4E5548;
+  --ink-3:#7C8375;
+  --rule:#C4CCB8;
+  --rule-2:#DDE2D5;
+  --ditto:#453A93;
+  --ditto-2:#EDEAF8;
+  --display:"IBM Plex Sans Condensed","Anek Bangla",sans-serif;
+  --body:"Newsreader","Noto Serif Bengali",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --nav:280px;
+  --code-lh:26px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--body);font-size:18px;line-height:1.72;
+  font-synthesis-weight:none;
+}
+
+/* ── masthead ─────────────────────────── */
+.mast{
+  position:sticky;top:0;z-index:60;background:var(--paper);
+  border-bottom:1px solid var(--ink);
+  display:flex;align-items:center;gap:14px;
+  padding:9px clamp(14px,3vw,26px);
+  font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+}
+.mast b{font-weight:600;letter-spacing:.13em}
+.mast .rt{margin-left:auto;display:flex;align-items:center;gap:12px;color:var(--ink-3);min-width:0}
+#running{color:var(--ditto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw;
+  font-family:var(--display);font-size:13px;letter-spacing:.02em;text-transform:none}
+.pbar{position:absolute;left:0;bottom:-1px;height:2px;background:var(--ditto);width:0}
+#menu{display:none;font:inherit;letter-spacing:.13em;text-transform:uppercase;background:none;
+  border:1px solid var(--rule);border-radius:0;padding:5px 10px;cursor:pointer;color:var(--ink)}
+
+.wrap{display:grid;grid-template-columns:var(--nav) minmax(0,1fr);
+  max-width:1320px;margin:0 auto;align-items:start}
+
+/* ── contents ─────────────────────────── */
+.nav{position:sticky;top:39px;height:calc(100vh - 39px);overflow-y:auto;
+  padding:26px 22px 60px 0;border-right:1px solid var(--rule);scrollbar-width:thin}
+.filter{width:100%;font-family:var(--mono);font-size:12px;padding:8px 10px;color:var(--ink);
+  background:transparent;border:1px solid var(--rule);border-radius:0;margin-bottom:22px}
+.filter:focus{outline:2px solid var(--ditto);outline-offset:-1px;border-color:var(--ditto)}
+.filter::placeholder{color:var(--ink-3);letter-spacing:.06em}
+.navgroup{margin-bottom:22px}
+.navlabel{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--ink-3);
+  padding-bottom:6px;margin-bottom:7px;border-bottom:1px solid var(--rule-2)}
+.nav ul{list-style:none;margin:0;padding:0}
+.nav a{display:flex;gap:10px;align-items:baseline;text-decoration:none;color:var(--ink-2);
+  padding:4px 8px 4px 6px;border-left:2px solid transparent;transition:.14s}
+.nn{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);flex:none;padding-top:2px}
+.nt{font-family:var(--display);font-size:14.5px;line-height:1.35}
+.nav a:hover{color:var(--ink);background:var(--bar-soft)}
+.nav a.on{color:var(--ditto);border-left-color:var(--ditto);background:var(--ditto-2)}
+.nav a.on .nn{color:var(--ditto)}
+.nav a:focus-visible{outline:2px solid var(--ditto);outline-offset:-2px}
+.nav li.hide{display:none}
+
+/* ── page ─────────────────────────────── */
+main{padding:0 clamp(16px,4vw,64px) 120px;min-width:0}
+.hero{padding:clamp(46px,9vw,96px) 0 40px;border-bottom:1px solid var(--ink)}
+.hero .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;color:var(--ditto);
+  text-transform:uppercase;margin-bottom:22px}
+.hero h1{font-family:var(--display);font-weight:700;letter-spacing:-.015em;
+  font-size:clamp(40px,7.4vw,78px);line-height:.98;margin:0 0 6px}
+.hero h1 em{font-style:normal;color:var(--ditto)}
+.hero .sub{font-family:var(--display);font-weight:400;font-size:clamp(17px,2.2vw,23px);
+  color:var(--ink-2);max-width:34ch;line-height:1.35;margin:0 0 34px}
+.meta{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em}
+.meta div{padding:11px 20px 11px 0;margin-right:20px;border-right:1px solid var(--rule-2);color:var(--ink-3)}
+.meta div:last-child{border:0}
+.meta b{color:var(--ink);font-weight:600}
+
+/* mode strip — signature */
+.strip{display:inline-flex;gap:3px;margin:30px 0 0;padding:0}
+.strip i{width:22px;height:26px;display:grid;place-items:center;font-family:var(--mono);
+  font-size:12px;font-style:normal;background:var(--bar);color:var(--ink-2);border:1px solid var(--rule)}
+.strip i.x{background:var(--ditto);color:#fff;border-color:var(--ditto)}
+.striplab{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-3);
+  margin-top:9px;text-transform:uppercase}
+
+/* ── chapters ─────────────────────────── */
+.ch{padding:56px 0 12px;border-bottom:1px solid var(--rule-2);max-width:74ch;scroll-margin-top:56px}
+.ch:last-child{border:0}
+.eyebrow{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.16em;color:var(--ink-3);text-transform:uppercase;margin-bottom:12px}
+.eyebrow .sec{color:var(--ditto);font-weight:600}
+.eyebrow .dot{color:var(--rule)}
+.chh h2{font-family:var(--display);font-weight:700;font-size:clamp(27px,3.7vw,40px);
+  line-height:1.1;letter-spacing:-.01em;margin:0 0 26px}
+.ch h3{font-family:var(--display);font-weight:600;font-size:22px;line-height:1.3;
+  margin:40px 0 12px;padding-top:14px;border-top:1px solid var(--rule-2)}
+.ch h4{font-family:var(--display);font-weight:600;font-size:17px;margin:26px 0 8px}
+.ch p{margin:0 0 17px}
+.ch ul,.ch ol{margin:0 0 18px;padding-left:22px}
+.ch li{margin-bottom:7px}
+.ch li::marker{color:var(--ink-3)}
+.ch a{color:var(--ditto)}
+.ch strong{font-weight:600;color:var(--ink)}
+.ch em{font-style:italic}
+
+/* inline code */
+.ch :not(pre)>code{font-family:var(--mono);font-size:.82em;background:var(--bar);
+  padding:1px 5px;border:1px solid var(--rule-2);white-space:nowrap}
+
+/* blockquote */
+.ch blockquote{margin:0 0 24px;padding:14px 20px;background:var(--ditto-2);
+  border-left:2px solid var(--ditto);font-size:16.5px;color:var(--ink-2)}
+.ch blockquote p:last-child{margin:0}
+
+/* ── greenbar code ────────────────────── */
+.ch pre{position:relative;margin:0 0 22px;border:1px solid var(--rule);
+  background:var(--paper);overflow:hidden}
+.ch pre>code{display:block;font-family:var(--mono);font-size:13.5px;line-height:var(--code-lh);
+  padding:13px 16px;overflow-x:auto;white-space:pre;
+  background-image:repeating-linear-gradient(to bottom,
+    var(--bar) 0 var(--code-lh), transparent var(--code-lh) calc(var(--code-lh)*2));
+  background-position:0 13px;background-attachment:local}
+.ch pre .cm{color:var(--ink-3);font-style:italic}
+.copy{position:absolute;top:0;right:0;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;background:var(--paper);color:var(--ink-3);border:0;
+  border-left:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  padding:5px 9px;cursor:pointer;opacity:0;transition:.15s}
+.ch pre:hover .copy,.copy:focus-visible{opacity:1}
+.copy:hover{color:var(--ditto)}
+.copy.ok{color:var(--ditto);opacity:1}
+
+/* ── tables (greenbar rows) ───────────── */
+.tw{overflow-x:auto;margin:0 0 24px;border:1px solid var(--rule)}
+.ch table{border-collapse:collapse;width:100%;font-size:15.5px;background:var(--paper)}
+.ch th{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  text-align:left;padding:9px 14px;border-bottom:1px solid var(--ink);color:var(--ink-2);white-space:nowrap}
+.ch td{padding:8px 14px;vertical-align:top;border-bottom:1px solid var(--rule-2)}
+.ch tbody tr:nth-child(odd){background:var(--bar)}
+.ch tr:last-child td{border-bottom:0}
+.ch td code{white-space:nowrap}
+
+footer{border-top:1px solid var(--ink);padding:26px clamp(16px,4vw,64px) 60px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-3);
+  display:flex;gap:16px;flex-wrap:wrap}
+footer a{color:var(--ditto)}
+.top{margin-left:auto;background:none;border:1px solid var(--rule);color:var(--ink-2);
+  font:inherit;letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;cursor:pointer}
+.top:hover{border-color:var(--ditto);color:var(--ditto)}
+
+/* ── responsive ───────────────────────── */
+@media (max-width:960px){
+  .wrap{grid-template-columns:1fr}
+  #menu{display:block}
+  .nav{position:fixed;inset:39px auto 0 0;width:min(320px,86vw);height:calc(100vh - 39px);
+    background:var(--paper);border-right:1px solid var(--ink);z-index:55;
+    padding:22px 20px 60px;transform:translateX(-101%);transition:transform .22s ease}
+  .nav.open{transform:none;box-shadow:24px 0 60px rgba(25,28,23,.13)}
+  .scrim{position:fixed;inset:39px 0 0;background:rgba(25,28,23,.35);z-index:50;display:none}
+  .scrim.on{display:block}
+  body{font-size:17px}
+  .ch pre>code{font-size:12.5px}
+  #running{max-width:34vw}
+}
+@media (max-width:520px){
+  .meta div{border-right:0;padding-right:0;margin-right:16px}
+  .ch{padding-top:40px}
+}
+</style>
+</head>
+<body>
+
+<div class="mast">
+  <button id="menu" aria-label="সূচিপত্র" aria-expanded="false">Contents</button>
+  <b>Linux&#8209;Fundamentals(20)</b>
+  <div class="rt">
+    <span id="running">শুরু</span>
+  </div>
+  <div class="pbar" id="pbar"></div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="wrap">
+  <aside class="nav" id="nav" aria-label="সূচিপত্র">
+    <input class="filter" id="filter" type="search" placeholder="chapter খুঁজুন…" aria-label="chapter filter">
+    <div id="navlist">
+<div class="navgroup"><div class="navlabel">FOUNDATION</div><ul>
+<li><a href="#s-1" data-t="linux আসলে কী"><span class="nn">01</span><span class="nt">Linux আসলে কী</span></a></li>
+<li><a href="#s-2" data-t="everything is a file"><span class="nn">02</span><span class="nt">Everything is a File</span></a></li>
+<li><a href="#s-3" data-t="filesystem hierarchy"><span class="nn">03</span><span class="nt">Filesystem Hierarchy</span></a></li>
+<li><a href="#s-4" data-t="shell আর terminal"><span class="nn">04</span><span class="nt">Shell আর Terminal</span></a></li>
+</ul></div>
+<div class="navgroup"><div class="navlabel">DAILY DRIVING</div><ul>
+<li><a href="#s-5" data-t="navigation আর file operations"><span class="nn">05</span><span class="nt">Navigation আর File Operations</span></a></li>
+<li><a href="#s-6" data-t="file পড়া আর দেখা"><span class="nn">06</span><span class="nt">File পড়া আর দেখা</span></a></li>
+<li><a href="#s-7" data-t="redirection আর pipe"><span class="nn">07</span><span class="nt">Redirection আর Pipe</span></a></li>
+<li><a href="#s-8" data-t="text processing tools"><span class="nn">08</span><span class="nt">Text Processing Tools</span></a></li>
+</ul></div>
+<div class="navgroup"><div class="navlabel">SYSTEM</div><ul>
+<li><a href="#s-9" data-t="users, groups আর permissions"><span class="nn">09</span><span class="nt">Users, Groups আর Permissions</span></a></li>
+<li><a href="#s-10" data-t="process management"><span class="nn">10</span><span class="nt">Process Management</span></a></li>
+<li><a href="#s-11" data-t="systemd আর services"><span class="nn">11</span><span class="nt">systemd আর Services</span></a></li>
+<li><a href="#s-12" data-t="package management"><span class="nn">12</span><span class="nt">Package Management</span></a></li>
+</ul></div>
+<div class="navgroup"><div class="navlabel">PRACTICAL</div><ul>
+<li><a href="#s-13" data-t="networking commands"><span class="nn">13</span><span class="nt">Networking Commands</span></a></li>
+<li><a href="#s-14" data-t="disk আর mount"><span class="nn">14</span><span class="nt">Disk আর Mount</span></a></li>
+<li><a href="#s-15" data-t="environment variables আর path"><span class="nn">15</span><span class="nt">Environment Variables আর PATH</span></a></li>
+<li><a href="#s-16" data-t="cron আর scheduled jobs"><span class="nn">16</span><span class="nt">Cron আর Scheduled Jobs</span></a></li>
+<li><a href="#s-17" data-t="logs আর troubleshooting"><span class="nn">17</span><span class="nt">Logs আর Troubleshooting</span></a></li>
+<li><a href="#s-18" data-t="shell scripting basics"><span class="nn">18</span><span class="nt">Shell Scripting Basics</span></a></li>
+<li><a href="#s-19" data-t="ssh আর remote server"><span class="nn">19</span><span class="nt">SSH আর Remote Server</span></a></li>
+<li><a href="#s-20" data-t="একটা real deployment — শুরু থেকে শেষ"><span class="nn">20</span><span class="nt">একটা Real Deployment — শুরু থেকে শেষ</span></a></li>
+</ul></div>
+<div class="navgroup"><div class="navlabel">APPENDIX</div><ul>
+<li><a href="#s-21" data-t="cheat sheet"><span class="nn">·</span><span class="nt">Cheat Sheet</span></a></li>
+<li><a href="#s-22" data-t="এরপর কী"><span class="nn">·</span><span class="nt">এরপর কী</span></a></li>
+</ul></div>
+    </div>
+  </aside>
+
+  <main>
+    <section class="hero">
+      <div class="tag">A field manual · Bangla</div>
+      <h1>Linux<br><em>Fundamentals</em></h1>
+      <p class="sub">Linux administrator হওয়ার বই না। একজন developer হিসেবে server এ deploy করতে আর debug করতে যতটুকু লাগে — ঠিক ততটুকু।</p>
+      <div class="meta">
+        <div><b>20</b> chapters</div>
+        <div><b>4</b> parts</div>
+        <div>Ubuntu / Debian</div>
+        <div>Node · PostgreSQL · nginx</div>
+      </div>
+      <div class="strip" aria-hidden="true">
+        <i>-</i><i class="x">r</i><i class="x">w</i><i class="x">x</i><i class="x">r</i><i>-</i><i class="x">x</i><i class="x">r</i><i>-</i><i class="x">x</i>
+      </div>
+      <div class="striplab">755 — শুরু করার permission আছে</div>
+    </section>
+
+<section class="ch" id="s-1" data-num="§01  " data-title="Linux আসলে কী">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 01</span><span class="dot">·</span><span>FOUNDATION</span></div><h2>Linux আসলে কী</h2></header>
+<h3>Kernel vs Distribution</h3>
+<p>Linux শব্দটা technically শুধু <strong>kernel</strong> কে বোঝায়। Kernel হলো hardware আর software এর মাঝখানের layer। ওর কাজ:</p>
+<ul>
+<li><strong>Process scheduling</strong> — কোন program কখন CPU পাবে</li>
+<li><strong>Memory management</strong> — কোন process কতটুকু RAM পাবে</li>
+<li><strong>Filesystem</strong> — disk এ data কীভাবে লেখা/পড়া হবে</li>
+<li><strong>Networking</strong> — network packet in/out</li>
+<li><strong>Device drivers</strong> — hardware এর সাথে কথা বলা</li>
+</ul>
+<p>Kernel একা কিছু করতে পারে না। ওকে ব্যবহার করার জন্য shell লাগে, utility লাগে, package manager লাগে। এই পুরো bundle টাকে বলে <strong>distribution</strong> বা <strong>distro</strong>।</p>
+<h3>কোন Distro শিখবে</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Distro</th>
+<th>কোথায় ব্যবহার হয়</th>
+<th>Package Manager</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ubuntu</td>
+<td>সবচেয়ে common server, cloud VM</td>
+<td><code>apt</code></td>
+</tr>
+<tr>
+<td>Debian</td>
+<td>Ubuntu এর parent, বেশি stable</td>
+<td><code>apt</code></td>
+</tr>
+<tr>
+<td>Alpine</td>
+<td>Docker image, খুব ছোট (~5MB)</td>
+<td><code>apk</code></td>
+</tr>
+<tr>
+<td>RHEL / Rocky / CentOS</td>
+<td>Enterprise, corporate</td>
+<td><code>dnf</code> / <code>yum</code></td>
+</tr>
+<tr>
+<td>Amazon Linux</td>
+<td>AWS EC2</td>
+<td><code>dnf</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>সিদ্ধান্ত:</strong> Ubuntu LTS (Long Term Support — ৫ বছর security update পায়) দিয়ে শুরু করো। DigitalOcean, AWS, Hetzner — সব জায়গায় এটাই default. একবার এটা শিখলে বাকিগুলোতে শুধু package manager আর কিছু path বদলাবে, concept একই থাকবে।</p>
+<h3>macOS এর সাথে সম্পর্ক</h3>
+<p>তোমার MacBook এর terminal ও Unix-based (BSD lineage)। তাই <code>ls</code>, <code>cd</code>, <code>grep</code>, <code>ps</code> — এগুলো প্রায় একই কাজ করে। কিন্তু কিছু পার্থক্য আছে যেগুলো না জানলে confusion হবে:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>জিনিস</th>
+<th>macOS</th>
+<th>Linux</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Home directory</td>
+<td><code>/Users/mostofa</code></td>
+<td><code>/home/mostofa</code></td>
+</tr>
+<tr>
+<td>Package manager</td>
+<td><code>brew</code></td>
+<td><code>apt</code> / <code>dnf</code></td>
+</tr>
+<tr>
+<td>Service manager</td>
+<td><code>launchd</code></td>
+<td><code>systemd</code></td>
+</tr>
+<tr>
+<td><code>sed -i</code> syntax</td>
+<td><code>sed -i '' 's/a/b/'</code></td>
+<td><code>sed -i 's/a/b/'</code></td>
+</tr>
+<tr>
+<td>Core utilities</td>
+<td>BSD version</td>
+<td>GNU version (বেশি flag)</td>
+</tr>
+<tr>
+<td>Network interface</td>
+<td><code>ifconfig</code>, <code>en0</code></td>
+<td><code>ip</code>, <code>eth0</code>/<code>ens3</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>মূল কথা — macOS এ যা শিখেছো তার ৮০% Linux এ কাজ করবে। বাকি ২০% এই বইতে আছে।</p>
+</section>
+<section class="ch" id="s-2" data-num="§02  " data-title="Everything is a File">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 02</span><span class="dot">·</span><span>FOUNDATION</span></div><h2>Everything is a File</h2></header>
+<p>এটা Linux এর সবচেয়ে গুরুত্বপূর্ণ design philosophy. বুঝলে অর্ধেক জিনিস এমনিতেই clear হয়ে যায়।</p>
+<p>Linux এ প্রায় সব resource — hard disk, keyboard, network socket, running process, এমনকি random number generator — সবকিছু filesystem এ <strong>file</strong> হিসেবে expose করা।</p>
+<p>মানে হলো, তোমার আলাদা কোনো special API লাগে না। <code>cat</code>, <code>grep</code>, <code>echo</code> — এই simple tool গুলো দিয়েই system এর গভীরে ঢুকতে পারো।</p>
+<pre><code class="language-bash"><span class="cm"># CPU এর সম্পূর্ণ তথ্য</span>
+cat /proc/cpuinfo
+
+<span class="cm"># RAM এর অবস্থা</span>
+cat /proc/meminfo
+
+<span class="cm"># System কতক্ষণ ধরে চলছে</span>
+cat /proc/uptime
+
+<span class="cm"># PID (Process ID — প্রতিটা running program এর unique number) ১ এর সব info</span>
+ls /proc/1/
+
+<span class="cm"># একটা process কোন file গুলো খুলে রেখেছে</span>
+ls -l /proc/1234/fd/
+
+<span class="cm"># একটা process এর environment variable</span>
+cat /proc/1234/environ | tr &#x27;\0&#x27; &#x27;\n&#x27;</code></pre>
+<p><code>/proc</code> আসলে disk এ নেই। এটা <strong>virtual filesystem</strong> — kernel real-time এ memory থেকে data বানিয়ে দেখায়। তুমি <code>cat /proc/meminfo</code> চালানোর মুহূর্তে kernel ওই text টা generate করে।</p>
+<h3>Special Files</h3>
+<pre><code class="language-bash">/dev/null       <span class="cm"># যা লিখবে হারিয়ে যাবে — output ফেলে দেওয়ার জন্য</span>
+/dev/zero       <span class="cm"># অসীম 0 byte দেয়</span>
+/dev/random     <span class="cm"># random data (cryptographic)</span>
+/dev/sda        <span class="cm"># প্রথম hard disk (পুরোটা, raw)</span></code></pre>
+<p>Practical use:</p>
+<pre><code class="language-bash"><span class="cm"># Output একেবারে চুপ করানো</span>
+npm install &gt; /dev/null 2&gt;&amp;1
+
+<span class="cm"># ১০০ MB এর একটা dummy file বানানো (testing এর জন্য)</span>
+dd if=/dev/zero of=test.bin bs=1M count=100</code></pre>
+<h3>File Type</h3>
+<p><code>ls -l</code> এর প্রথম character দিয়ে file type বোঝা যায়:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Character</th>
+<th>মানে</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-</code></td>
+<td>সাধারণ file</td>
+</tr>
+<tr>
+<td><code>d</code></td>
+<td>directory</td>
+</tr>
+<tr>
+<td><code>l</code></td>
+<td>symbolic link (shortcut)</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>character device (keyboard, <code>/dev/null</code>)</td>
+</tr>
+<tr>
+<td><code>b</code></td>
+<td>block device (disk)</td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td>socket (process দের মধ্যে communication)</td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td>named pipe</td>
+</tr>
+</tbody>
+</table></div>
+</section>
+<section class="ch" id="s-3" data-num="§03  " data-title="Filesystem Hierarchy">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 03</span><span class="dot">·</span><span>FOUNDATION</span></div><h2>Filesystem Hierarchy</h2></header>
+<p>macOS এ folder structure যেমন খানিকটা এলোমেলো, Linux এ সেটা strictly defined। Standard টার নাম <strong>FHS (Filesystem Hierarchy Standard — কোন folder এ কী থাকবে তার নির্দিষ্ট নিয়ম)</strong>।</p>
+<p>Linux এ কোনো <code>C:</code> drive নেই। সবকিছু একটা single tree, root <code>/</code> থেকে শুরু।</p>
+<pre><code>/
+├── bin      → essential command (ls, cp, cat)
+├── boot     → kernel আর bootloader file
+├── dev      → device file
+├── etc      → সব configuration file
+├── home     → user দের personal folder
+├── lib      → shared library (.so file)
+├── mnt      → manually mount করা drive
+├── opt      → third-party software
+├── proc     → kernel এর virtual filesystem
+├── root     → root user এর home
+├── run      → runtime data (PID file, socket)
+├── sbin     → system administration command
+├── srv      → service এর data
+├── sys      → hardware/kernel interface
+├── tmp      → temporary file, reboot এ মুছে যায়
+├── usr      → installed software
+└── var      → পরিবর্তনশীল data (log, cache, database)</code></pre>
+<h3>Developer হিসেবে যেগুলো আসলে দরকার</h3>
+<p><strong><code>/etc</code> — Configuration</strong></p>
+<p>Server এ যা কিছু configure করবে, সব এখানে।</p>
+<pre><code class="language-bash">/etc/nginx/nginx.conf              <span class="cm"># nginx main config</span>
+/etc/nginx/sites-available/        <span class="cm"># per-site config</span>
+/etc/ssh/sshd_config               <span class="cm"># SSH server config</span>
+/etc/hosts                         <span class="cm"># local DNS override</span>
+/etc/passwd                        <span class="cm"># user list</span>
+/etc/environment                   <span class="cm"># system-wide env variable</span>
+/etc/postgresql/16/main/           <span class="cm"># PostgreSQL config</span>
+/etc/systemd/system/               <span class="cm"># custom service file</span></code></pre>
+<p><strong><code>/var</code> — পরিবর্তনশীল Data</strong></p>
+<pre><code class="language-bash">/var/log/                          <span class="cm"># সব log এখানে</span>
+/var/log/nginx/error.log
+/var/log/syslog                    <span class="cm"># system এর general log</span>
+/var/lib/postgresql/               <span class="cm"># PostgreSQL এর actual data</span>
+/var/www/                          <span class="cm"># website file (convention)</span></code></pre>
+<p><strong><code>/home/username</code> — তোমার জায়গা</strong></p>
+<pre><code class="language-bash">~/.ssh/                            <span class="cm"># SSH key</span>
+~/.bashrc, ~/.zshrc                <span class="cm"># shell config</span>
+~/.config/                         <span class="cm"># application config</span>
+~/.npm, ~/.cache                   <span class="cm"># cache</span></code></pre>
+<p><code>~</code> হলো তোমার home directory এর shortcut। <code>cd ~</code> আর <code>cd /home/mostofa</code> একই জিনিস।</p>
+<p><strong>Practical কথা:</strong> Production এ কিছু ভাঙলে তুমি ৯০% সময় <code>/etc</code> (config ঠিক আছে কিনা) আর <code>/var/log</code> (error কী বলছে) — এই দুই জায়গায় থাকবে। বাকিগুলো মুখস্থ করার দরকার নেই।</p>
+<h3>Absolute vs Relative Path</h3>
+<pre><code class="language-bash">/var/log/nginx/error.log     <span class="cm"># absolute — / দিয়ে শুরু, সবসময় একই জায়গা</span>
+../config/app.json           <span class="cm"># relative — বর্তমান folder থেকে হিসাব</span>
+./deploy.sh                  <span class="cm"># বর্তমান folder এর deploy.sh</span></code></pre>
+<p>Script এ সবসময় absolute path ব্যবহার করো। cron বা systemd থেকে চললে working directory কী হবে তার কোনো guarantee নেই — relative path তখন ভাঙে।</p>
+</section>
+<section class="ch" id="s-4" data-num="§04  " data-title="Shell আর Terminal">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 04</span><span class="dot">·</span><span>FOUNDATION</span></div><h2>Shell আর Terminal</h2></header>
+<p>তিনটা আলাদা জিনিস, মানুষ গুলিয়ে ফেলে:</p>
+<ul>
+<li><strong>Terminal</strong> — window/app যেটাতে তুমি টাইপ করো (iTerm, Ghostty, GNOME Terminal)</li>
+<li><strong>Shell</strong> — program যেটা তোমার command interpret করে (bash, zsh, fish)</li>
+<li><strong>Command</strong> — যেটা তুমি চালাও (<code>ls</code>, <code>grep</code>)</li>
+</ul>
+<p>তুমি macOS এ <strong>zsh</strong> ব্যবহার করো। Linux server এ default সাধারণত <strong>bash</strong>। Daily commands প্রায় একই, পার্থক্য মূলত scripting আর prompt customization এ।</p>
+<pre><code class="language-bash">echo $SHELL          <span class="cm"># কোন shell চলছে</span>
+cat /etc/shells      <span class="cm"># কোনগুলো available</span>
+chsh -s /bin/bash    <span class="cm"># shell বদলানো</span></code></pre>
+<h3>Command এর গঠন</h3>
+<pre><code class="language-bash">command  -options  arguments
+   │         │         │
+  ls       -la      /var/log</code></pre>
+<p>Option দুই ধরনের:</p>
+<pre><code class="language-bash">ls -l -a -h          <span class="cm"># short form</span>
+ls -lah              <span class="cm"># একসাথে লেখা যায়</span>
+ls --all --human-readable    <span class="cm"># long form, বেশি readable</span></code></pre>
+<h3>সবচেয়ে দরকারি অভ্যাস</h3>
+<p><strong><code>man</code> — manual page</strong></p>
+<pre><code class="language-bash">man ls
+man grep
+<span class="cm"># / দিয়ে search, q দিয়ে বের হওয়া</span></code></pre>
+<p><strong><code>--help</code> — দ্রুত reference</strong></p>
+<pre><code class="language-bash">grep --help
+docker run --help</code></pre>
+<p><strong><code>tldr</code> — practical example (আলাদা install করতে হয়)</strong></p>
+<pre><code class="language-bash">apt install tldr
+tldr tar     <span class="cm"># tar এর ১০টা বাস্তব উদাহরণ দেবে, ৩০ পাতার manual না</span></code></pre>
+<p><code>tar</code> এর syntax কেউ মুখস্থ রাখে না। <code>tldr</code> install করে নাও, জীবন সহজ হবে।</p>
+<h3>Shortcut যেগুলো সময় বাঁচাবে</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Key</th>
+<th>কাজ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Tab</code></td>
+<td>auto-complete</td>
+</tr>
+<tr>
+<td><code>Ctrl + C</code></td>
+<td>চলমান command বন্ধ</td>
+</tr>
+<tr>
+<td><code>Ctrl + D</code></td>
+<td>shell থেকে exit / EOF</td>
+</tr>
+<tr>
+<td><code>Ctrl + R</code></td>
+<td>history তে reverse search</td>
+</tr>
+<tr>
+<td><code>Ctrl + L</code></td>
+<td>screen clear</td>
+</tr>
+<tr>
+<td><code>Ctrl + A</code> / <code>Ctrl + E</code></td>
+<td>line এর শুরু / শেষে যাওয়া</td>
+</tr>
+<tr>
+<td><code>Ctrl + U</code> / <code>Ctrl + K</code></td>
+<td>cursor এর আগের / পরের অংশ মুছে ফেলা</td>
+</tr>
+<tr>
+<td><code>Ctrl + W</code></td>
+<td>আগের একটা word মুছে ফেলা</td>
+</tr>
+<tr>
+<td><code>!!</code></td>
+<td>আগের command আবার চালানো</td>
+</tr>
+<tr>
+<td><code>sudo !!</code></td>
+<td>আগের command sudo দিয়ে আবার চালানো</td>
+</tr>
+<tr>
+<td><code>cd -</code></td>
+<td>আগের directory তে ফিরে যাওয়া</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Ctrl + R</code> টা বিশেষ করে শিখে নাও। লম্বা command আর টাইপ করতে হবে না — কয়েকটা অক্ষর লিখলেই history থেকে খুঁজে দেবে।</p>
+</section>
+<section class="ch" id="s-5" data-num="§05  " data-title="Navigation আর File Operations">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 05</span><span class="dot">·</span><span>DAILY DRIVING</span></div><h2>Navigation আর File Operations</h2></header>
+<h3>ঘোরাফেরা</h3>
+<pre><code class="language-bash">pwd                  <span class="cm"># এখন কোথায় আছি</span>
+cd /var/log          <span class="cm"># নির্দিষ্ট জায়গায়</span>
+cd ..                <span class="cm"># এক ধাপ উপরে</span>
+cd ~                 <span class="cm"># home এ</span>
+cd -                 <span class="cm"># আগের জায়গায় ফিরে যাও</span></code></pre>
+<h3>List করা</h3>
+<pre><code class="language-bash">ls                   <span class="cm"># সাধারণ</span>
+ls -l                <span class="cm"># detail (permission, owner, size, date)</span>
+ls -a                <span class="cm"># hidden file সহ (. দিয়ে শুরু হওয়া)</span>
+ls -lah              <span class="cm"># সব একসাথে + human readable size</span>
+ls -lt               <span class="cm"># সময় অনুযায়ী sort, নতুন আগে</span>
+ls -lS               <span class="cm"># size অনুযায়ী sort, বড় আগে</span>
+ls -R                <span class="cm"># recursive, সব subfolder সহ</span></code></pre>
+<p><code>ls -lt</code> টা debug এ কাজে লাগে — কোন file সবচেয়ে recently বদলেছে সেটা এক নজরে দেখা যায়।</p>
+<h3>File আর Folder বানানো</h3>
+<pre><code class="language-bash">touch app.js                 <span class="cm"># খালি file বানানো (বা timestamp update)</span>
+mkdir logs                   <span class="cm"># folder</span>
+mkdir -p src/modules/auth    <span class="cm"># nested folder একবারে, না থাকলে বানাবে</span></code></pre>
+<p><code>-p</code> মানে "parents" — মাঝের folder না থাকলে বানিয়ে নেবে, আর already থাকলে error দেবে না। Script এ সবসময় <code>-p</code> ব্যবহার করো।</p>
+<h3>Copy, Move, Delete</h3>
+<pre><code class="language-bash">cp file.txt backup.txt              <span class="cm"># copy</span>
+cp -r src/ dist/                    <span class="cm"># folder copy (recursive লাগবেই)</span>
+cp -a src/ dist/                    <span class="cm"># permission, timestamp সব রেখে copy</span>
+
+mv old.txt new.txt                  <span class="cm"># rename</span>
+mv file.txt /tmp/                   <span class="cm"># সরানো</span>
+
+rm file.txt                         <span class="cm"># delete</span>
+rm -r folder/                       <span class="cm"># folder delete</span>
+rm -rf folder/                      <span class="cm"># force delete, প্রশ্ন করবে না</span></code></pre>
+<p><strong>সাবধানতা:</strong> Linux এ কোনো Trash/Recycle Bin নেই। <code>rm</code> মানে চিরতরে গেছে।</p>
+<pre><code class="language-bash">rm -rf /              <span class="cm"># পুরো system মুছে দেবে। কখনো না।</span>
+rm -rf $VAR/          <span class="cm"># VAR খালি হলে এটাই `rm -rf /` হয়ে যায়</span></code></pre>
+<p>Script এ variable সহ <code>rm -rf</code> লেখার আগে সবসময় check করো:</p>
+<pre><code class="language-bash">if [ -n &quot;$BUILD_DIR&quot; ]; then rm -rf &quot;$BUILD_DIR&quot;; fi</code></pre>
+<h3>খোঁজা</h3>
+<p><strong><code>find</code> — file খোঁজা</strong></p>
+<pre><code class="language-bash">find . -name &quot;*.log&quot;                    <span class="cm"># নাম দিয়ে</span>
+find . -iname &quot;*.LOG&quot;                   <span class="cm"># case-insensitive</span>
+find /var -type f -size +100M           <span class="cm"># ১০০ MB এর বড় file</span>
+find . -type d -name node_modules       <span class="cm"># শুধু folder</span>
+find . -mtime -7                        <span class="cm"># গত ৭ দিনে modified</span>
+find . -name &quot;*.tmp&quot; -delete            <span class="cm"># খুঁজে মুছে ফেলা</span></code></pre>
+<p>Disk ভরে গেলে এটা প্রথম command:</p>
+<pre><code class="language-bash">find / -type f -size +500M 2&gt;/dev/null</code></pre>
+<p><code>2&gt;/dev/null</code> দিয়ে permission denied error গুলো লুকিয়ে দিলাম।</p>
+<p><strong><code>which</code> / <code>whereis</code> — command কোথায়</strong></p>
+<pre><code class="language-bash">which node           <span class="cm"># /usr/bin/node</span>
+whereis nginx        <span class="cm"># binary, source, manual সব path</span></code></pre>
+<h3>Symbolic Link</h3>
+<pre><code class="language-bash">ln -s /var/www/app/current /var/www/html</code></pre>
+<p>Shortcut এর মতো। Deployment এ খুব কাজে লাগে — <code>current</code> নামে একটা symlink রেখে নতুন release এ সেটা repoint করলেই instant switch, rollback ও তেমনি সহজ।</p>
+</section>
+<section class="ch" id="s-6" data-num="§06  " data-title="File পড়া আর দেখা">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 06</span><span class="dot">·</span><span>DAILY DRIVING</span></div><h2>File পড়া আর দেখা</h2></header>
+<pre><code class="language-bash">cat file.txt              <span class="cm"># পুরো file একবারে print</span>
+cat -n file.txt           <span class="cm"># line number সহ</span>
+
+less file.txt             <span class="cm"># scroll করে পড়া, বড় file এর জন্য</span>
+head -20 file.txt         <span class="cm"># প্রথম ২০ লাইন</span>
+tail -20 file.txt         <span class="cm"># শেষ ২০ লাইন</span>
+tail -f error.log         <span class="cm"># live follow — নতুন line আসতে থাকলে দেখাবে</span>
+tail -f -n 100 error.log  <span class="cm"># শেষ ১০০ লাইন দেখিয়ে তারপর follow</span>
+
+wc -l file.txt            <span class="cm"># কত লাইন</span></code></pre>
+<p><strong><code>tail -f</code> টা তোমার সবচেয়ে বেশি ব্যবহৃত command হবে।</strong> Deploy করে log দেখা, request আসছে কিনা check করা — সব এটা দিয়ে।</p>
+<p><code>less</code> এর ভেতরে:
+- <code>/keyword</code> — search
+- <code>n</code> / <code>N</code> — পরের / আগের match
+- <code>G</code> — file এর শেষে
+- <code>g</code> — শুরুতে
+- <code>q</code> — বের হওয়া</p>
+<p><strong>গুরুত্বপূর্ণ:</strong> ১ GB এর log file এ কখনো <code>cat</code> চালাবে না — terminal hang করবে। <code>less</code> বা <code>tail</code> ব্যবহার করো।</p>
+</section>
+<section class="ch" id="s-7" data-num="§07  " data-title="Redirection আর Pipe">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 07</span><span class="dot">·</span><span>DAILY DRIVING</span></div><h2>Redirection আর Pipe</h2></header>
+<p>এখান থেকেই Linux এর আসল শক্তি শুরু।</p>
+<h3>তিনটা Stream</h3>
+<p>প্রতিটা program এর তিনটা default channel থাকে:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Number</th>
+<th>কাজ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>stdin</td>
+<td>0</td>
+<td>input</td>
+</tr>
+<tr>
+<td>stdout</td>
+<td>1</td>
+<td>normal output</td>
+</tr>
+<tr>
+<td>stderr</td>
+<td>2</td>
+<td>error output</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Redirection</h3>
+<pre><code class="language-bash">command &gt; file.txt          <span class="cm"># stdout file এ (আগের content মুছে যাবে)</span>
+command &gt;&gt; file.txt         <span class="cm"># append করবে</span>
+command 2&gt; error.txt        <span class="cm"># শুধু error file এ</span>
+command &gt; out.txt 2&gt;&amp;1      <span class="cm"># stdout আর stderr দুটোই একই file এ</span>
+command &amp;&gt; all.txt          <span class="cm"># উপরেরটার short form (bash)</span>
+command &lt; input.txt         <span class="cm"># file থেকে input নেওয়া</span>
+command &gt; /dev/null 2&gt;&amp;1    <span class="cm"># সব output গিলে ফেলা</span></code></pre>
+<p><code>2&gt;&amp;1</code> মানে "stderr কে stdout যেখানে যাচ্ছে সেখানে পাঠাও"। Order টা গুরুত্বপূর্ণ — <code>&gt; file 2&gt;&amp;1</code> কাজ করে, কিন্তু <code>2&gt;&amp;1 &gt; file</code> করে না।</p>
+<h3>Pipe</h3>
+<p><code>|</code> দিয়ে একটা command এর output আরেকটার input হিসেবে দেওয়া যায়।</p>
+<pre><code class="language-bash">cat access.log | grep &quot;500&quot; | wc -l
+<span class="cm">#     │              │           │</span>
+<span class="cm">#  file পড়ো    500 filter করো   গোনো</span></code></pre>
+<p>এটাই Unix philosophy — একেকটা tool একটা কাজ ভালো করে, pipe দিয়ে জোড়া দিয়ে জটিল কাজ হয়।</p>
+<p>Practical উদাহরণ:</p>
+<pre><code class="language-bash"><span class="cm"># কোন IP সবচেয়ে বেশি request করেছে (top 10)</span>
+cat access.log | awk &#x27;{print $1}&#x27; | sort | uniq -c | sort -rn | head -10
+
+<span class="cm"># node process খোঁজা</span>
+ps aux | grep node | grep -v grep
+
+<span class="cm"># সবচেয়ে বড় ১০টা folder</span>
+du -sh */ | sort -rh | head -10
+
+<span class="cm"># error log এ কোন error কতবার</span>
+grep &quot;ERROR&quot; app.log | awk &#x27;{print $4}&#x27; | sort | uniq -c | sort -rn</code></pre>
+<p><code>sort | uniq -c | sort -rn</code> — এই combination টা মুখস্থ করে নাও। "কোন জিনিস কতবার আছে, বেশি থেকে কম" — এই প্রশ্নের উত্তর সবসময় এটা।</p>
+<h3><code>tee</code> — একসাথে screen আর file এ</h3>
+<pre><code class="language-bash">npm run build | tee build.log</code></pre>
+<p>Screen এ output দেখবে, একই সাথে file এও লেখা হবে।</p>
+<h3><code>xargs</code> — output কে argument বানানো</h3>
+<pre><code class="language-bash">find . -name &quot;*.log&quot; | xargs rm
+cat urls.txt | xargs -n1 curl -I</code></pre>
+<p>কিছু command pipe থেকে input নেয় না (যেমন <code>rm</code>), তখন <code>xargs</code> লাগে।</p>
+</section>
+<section class="ch" id="s-8" data-num="§08  " data-title="Text Processing Tools">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 08</span><span class="dot">·</span><span>DAILY DRIVING</span></div><h2>Text Processing Tools</h2></header>
+<p>Log ঘাঁটাঘাঁটির জন্য এগুলো লাগবেই।</p>
+<h3><code>grep</code> — খোঁজা</h3>
+<pre><code class="language-bash">grep &quot;error&quot; app.log                <span class="cm"># সাধারণ search</span>
+grep -i &quot;error&quot; app.log             <span class="cm"># case-insensitive</span>
+grep -n &quot;error&quot; app.log             <span class="cm"># line number সহ</span>
+grep -r &quot;TODO&quot; ./src                <span class="cm"># folder এর ভেতর recursive</span>
+grep -v &quot;debug&quot; app.log             <span class="cm"># যেগুলোতে নেই সেগুলো (invert)</span>
+grep -c &quot;error&quot; app.log             <span class="cm"># শুধু count</span>
+grep -A 5 &quot;error&quot; app.log           <span class="cm"># match এর পরের ৫ লাইন</span>
+grep -B 5 &quot;error&quot; app.log           <span class="cm"># আগের ৫ লাইন</span>
+grep -C 5 &quot;error&quot; app.log           <span class="cm"># আগে পরে ৫ লাইন করে</span>
+grep -E &quot;error|warn&quot; app.log        <span class="cm"># regex, একাধিক pattern</span></code></pre>
+<p><code>-C 5</code> টা debug এ সবচেয়ে কাজের — error টা কোন context এ ঘটেছে সেটা দেখা যায়।</p>
+<h3><code>sed</code> — খুঁজে বদলানো</h3>
+<pre><code class="language-bash">sed &#x27;s/old/new/&#x27; file.txt           <span class="cm"># প্রতি লাইনে প্রথম match বদলাবে</span>
+sed &#x27;s/old/new/g&#x27; file.txt          <span class="cm"># সব match</span>
+sed -i &#x27;s/old/new/g&#x27; file.txt       <span class="cm"># file টাই বদলে দেবে (in-place)</span>
+sed -i.bak &#x27;s/old/new/g&#x27; file.txt   <span class="cm"># backup রেখে বদলাবে</span>
+sed -n &#x27;10,20p&#x27; file.txt            <span class="cm"># শুধু ১০-২০ নম্বর লাইন</span>
+sed &#x27;/^#/d&#x27; config.conf             # comment line মুছে ফেলা</code></pre>
+<p><strong>Note:</strong> macOS এ <code>sed -i</code> এর পরে খালি string লাগে — <code>sed -i '' 's/a/b/' file</code>. Linux এ লাগে না। Script portable রাখতে চাইলে এটা মনে রেখো।</p>
+<h3><code>awk</code> — column নিয়ে কাজ</h3>
+<pre><code class="language-bash">awk &#x27;{print $1}&#x27; access.log         <span class="cm"># প্রথম column</span>
+awk &#x27;{print $1, $7}&#x27; access.log     <span class="cm"># ১ম আর ৭ম</span>
+awk -F: &#x27;{print $1}&#x27; /etc/passwd    <span class="cm"># : কে delimiter ধরে</span>
+awk &#x27;$9 == 500 {print $7}&#x27; access.log   <span class="cm"># condition সহ</span>
+awk &#x27;{sum += $10} END {print sum}&#x27; access.log   <span class="cm"># যোগফল</span></code></pre>
+<p><code>awk</code> পুরো একটা programming language, কিন্তু ৯৫% ক্ষেত্রে তুমি শুধু <code>{print $N}</code> ব্যবহার করবে।</p>
+<h3>বাকিগুলো</h3>
+<pre><code class="language-bash">sort file.txt              <span class="cm"># sort</span>
+sort -rn                   <span class="cm"># উল্টো, সংখ্যা হিসেবে</span>
+uniq -c                    <span class="cm"># duplicate গুনে দেখানো (আগে sort লাগে)</span>
+cut -d&#x27;,&#x27; -f2 data.csv     <span class="cm"># CSV এর ২ নম্বর column</span>
+tr &#x27;a-z&#x27; &#x27;A-Z&#x27;             <span class="cm"># character replace</span>
+wc -l / -w / -c            <span class="cm"># line / word / character গোনা</span>
+head / tail                <span class="cm"># শুরু / শেষ</span>
+jq &#x27;.name&#x27; data.json       <span class="cm"># JSON parse (আলাদা install লাগে)</span></code></pre>
+<p><code>jq</code> অবশ্যই install করে নিও — API response দেখতে অসাধারণ:</p>
+<pre><code class="language-bash">curl -s https://api.example.com/users | jq &#x27;.data[] | {id, name}&#x27;</code></pre>
+</section>
+<section class="ch" id="s-9" data-num="§09  " data-title="Users, Groups আর Permissions">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 09</span><span class="dot">·</span><span>SYSTEM</span></div><h2>Users, Groups আর Permissions</h2></header>
+<p>Deployment এ "Permission denied" error এর ৯৫% এখান থেকে আসে। তাই এই chapter টা মন দিয়ে পড়ো।</p>
+<h3>User আর Group</h3>
+<p>Linux multi-user system। প্রতিটা file এর একজন <strong>owner</strong> আর একটা <strong>group</strong> থাকে।</p>
+<pre><code class="language-bash">whoami                    <span class="cm"># আমি কে</span>
+id                        <span class="cm"># আমার uid, gid, group list</span>
+groups                    <span class="cm"># কোন কোন group এ আছি</span>
+
+cat /etc/passwd           <span class="cm"># সব user</span>
+cat /etc/group            <span class="cm"># সব group</span></code></pre>
+<p><code>/etc/passwd</code> এর একটা লাইন:</p>
+<pre><code>mostofa:x:1000:1000:Mostofa:/home/mostofa:/bin/bash
+   │    │  │    │      │          │           │
+ name  pw uid  gid   info      home        shell</code></pre>
+<p><strong>System user</strong> (uid &lt; 1000) আসল মানুষ না — service চালানোর জন্য বানানো। যেমন <code>www-data</code> (nginx), <code>postgres</code> (PostgreSQL)। এদের সাধারণত login shell থাকে <code>/usr/sbin/nologin</code>, যাতে কেউ ওই account দিয়ে login করতে না পারে। Security এর জন্য এটা গুরুত্বপূর্ণ।</p>
+<pre><code class="language-bash">adduser deploy                    <span class="cm"># নতুন user (interactive)</span>
+usermod -aG sudo deploy           <span class="cm"># sudo group এ যোগ করা</span>
+usermod -aG docker deploy         <span class="cm"># docker চালানোর permission</span>
+su - deploy                       <span class="cm"># ওই user হয়ে যাওয়া</span>
+passwd deploy                     <span class="cm"># password বদলানো</span></code></pre>
+<p><code>-aG</code> এর <code>a</code> মানে <strong>append</strong>। শুধু <code>-G</code> দিলে আগের সব group থেকে বের করে দেবে। এটা একটা common mistake — মনে রেখো।</p>
+<h3>Permission পড়া</h3>
+<pre><code class="language-bash">$ ls -l
+-rw-r--r-- 1 mostofa dev  1024 Aug 24 10:30 app.js
+drwxr-xr-x 2 mostofa dev  4096 Aug 24 10:30 src/</code></pre>
+<p>প্রথম ১০টা character ভাঙলে:</p>
+<pre><code>-  rw-  r--  r--
+│   │    │    │
+│   │    │    └── others (বাকি সবাই)
+│   │    └─────── group
+│   └──────────── owner
+└──────────────── file type</code></pre>
+<p>প্রতি সেটে তিনটা bit:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Bit</th>
+<th>File এর ক্ষেত্রে</th>
+<th>Directory এর ক্ষেত্রে</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>r</code> (4)</td>
+<td>content পড়া</td>
+<td>ভেতরে কী আছে list করা</td>
+</tr>
+<tr>
+<td><code>w</code> (2)</td>
+<td>content বদলানো</td>
+<td>ভেতরে file বানানো/মোছা</td>
+</tr>
+<tr>
+<td><code>x</code> (1)</td>
+<td>program হিসেবে চালানো</td>
+<td>ভেতরে ঢোকা (<code>cd</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Directory এর <code>x</code> না থাকলে তুমি ভেতরে ঢুকতেই পারবে না</strong> — ফলে ভেতরের file এর permission যাই হোক, access পাবে না। Nested folder এ permission debug করার সময় এটা মাথায় রেখো।</p>
+<h3>Numeric Notation</h3>
+<p>r=4, w=2, x=1 — যোগ করো।</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Number</th>
+<th>Permission</th>
+<th>মানে</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7</td>
+<td>rwx</td>
+<td>সব</td>
+</tr>
+<tr>
+<td>6</td>
+<td>rw-</td>
+<td>পড়া + লেখা</td>
+</tr>
+<tr>
+<td>5</td>
+<td>r-x</td>
+<td>পড়া + চালানো</td>
+</tr>
+<tr>
+<td>4</td>
+<td>r--</td>
+<td>শুধু পড়া</td>
+</tr>
+<tr>
+<td>0</td>
+<td>---</td>
+<td>কিছু না</td>
+</tr>
+</tbody>
+</table></div>
+<pre><code class="language-bash">chmod 755 deploy.sh       <span class="cm"># owner: rwx, group: r-x, others: r-x</span>
+chmod 644 config.json     <span class="cm"># owner: rw-, group: r--, others: r--</span>
+chmod 600 ~/.ssh/id_rsa   <span class="cm"># শুধু owner পড়তে/লিখতে পারবে</span>
+chmod +x script.sh        <span class="cm"># সবার জন্য execute যোগ করা</span>
+chmod -R 755 /var/www     <span class="cm"># recursive</span></code></pre>
+<p><strong>মুখস্থ রাখার নিয়ম:</strong>
+- <code>755</code> → executable file আর directory
+- <code>644</code> → সাধারণ file (config, code, HTML)
+- <code>600</code> → sensitive file (private key, <code>.env</code>)
+- <code>700</code> → sensitive directory (<code>~/.ssh</code>)</p>
+<p>SSH key এর permission <code>600</code> না হলে SSH নিজেই connection reject করবে। এটা খুব common error।</p>
+<h3>Ownership</h3>
+<pre><code class="language-bash">chown mostofa file.txt              <span class="cm"># owner বদলানো</span>
+chown mostofa:dev file.txt          <span class="cm"># owner আর group একসাথে</span>
+chown -R www-data:www-data /var/www <span class="cm"># recursive</span>
+chgrp dev file.txt                  <span class="cm"># শুধু group</span></code></pre>
+<p>nginx <code>www-data</code> user হিসেবে চলে। তাই <code>/var/www</code> এর ownership <code>www-data</code> না হলে nginx file পড়তে পারবে না — 403 Forbidden দেবে।</p>
+<h3>sudo</h3>
+<pre><code class="language-bash">sudo command              <span class="cm"># root হিসেবে একটা command</span>
+sudo -i                   <span class="cm"># root shell এ ঢোকা</span>
+sudo -u postgres psql     <span class="cm"># নির্দিষ্ট user হিসেবে চালানো</span>
+sudo !!                   <span class="cm"># আগের command sudo দিয়ে আবার</span></code></pre>
+<p><strong>Practice:</strong> Production এ সরাসরি <code>root</code> হিসেবে কাজ করবে না। একটা normal user বানিয়ে তাকে sudo দাও। ভুল করলে অন্তত একটা layer থাকে।</p>
+<h3>umask</h3>
+<p>নতুন file বানালে default permission কী হবে সেটা <code>umask</code> ঠিক করে।</p>
+<pre><code class="language-bash">umask          <span class="cm"># সাধারণত 022</span></code></pre>
+<p>মানে নতুন file হবে <code>666 - 022 = 644</code>, folder হবে <code>777 - 022 = 755</code>। এজন্যই নতুন script এ execute permission থাকে না, <code>chmod +x</code> করতে হয়।</p>
+</section>
+<section class="ch" id="s-10" data-num="§10  " data-title="Process Management">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 10</span><span class="dot">·</span><span>SYSTEM</span></div><h2>Process Management</h2></header>
+<h3>দেখা</h3>
+<pre><code class="language-bash">ps aux                        <span class="cm"># সব process</span>
+ps aux | grep node            <span class="cm"># node process খোঁজা</span>
+ps -ef --forest               <span class="cm"># parent-child tree</span>
+
+top                           <span class="cm"># live view</span>
+htop                          <span class="cm"># top এর সুন্দর version (install করে নাও)</span></code></pre>
+<p><code>ps aux</code> এর column গুলো:</p>
+<pre><code>USER  PID  %CPU  %MEM   VSZ    RSS  STAT  START  TIME  COMMAND</code></pre>
+<ul>
+<li><strong>PID</strong> — process এর unique number</li>
+<li><strong>RSS</strong> — আসলে কত RAM ব্যবহার করছে (KB তে)। <strong>এটাই দেখার জিনিস</strong>, VSZ না</li>
+<li><strong>STAT</strong> — <code>R</code> running, <code>S</code> sleeping, <code>Z</code> zombie, <code>D</code> uninterruptible</li>
+</ul>
+<h3>মারা</h3>
+<pre><code class="language-bash">kill 1234              <span class="cm"># ভদ্রভাবে বন্ধ হতে বলা (SIGTERM)</span>
+kill -9 1234           <span class="cm"># জোর করে মারা (SIGKILL)</span>
+killall node           <span class="cm"># নাম দিয়ে সব মারা</span>
+pkill -f &quot;node dist&quot;   <span class="cm"># command line pattern দিয়ে</span></code></pre>
+<p><strong>সবসময় আগে সাধারণ <code>kill</code> চেষ্টা করো।</strong> SIGTERM পেলে application cleanup করার সুযোগ পায় — database connection বন্ধ করা, চলমান request শেষ করা। <code>kill -9</code> কোনো সুযোগ দেয় না, data corrupt হতে পারে।</p>
+<p>তোমার NestJS app এ graceful shutdown এভাবে handle হয়:</p>
+<pre><code class="language-javascript">process.on(&#x27;SIGTERM&#x27;, async () =&gt; {
+  await app.close();
+  process.exit(0);
+});</code></pre>
+<h3>Background এ চালানো</h3>
+<pre><code class="language-bash">node server.js &amp;          <span class="cm"># background এ</span>
+jobs                      <span class="cm"># background job list</span>
+fg %1                     <span class="cm"># সামনে আনা</span>
+bg %1                     <span class="cm"># background এ পাঠানো</span>
+Ctrl + Z                  <span class="cm"># pause করা</span></code></pre>
+<p><strong>সমস্যা:</strong> SSH session বন্ধ করলে <code>&amp;</code> দিয়ে চালানো process মরে যায়। কারণ shell বন্ধ হলে ওর সব child process SIGHUP পায়।</p>
+<p>সমাধান:</p>
+<pre><code class="language-bash">nohup node server.js &amp;                 <span class="cm"># HUP signal ignore করবে</span>
+setsid node server.js                  <span class="cm"># নতুন session এ</span>
+tmux new -s app                        <span class="cm"># terminal multiplexer — সবচেয়ে ভালো</span></code></pre>
+<p>তবে production এ এর কোনোটাই ঠিক না। সেখানে <strong>systemd service</strong> ব্যবহার করবে — crash করলে auto restart হবে, boot এ auto start হবে, log properly যাবে।</p>
+<h3>Resource দেখা</h3>
+<pre><code class="language-bash">free -h                <span class="cm"># RAM</span>
+df -h                  <span class="cm"># disk space</span>
+du -sh *               <span class="cm"># প্রতিটা folder কত জায়গা নিচ্ছে</span>
+uptime                 <span class="cm"># load average</span>
+lsof -i :3000          <span class="cm"># port 3000 কে দখল করে আছে</span>
+ss -tulpn              <span class="cm"># সব listening port</span></code></pre>
+<p><code>lsof -i :3000</code> — "port already in use" error এর একমাত্র সমাধান। PID পেয়ে kill করে দাও।</p>
+</section>
+<section class="ch" id="s-11" data-num="§11  " data-title="systemd আর Services">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 11</span><span class="dot">·</span><span>SYSTEM</span></div><h2>systemd আর Services</h2></header>
+<p>Modern Linux এ সব service manage করে <strong>systemd</strong>। macOS এর <code>launchd</code> এর সমতুল্য।</p>
+<h3>Service Control</h3>
+<pre><code class="language-bash">systemctl status nginx        <span class="cm"># অবস্থা দেখা</span>
+systemctl start nginx         <span class="cm"># চালু</span>
+systemctl stop nginx          <span class="cm"># বন্ধ</span>
+systemctl restart nginx       <span class="cm"># restart</span>
+systemctl reload nginx        <span class="cm"># config reload, downtime ছাড়া</span>
+systemctl enable nginx        <span class="cm"># boot এ auto start</span>
+systemctl disable nginx       <span class="cm"># auto start বন্ধ</span>
+systemctl list-units --type=service --state=running</code></pre>
+<p><code>restart</code> আর <code>reload</code> এর পার্থক্য গুরুত্বপূর্ণ — <code>reload</code> process টা মারে না, শুধু config আবার পড়ে। nginx এ config বদলালে <code>reload</code> করো, তাহলে চলমান connection ভাঙবে না।</p>
+<h3>Log দেখা</h3>
+<pre><code class="language-bash">journalctl -u nginx           <span class="cm"># ওই service এর log</span>
+journalctl -u nginx -f        <span class="cm"># live follow</span>
+journalctl -u nginx -n 100    <span class="cm"># শেষ ১০০ লাইন</span>
+journalctl -u nginx --since &quot;10 min ago&quot;
+journalctl -u nginx --since today
+journalctl -p err             <span class="cm"># শুধু error level</span></code></pre>
+<h3>নিজের Service বানানো</h3>
+<p>তোমার NestJS app কে systemd service বানাই। File বানাও <code>/etc/systemd/system/sikhiai-api.service</code>:</p>
+<pre><code class="language-ini">[Unit]
+Description=SikhiAI API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/var/www/sikhiai/api
+ExecStart=/usr/bin/node dist/main.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/var/www/sikhiai/api/.env
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+<p>তারপর:</p>
+<pre><code class="language-bash">systemctl daemon-reload           <span class="cm"># নতুন file পড়ানো</span>
+systemctl enable sikhiai-api
+systemctl start sikhiai-api
+systemctl status sikhiai-api
+journalctl -u sikhiai-api -f</code></pre>
+<p>গুরুত্বপূর্ণ field:
+- <code>Restart=always</code> — crash করলে নিজে থেকে উঠে যাবে
+- <code>After=</code> — এই service গুলোর পরে start হবে
+- <code>User=</code> — root হিসেবে চালাবে না, dedicated user দাও
+- <code>EnvironmentFile=</code> — <code>.env</code> থেকে variable নেবে</p>
+<p>এইটুকু জানলে PM2 বা supervisor ছাড়াই production এ Node app চালাতে পারবে।</p>
+</section>
+<section class="ch" id="s-12" data-num="§12  " data-title="Package Management">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 12</span><span class="dot">·</span><span>SYSTEM</span></div><h2>Package Management</h2></header>
+<h3>Ubuntu / Debian — <code>apt</code></h3>
+<pre><code class="language-bash">apt update                    <span class="cm"># package list refresh (install করে না)</span>
+apt upgrade                   <span class="cm"># installed package update</span>
+apt install nginx             <span class="cm"># install</span>
+apt install nginx -y          <span class="cm"># confirmation ছাড়া</span>
+apt remove nginx              <span class="cm"># uninstall (config থেকে যাবে)</span>
+apt purge nginx               <span class="cm"># config সহ সব মুছে ফেলা</span>
+apt search postgres           <span class="cm"># খোঁজা</span>
+apt list --installed          <span class="cm"># কী কী installed</span>
+apt autoremove                <span class="cm"># অপ্রয়োজনীয় dependency মোছা</span></code></pre>
+<p><strong><code>apt update</code> আর <code>apt upgrade</code> আলাদা।</strong> <code>update</code> শুধু "কোন package এর কোন version পাওয়া যাচ্ছে" সেই list টা refresh করে। আসল install/update করে <code>upgrade</code>। নতুন server এ প্রথম কাজ সবসময়:</p>
+<pre><code class="language-bash">sudo apt update &amp;&amp; sudo apt upgrade -y</code></pre>
+<h3>Third-party Repository</h3>
+<p>Ubuntu এর default repo তে সবসময় latest version থাকে না। যেমন Node.js:</p>
+<pre><code class="language-bash">curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs</code></pre>
+<h3>RHEL / Rocky / Amazon Linux — <code>dnf</code></h3>
+<pre><code class="language-bash">dnf update
+dnf install nginx
+dnf remove nginx
+dnf search postgres</code></pre>
+<h3>Alpine (Docker) — <code>apk</code></h3>
+<pre><code class="language-bash">apk update
+apk add --no-cache curl</code></pre>
+<p><code>--no-cache</code> দিলে cache রাখে না — Docker image ছোট থাকে।</p>
+</section>
+<section class="ch" id="s-13" data-num="§13  " data-title="Networking Commands">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 13</span><span class="dot">·</span><span>PRACTICAL</span></div><h2>Networking Commands</h2></header>
+<p>তুমি networking এর theory ইতিমধ্যে জানো, তাই এখানে শুধু Linux এর tool গুলো।</p>
+<h3>Interface আর IP</h3>
+<p>macOS এ <code>ifconfig</code> ব্যবহার করেছো। Linux এ সেটা deprecated, এখন <code>ip</code>:</p>
+<pre><code class="language-bash">ip addr show              <span class="cm"># সব interface আর IP (সংক্ষেপে: ip a)</span>
+ip link show              <span class="cm"># interface এর status (up/down)</span>
+ip route show             <span class="cm"># routing table</span>
+ip -s link                <span class="cm"># traffic statistics</span>
+hostname -I               <span class="cm"># শুধু IP গুলো</span></code></pre>
+<p>Mapping:
+| পুরনো | নতুন |
+|---|---|
+| <code>ifconfig</code> | <code>ip addr</code> |
+| <code>route -n</code> | <code>ip route</code> |
+| <code>netstat -tulpn</code> | <code>ss -tulpn</code> |
+| <code>arp -a</code> | <code>ip neigh</code> |</p>
+<h3>Port আর Connection</h3>
+<pre><code class="language-bash">ss -tulpn                 <span class="cm"># সব listening port (t=tcp, u=udp, l=listening, p=process, n=numeric)</span>
+ss -tn state established  <span class="cm"># active connection</span>
+lsof -i :3000             <span class="cm"># নির্দিষ্ট port কে ধরে আছে</span></code></pre>
+<p><code>ss -tulpn</code> — server এ ঢুকে "কী কী চলছে" জানার সবচেয়ে দ্রুত উপায়।</p>
+<h3>Connectivity Test</h3>
+<pre><code class="language-bash">ping google.com                    <span class="cm"># reachable কিনা</span>
+curl -I https://example.com        <span class="cm"># শুধু HTTP header</span>
+curl -v https://example.com        <span class="cm"># verbose, TLS handshake সহ</span>
+dig example.com                    <span class="cm"># DNS lookup</span>
+dig +short example.com             <span class="cm"># শুধু IP</span>
+nslookup example.com               <span class="cm"># DNS (পুরনো tool)</span>
+traceroute example.com             <span class="cm"># কোন কোন hop দিয়ে যাচ্ছে</span>
+nc -zv host.com 5432               <span class="cm"># নির্দিষ্ট port খোলা কিনা</span></code></pre>
+<p><code>nc -zv db-host 5432</code> — "database এ connect হচ্ছে না" সমস্যায় প্রথম check। network reachable কিনা সেটা application এর আগেই আলাদা করে বোঝা যায়।</p>
+<h3>Firewall — <code>ufw</code></h3>
+<pre><code class="language-bash">ufw status
+ufw allow 22/tcp          <span class="cm"># SSH — সবার আগে এটা করো</span>
+ufw allow 80
+ufw allow 443
+ufw enable
+ufw delete allow 8080</code></pre>
+<p><strong>SSH এর port allow করার আগে <code>ufw enable</code> করবে না</strong> — নিজেকেই server থেকে লক করে ফেলবে। এই ভুল সবাই একবার করে।</p>
+<h3>File Download / Transfer</h3>
+<pre><code class="language-bash">curl -O https://example.com/file.zip
+wget https://example.com/file.zip
+scp file.txt user@server:/path/       <span class="cm"># local → remote</span>
+scp user@server:/path/file.txt .      <span class="cm"># remote → local</span>
+rsync -avz ./dist/ user@server:/var/www/app/    <span class="cm"># sync, শুধু পার্থক্যটুকু পাঠায়</span></code></pre>
+<p>Deployment এ <code>rsync</code> <code>scp</code> এর চেয়ে অনেক ভালো — যা বদলায়নি তা পাঠায় না।</p>
+</section>
+<section class="ch" id="s-14" data-num="§14  " data-title="Disk আর Mount">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 14</span><span class="dot">·</span><span>PRACTICAL</span></div><h2>Disk আর Mount</h2></header>
+<pre><code class="language-bash">df -h                     <span class="cm"># কোন filesystem কত ভরা</span>
+df -i                     <span class="cm"># inode usage</span>
+du -sh /var/log           <span class="cm"># নির্দিষ্ট folder এর size</span>
+du -sh * | sort -rh | head -10    <span class="cm"># সবচেয়ে বড় ১০টা</span>
+lsblk                     <span class="cm"># block device (disk আর partition)</span>
+mount                     <span class="cm"># কী কী mount করা আছে</span></code></pre>
+<h3>"Disk Full" সমস্যা</h3>
+<p>Server এ disk ভরে যাওয়া সবচেয়ে common production issue। ধাপে ধাপে:</p>
+<pre><code class="language-bash">df -h                                    <span class="cm"># ১. কোন partition ভরা</span>
+du -sh /* 2&gt;/dev/null | sort -rh         <span class="cm"># ২. root এর কোন folder বড়</span>
+du -sh /var/* | sort -rh                 <span class="cm"># ৩. আরো গভীরে</span>
+journalctl --vacuum-size=200M            <span class="cm"># systemd log ছোট করা</span>
+docker system prune -a                   <span class="cm"># Docker এর জঞ্জাল (সাবধান)</span></code></pre>
+<p>সাধারণত অপরাধী তিনটার একটা — <code>/var/log</code> (log rotate হচ্ছে না), Docker image/volume, অথবা কোনো folder এ জমে থাকা upload/temp file।</p>
+<p><strong>যদি <code>df -h</code> জায়গা আছে দেখায় কিন্তু তবু "No space left" error দেয়</strong> — তখন <code>df -i</code> দেখো। inode শেষ হয়ে গেছে। লক্ষ লক্ষ ছোট file (session file, cache) থাকলে এটা হয়।</p>
+</section>
+<section class="ch" id="s-15" data-num="§15  " data-title="Environment Variables আর PATH">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 15</span><span class="dot">·</span><span>PRACTICAL</span></div><h2>Environment Variables আর PATH</h2></header>
+<pre><code class="language-bash">echo $HOME
+echo $PATH
+env                       <span class="cm"># সব environment variable</span>
+printenv NODE_ENV
+
+export NODE_ENV=production       <span class="cm"># শুধু বর্তমান session এ</span>
+unset NODE_ENV</code></pre>
+<h3>PATH</h3>
+<p><code>PATH</code> হলো colon দিয়ে আলাদা করা folder এর list। তুমি <code>node</code> লিখলে shell এই folder গুলোতে ক্রমানুসারে খোঁজে।</p>
+<pre><code class="language-bash">echo $PATH
+<span class="cm"># /usr/local/bin:/usr/bin:/bin:/home/mostofa/.local/bin</span></code></pre>
+<p>"command not found" মানে সাধারণত binary টা PATH এ নেই:</p>
+<pre><code class="language-bash">which node               <span class="cm"># কিছু না দিলে PATH এ নেই</span>
+export PATH=&quot;$PATH:/opt/myapp/bin&quot;</code></pre>
+<h3>স্থায়ী করা</h3>
+<pre><code class="language-bash">~/.bashrc          <span class="cm"># প্রতিটা interactive shell এ load হয় (bash)</span>
+~/.zshrc           <span class="cm"># zsh এর জন্য</span>
+~/.profile         <span class="cm"># login এ একবার</span>
+/etc/environment   <span class="cm"># সব user এর জন্য</span></code></pre>
+<pre><code class="language-bash">echo &#x27;export PATH=&quot;$PATH:/opt/bin&quot;&#x27; &gt;&gt; ~/.bashrc
+source ~/.bashrc          <span class="cm"># নতুন terminal না খুলেই apply</span></code></pre>
+<h3><code>.env</code> File</h3>
+<pre><code class="language-bash">set -a; source .env; set +a</code></pre>
+<p><code>set -a</code> মানে "এরপর যা define হবে সব export করো"। Script এ <code>.env</code> load করার সহজ উপায়।</p>
+<p><strong>নিয়ম:</strong> <code>.env</code> কখনো git এ commit করবে না। <code>.gitignore</code> এ রাখো, আর permission <code>600</code> দাও।</p>
+</section>
+<section class="ch" id="s-16" data-num="§16  " data-title="Cron আর Scheduled Jobs">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 16</span><span class="dot">·</span><span>PRACTICAL</span></div><h2>Cron আর Scheduled Jobs</h2></header>
+<pre><code class="language-bash">crontab -e                <span class="cm"># নিজের cron edit</span>
+crontab -l                <span class="cm"># list</span>
+crontab -r                <span class="cm"># সব মুছে ফেলা (সাবধান)</span></code></pre>
+<h3>Syntax</h3>
+<pre><code>* * * * *  command
+│ │ │ │ │
+│ │ │ │ └── দিন (0-7, রবি=0 বা 7)
+│ │ │ └──── মাস (1-12)
+│ │ └────── তারিখ (1-31)
+│ └──────── ঘন্টা (0-23)
+└────────── মিনিট (0-59)</code></pre>
+<p>উদাহরণ:</p>
+<pre><code class="language-bash">0 2 * * *      /opt/backup.sh              <span class="cm"># প্রতিদিন রাত ২টা</span>
+*/15 * * * *   /opt/health-check.sh        <span class="cm"># প্রতি ১৫ মিনিট</span>
+0 0 * * 0      /opt/weekly-report.sh       <span class="cm"># প্রতি রবিবার রাত ১২টা</span>
+0 */6 * * *    /opt/sync.sh                <span class="cm"># প্রতি ৬ ঘন্টা</span>
+@reboot        /opt/startup.sh             <span class="cm"># boot এর সময়</span></code></pre>
+<h3>Cron এর তিনটা ফাঁদ</h3>
+<p><strong>১. PATH খুব সীমিত।</strong> Cron এর PATH তোমার shell এর মতো না। <code>node</code> চলবে না।</p>
+<pre><code class="language-bash"><span class="cm"># ভুল</span>
+0 2 * * * node /opt/script.js
+
+<span class="cm"># ঠিক</span>
+0 2 * * * /usr/bin/node /opt/script.js</code></pre>
+<p><strong>২. Working directory <code>$HOME</code>।</strong> Relative path ভাঙবে। সবসময় absolute path দাও।</p>
+<p><strong>৩. Output কোথাও যায় না।</strong> Error হলে টেরই পাবে না।</p>
+<pre><code class="language-bash">0 2 * * * /opt/backup.sh &gt;&gt; /var/log/backup.log 2&gt;&amp;1</code></pre>
+<p><strong>Timezone check করে নিও</strong> — server সাধারণত UTC তে থাকে, তোমার হিসাব BST (UTC+6) এ:</p>
+<pre><code class="language-bash">timedatectl
+sudo timedatectl set-timezone Asia/Dhaka</code></pre>
+</section>
+<section class="ch" id="s-17" data-num="§17  " data-title="Logs আর Troubleshooting">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 17</span><span class="dot">·</span><span>PRACTICAL</span></div><h2>Logs আর Troubleshooting</h2></header>
+<h3>কোথায় দেখবে</h3>
+<pre><code class="language-bash">/var/log/syslog              <span class="cm"># system এর general (Ubuntu)</span>
+/var/log/auth.log            <span class="cm"># login attempt, sudo — security audit</span>
+/var/log/nginx/access.log
+/var/log/nginx/error.log
+journalctl -u &lt;service&gt;      <span class="cm"># systemd service এর log</span></code></pre>
+<h3>Log Rotation</h3>
+<p>log file অসীম বড় হয়ে disk ভরিয়ে ফেলে না, কারণ <code>logrotate</code> নিয়মিত ভাগ করে পুরনোগুলো compress করে।</p>
+<pre><code class="language-bash">cat /etc/logrotate.d/nginx
+logrotate -d /etc/logrotate.conf     <span class="cm"># dry run</span></code></pre>
+<p>নিজের app এর জন্য <code>/etc/logrotate.d/sikhiai</code>:</p>
+<pre><code>/var/www/sikhiai/logs/*.log {
+    daily
+    rotate 14
+    compress
+    missingok
+    notifempty
+    copytruncate
+}</code></pre>
+<h3>Debugging Checklist</h3>
+<p>Server এ কিছু ভাঙলে এই order এ যাও:</p>
+<pre><code class="language-bash"><span class="cm"># ১. Service চলছে?</span>
+systemctl status myapp
+
+<span class="cm"># ২. Log কী বলছে?</span>
+journalctl -u myapp -n 100 --no-pager
+
+<span class="cm"># ৩. Port listen করছে?</span>
+ss -tulpn | grep 3000
+
+<span class="cm"># ৪. Disk আছে?</span>
+df -h
+
+<span class="cm"># ৫. RAM আছে?</span>
+free -h
+
+<span class="cm"># ৬. CPU load?</span>
+uptime
+
+<span class="cm"># ৭. Local এ response দেয়?</span>
+curl -I localhost:3000
+
+<span class="cm"># ৮. Firewall আটকাচ্ছে?</span>
+ufw status
+
+<span class="cm"># ৯. Permission ঠিক আছে?</span>
+ls -la /var/www/app</code></pre>
+<p>এই ৯টা check এ production এর ৯০% সমস্যা ধরা পড়ে। মুখস্থ না করে একটা file এ লিখে রাখো।</p>
+<h3>OOM Killer</h3>
+<p>RAM শেষ হয়ে গেলে kernel নিজে থেকে সবচেয়ে বেশি memory খাওয়া process মেরে ফেলে। App "কোনো কারণ ছাড়াই" মারা গেলে এটা check করো:</p>
+<pre><code class="language-bash">dmesg | grep -i &quot;killed process&quot;
+journalctl -k | grep -i oom</code></pre>
+<p>ছোট VPS এ Node build করতে গেলে এটা প্রায়ই হয়। সমাধান — swap যোগ করা:</p>
+<pre><code class="language-bash">fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo &#x27;/swapfile none swap sw 0 0&#x27; &gt;&gt; /etc/fstab</code></pre>
+</section>
+<section class="ch" id="s-18" data-num="§18  " data-title="Shell Scripting Basics">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 18</span><span class="dot">·</span><span>PRACTICAL</span></div><h2>Shell Scripting Basics</h2></header>
+<p>Deploy script, backup script — এগুলো লিখতে যতটুকু লাগে।</p>
+<h3>Structure</h3>
+<pre><code class="language-bash"><span class="cm">#!/bin/bash</span>
+set -euo pipefail
+
+<span class="cm"># -e : কোনো command fail করলে script থামবে</span>
+<span class="cm"># -u : undefined variable ব্যবহার করলে error</span>
+<span class="cm"># -o pipefail : pipe এর মাঝের command fail করলেও ধরবে</span></code></pre>
+<p><strong><code>set -euo pipefail</code> প্রতিটা script এর প্রথম লাইনে রাখো।</strong> এটা ছাড়া script error হওয়ার পরেও চলতে থাকে — deploy script এ এটা ভয়ংকর।</p>
+<h3>Variable</h3>
+<pre><code class="language-bash">NAME=&quot;Mostofa&quot;
+echo &quot;Hello $NAME&quot;
+echo &quot;Hello ${NAME}Bhai&quot;        <span class="cm"># ambiguity এড়াতে brace</span>
+
+COUNT=$(ls | wc -l)             <span class="cm"># command এর output</span>
+TODAY=$(date +%Y-%m-%d)</code></pre>
+<p><strong>সবসময় variable কে quote করো</strong> — <code>"$VAR"</code>, <code>$VAR</code> না। নাহলে space থাকা path ভাঙবে।</p>
+<h3>Condition</h3>
+<pre><code class="language-bash">if [ -f &quot;config.json&quot; ]; then
+    echo &quot;file আছে&quot;
+elif [ -d &quot;config/&quot; ]; then
+    echo &quot;folder আছে&quot;
+else
+    echo &quot;কিছুই নাই&quot;
+fi</code></pre>
+<p>Test operator:</p>
+<pre><code class="language-bash">-f file        <span class="cm"># file আছে</span>
+-d dir         <span class="cm"># directory আছে</span>
+-z &quot;$VAR&quot;      <span class="cm"># খালি string</span>
+-n &quot;$VAR&quot;      <span class="cm"># খালি না</span>
+&quot;$A&quot; = &quot;$B&quot;    <span class="cm"># string সমান</span>
+$A -eq $B      <span class="cm"># সংখ্যা সমান</span>
+$A -gt $B      <span class="cm"># বড়</span></code></pre>
+<h3>Loop</h3>
+<pre><code class="language-bash">for file in *.log; do
+    gzip &quot;$file&quot;
+done
+
+for i in {1..5}; do
+    echo &quot;Attempt $i&quot;
+done
+
+while read -r line; do
+    echo &quot;$line&quot;
+done &lt; input.txt</code></pre>
+<h3>Function</h3>
+<pre><code class="language-bash">log() {
+    echo &quot;[$(date +&#x27;%H:%M:%S&#x27;)] $1&quot;
+}
+
+log &quot;Deploy শুরু&quot;</code></pre>
+<h3>একটা বাস্তব Deploy Script</h3>
+<pre><code class="language-bash"><span class="cm">#!/bin/bash</span>
+set -euo pipefail
+
+APP_DIR=&quot;/var/www/sikhiai/api&quot;
+SERVICE=&quot;sikhiai-api&quot;
+BRANCH=&quot;main&quot;
+
+log() { echo &quot;[$(date +&#x27;%H:%M:%S&#x27;)] $*&quot;; }
+
+log &quot;Deploy শুরু&quot;
+
+cd &quot;$APP_DIR&quot;
+
+log &quot;Code pull করছি&quot;
+git fetch origin
+git reset --hard &quot;origin/$BRANCH&quot;
+
+log &quot;Dependency install&quot;
+pnpm install --frozen-lockfile
+
+log &quot;Build&quot;
+pnpm build
+
+log &quot;Migration&quot;
+pnpm drizzle-kit migrate
+
+log &quot;Service restart&quot;
+sudo systemctl restart &quot;$SERVICE&quot;
+
+sleep 3
+if systemctl is-active --quiet &quot;$SERVICE&quot;; then
+    log &quot;Deploy সফল&quot;
+else
+    log &quot;Service start হয়নি — log দেখো&quot;
+    journalctl -u &quot;$SERVICE&quot; -n 30 --no-pager
+    exit 1
+fi</code></pre>
+</section>
+<section class="ch" id="s-19" data-num="§19  " data-title="SSH আর Remote Server">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 19</span><span class="dot">·</span><span>PRACTICAL</span></div><h2>SSH আর Remote Server</h2></header>
+<h3>Connect</h3>
+<pre><code class="language-bash">ssh user@192.168.1.10
+ssh -p 2222 user@host              <span class="cm"># অন্য port</span>
+ssh -i ~/.ssh/mykey user@host      <span class="cm"># নির্দিষ্ট key</span></code></pre>
+<h3>Key-based Login</h3>
+<p>Password দিয়ে login বন্ধ করে key ব্যবহার করাই standard practice।</p>
+<pre><code class="language-bash"><span class="cm"># ১. Local এ key বানাও</span>
+ssh-keygen -t ed25519 -C &quot;mostofa@laptop&quot;
+
+<span class="cm"># ২. Server এ পাঠাও</span>
+ssh-copy-id user@server
+
+<span class="cm"># manual ভাবে করলে:</span>
+cat ~/.ssh/id_ed25519.pub | ssh user@server &quot;mkdir -p ~/.ssh &amp;&amp; cat &gt;&gt; ~/.ssh/authorized_keys&quot;</code></pre>
+<p><strong>Permission ঠিক না থাকলে SSH কাজ করবে না:</strong></p>
+<pre><code class="language-bash">chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/id_ed25519</code></pre>
+<h3>SSH Config</h3>
+<p><code>~/.ssh/config</code> এ লিখে রাখলে প্রতিবার IP মনে রাখতে হয় না:</p>
+<pre><code>Host sikhiai
+    HostName 157.230.xx.xx
+    User deploy
+    Port 22
+    IdentityFile ~/.ssh/sikhiai_key
+    ServerAliveInterval 60</code></pre>
+<p>এখন শুধু <code>ssh sikhiai</code> লিখলেই হবে। <code>scp file.txt sikhiai:/tmp/</code> ও কাজ করবে।</p>
+<p><code>ServerAliveInterval 60</code> টা তোমার কাজে লাগবে — Starlink এ connection মাঝে মাঝে drop হলে session টিকে থাকবে।</p>
+<h3>Server Hardening</h3>
+<p><code>/etc/ssh/sshd_config</code> এ:</p>
+<pre><code>PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes</code></pre>
+<pre><code class="language-bash">sudo systemctl restart ssh</code></pre>
+<p><strong>সাবধান:</strong> <code>PasswordAuthentication no</code> করার আগে নিশ্চিত হও যে key দিয়ে login কাজ করছে। একটা terminal খোলা রেখে আরেকটা terminal থেকে test করো। নাহলে নিজেই লক আউট হয়ে যাবে।</p>
+<h3>SSH Tunnel</h3>
+<p>Server এর database local এ access করার জন্য দারুণ কাজে লাগে:</p>
+<pre><code class="language-bash">ssh -L 5433:localhost:5432 user@server</code></pre>
+<p>এখন তোমার Mac এর <code>localhost:5433</code> → server এর PostgreSQL। DBeaver বা TablePlus দিয়ে সরাসরি connect করতে পারবে, database কে internet এ expose না করেই।</p>
+</section>
+<section class="ch" id="s-20" data-num="§20  " data-title="একটা Real Deployment — শুরু থেকে শেষ">
+<header class="chh"><div class="eyebrow"><span class="sec">§ 20</span><span class="dot">·</span><span>PRACTICAL</span></div><h2>একটা Real Deployment — শুরু থেকে শেষ</h2></header>
+<p>সব জিনিস একসাথে জোড়া দিয়ে একটা Node.js API deploy করি। Ubuntu server ধরে নিলাম।</p>
+<h3>ধাপ ১ — প্রথম Login আর Update</h3>
+<pre><code class="language-bash">ssh root@your-server-ip
+apt update &amp;&amp; apt upgrade -y</code></pre>
+<h3>ধাপ ২ — Deploy User</h3>
+<pre><code class="language-bash">adduser deploy
+usermod -aG sudo deploy
+
+<span class="cm"># SSH key copy</span>
+rsync --archive --chown=deploy:deploy ~/.ssh /home/deploy
+
+<span class="cm"># এখন থেকে deploy user দিয়ে কাজ</span>
+su - deploy</code></pre>
+<h3>ধাপ ৩ — Firewall</h3>
+<pre><code class="language-bash">sudo ufw allow OpenSSH
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw enable
+sudo ufw status</code></pre>
+<h3>ধাপ ৪ — Node আর PostgreSQL</h3>
+<pre><code class="language-bash">curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+sudo npm install -g pnpm
+
+sudo apt install -y postgresql postgresql-contrib
+sudo -u postgres psql</code></pre>
+<pre><code class="language-sql">CREATE DATABASE sikhiai;
+CREATE USER sikhiai_user WITH ENCRYPTED PASSWORD &#x27;strong-password&#x27;;
+GRANT ALL PRIVILEGES ON DATABASE sikhiai TO sikhiai_user;
+\q</code></pre>
+<h3>ধাপ ৫ — Code</h3>
+<pre><code class="language-bash">sudo mkdir -p /var/www/sikhiai
+sudo chown -R deploy:deploy /var/www/sikhiai
+cd /var/www/sikhiai
+
+git clone git@github.com:username/sikhiai.git api
+cd api
+pnpm install
+pnpm build
+
+nano .env
+chmod 600 .env</code></pre>
+<h3>ধাপ ৬ — systemd Service</h3>
+<pre><code class="language-bash">sudo nano /etc/systemd/system/sikhiai-api.service</code></pre>
+<p>(Chapter ১১ এর file টা use করো)</p>
+<pre><code class="language-bash">sudo systemctl daemon-reload
+sudo systemctl enable --now sikhiai-api
+systemctl status sikhiai-api
+curl -I localhost:3000</code></pre>
+<h3>ধাপ ৭ — nginx Reverse Proxy</h3>
+<pre><code class="language-bash">sudo apt install -y nginx
+sudo nano /etc/nginx/sites-available/sikhiai</code></pre>
+<pre><code class="language-nginx">server {
+    listen 80;
+    server_name api.sikhiai.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection &#x27;upgrade&#x27;;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}</code></pre>
+<pre><code class="language-bash">sudo ln -s /etc/nginx/sites-available/sikhiai /etc/nginx/sites-enabled/
+sudo nginx -t                 <span class="cm"># config এ ভুল আছে কিনা — সবসময় আগে করো</span>
+sudo systemctl reload nginx</code></pre>
+<h3>ধাপ ৮ — HTTPS</h3>
+<pre><code class="language-bash">sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d api.sikhiai.com</code></pre>
+<p>Certbot নিজেই nginx config বদলে দেবে আর auto-renewal timer বসাবে।</p>
+<pre><code class="language-bash">systemctl list-timers | grep certbot</code></pre>
+<h3>ধাপ ৯ — Backup Cron</h3>
+<pre><code class="language-bash">nano /home/deploy/backup.sh</code></pre>
+<pre><code class="language-bash"><span class="cm">#!/bin/bash</span>
+set -euo pipefail
+BACKUP_DIR=&quot;/home/deploy/backups&quot;
+mkdir -p &quot;$BACKUP_DIR&quot;
+FILE=&quot;$BACKUP_DIR/db-$(date +%Y%m%d-%H%M).sql.gz&quot;
+pg_dump -U sikhiai_user sikhiai | gzip &gt; &quot;$FILE&quot;
+find &quot;$BACKUP_DIR&quot; -name &quot;*.sql.gz&quot; -mtime +7 -delete</code></pre>
+<pre><code class="language-bash">chmod +x /home/deploy/backup.sh
+crontab -e
+<span class="cm"># 0 3 * * * /home/deploy/backup.sh &gt;&gt; /var/log/backup.log 2&gt;&amp;1</span></code></pre>
+<p>এই পুরো flow টা একবার নিজে হাতে করলে এই বইয়ের প্রায় সব chapter এর জিনিস ব্যবহার হয়ে যাবে। পড়ে শেখার চেয়ে এভাবে শেখাটা অনেক বেশি টেকে।</p>
+</section>
+<section class="ch" id="s-21" data-num="" data-title="Cheat Sheet">
+<header class="chh"><div class="eyebrow"><span class="sec">APPX</span><span class="dot">·</span><span>APPENDIX</span></div><h2>Cheat Sheet</h2></header>
+<h3>Navigation</h3>
+<pre><code class="language-bash">pwd                    cd -                   ls -lah
+cd ~                   cd ..                  ls -lt</code></pre>
+<h3>File</h3>
+<pre><code class="language-bash">cp -r src/ dst/        mkdir -p a/b/c         find . -name &quot;*.log&quot;
+mv a b                 touch file             ln -s target link
+rm -rf dir/            </code></pre>
+<h3>পড়া</h3>
+<pre><code class="language-bash">tail -f app.log        less file              head -20
+grep -rn &quot;text&quot; .      grep -C 5 &quot;err&quot;        wc -l</code></pre>
+<h3>Permission</h3>
+<pre><code class="language-bash">chmod 755 file         chown user:group file  chmod 600 ~/.ssh/id_rsa
+chmod +x script.sh     chown -R www-data:www-data /var/www</code></pre>
+<h3>Process</h3>
+<pre><code class="language-bash">ps aux | grep node     kill -9 PID            htop
+lsof -i :3000          pkill -f &quot;pattern&quot;     free -h</code></pre>
+<h3>Service</h3>
+<pre><code class="language-bash">systemctl status X     systemctl restart X    systemctl enable X
+journalctl -u X -f     systemctl reload X     systemctl daemon-reload</code></pre>
+<h3>Network</h3>
+<pre><code class="language-bash">ip a                   ss -tulpn              curl -I url
+ping host              dig +short domain      nc -zv host port
+ufw allow 443          ufw status</code></pre>
+<h3>Disk</h3>
+<pre><code class="language-bash">df -h                  du -sh * | sort -rh    df -i</code></pre>
+<h3>Package</h3>
+<pre><code class="language-bash">apt update &amp;&amp; apt upgrade -y                  apt install X
+apt search X           apt autoremove</code></pre>
+<h3>Emergency</h3>
+<pre><code class="language-bash">df -h                              <span class="cm"># disk ভরা?</span>
+free -h                            <span class="cm"># RAM শেষ?</span>
+systemctl status myapp             <span class="cm"># service চলছে?</span>
+journalctl -u myapp -n 100         <span class="cm"># log কী বলছে?</span>
+ss -tulpn | grep PORT              <span class="cm"># listen করছে?</span>
+dmesg | grep -i &quot;killed process&quot;   <span class="cm"># OOM এ মারা গেছে?</span></code></pre>
+</section>
+<section class="ch" id="s-22" data-num="" data-title="এরপর কী">
+<header class="chh"><div class="eyebrow"><span class="sec">APPX</span><span class="dot">·</span><span>APPENDIX</span></div><h2>এরপর কী</h2></header>
+<p>এই বইয়ের জিনিসগুলো practice করার জন্য:</p>
+<p><strong>১. Docker দিয়ে খেলা</strong> (কোনো ঝুঁকি নেই)</p>
+<pre><code class="language-bash">docker run -it --name lab ubuntu:24.04 bash</code></pre>
+<p>ভাঙো, মুছো, আবার নতুন container। Command practice এর জন্য যথেষ্ট।</p>
+<p><strong>২. VPS নাও</strong> (আসল শেখা এখানে)
+DigitalOcean, Hetzner, বা Vultr এ $৪-৬ এর একটা droplet। systemd, firewall, nginx, SSL — এগুলো container এ ঠিকমতো শেখা যায় না।</p>
+<p><strong>৩. নিজের project deploy করো</strong>
+Chapter ২০ follow করে একটা Node app উঠিয়ে দাও। যা যা আটকাবে, সেটাই তোমার পরের syllabus।</p>
+<p>Linux course হিসেবে পড়লে দুই সপ্তাহে ভুলে যাবে। কিন্তু নিজের project একবার নিজের হাতে server এ তুলে, ভেঙে, আবার ঠিক করলে জিনিসটা থেকে যাবে।</p>
+</section>
+  </main>
+</div>
+
+<footer>
+  <span>Linux&#8209;Fundamentals(20)</span>
+  <span>শেষ কথা: পড়ে নয়, নিজের project একবার নিজের হাতে server এ তুলে শেখো।</span>
+  <button class="top" id="top">↑ Top</button>
+</footer>
+
+<script>
+(function(){
+  var secs = Array.prototype.slice.call(document.querySelectorAll('.ch'));
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav a'));
+  var running = document.getElementById('running');
+  var pbar = document.getElementById('pbar');
+  var nav = document.getElementById('nav');
+  var scrim = document.getElementById('scrim');
+  var menu = document.getElementById('menu');
+
+  /* copy buttons */
+  document.querySelectorAll('.ch pre').forEach(function(pre){
+    var b = document.createElement('button');
+    b.className = 'copy'; b.type = 'button'; b.textContent = 'Copy';
+    b.addEventListener('click', function(){
+      navigator.clipboard.writeText(pre.querySelector('code').innerText).then(function(){
+        b.textContent = 'Copied'; b.classList.add('ok');
+        setTimeout(function(){ b.textContent = 'Copy'; b.classList.remove('ok'); }, 1400);
+      });
+    });
+    pre.appendChild(b);
+  });
+
+  /* running header + active nav */
+  function sync(){
+    var y = window.scrollY + 140, cur = null;
+    for (var i=0;i<secs.length;i++){ if (secs[i].offsetTop <= y) cur = secs[i]; }
+    links.forEach(function(a){ a.classList.remove('on'); });
+    if (cur){
+      running.textContent = cur.dataset.num + cur.dataset.title;
+      var a = document.querySelector('.nav a[href="#'+cur.id+'"]');
+      if (a){
+        a.classList.add('on');
+        if (window.innerWidth > 960){
+          var r = a.getBoundingClientRect(), n = nav.getBoundingClientRect();
+          if (r.top < n.top + 40 || r.bottom > n.bottom - 40) a.scrollIntoView({block:'center'});
+        }
+      }
+    } else { running.textContent = 'শুরু'; }
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    pbar.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
+  }
+  var tick = false;
+  window.addEventListener('scroll', function(){
+    if (!tick){ tick = true; requestAnimationFrame(function(){ sync(); tick = false; }); }
+  }, {passive:true});
+  sync();
+
+  /* filter */
+  var filter = document.getElementById('filter');
+  filter.addEventListener('input', function(){
+    var q = filter.value.trim().toLowerCase();
+    document.querySelectorAll('.navgroup').forEach(function(g){
+      var any = false;
+      g.querySelectorAll('li').forEach(function(li){
+        var hit = !q || li.querySelector('a').dataset.t.indexOf(q) > -1;
+        li.classList.toggle('hide', !hit); if (hit) any = true;
+      });
+      g.style.display = any ? '' : 'none';
+    });
+  });
+
+  /* mobile drawer */
+  function setNav(open){
+    nav.classList.toggle('open', open);
+    scrim.classList.toggle('on', open);
+    menu.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  menu.addEventListener('click', function(){ setNav(!nav.classList.contains('open')); });
+  scrim.addEventListener('click', function(){ setNav(false); });
+  links.forEach(function(a){ a.addEventListener('click', function(){ if (window.innerWidth <= 960) setNav(false); }); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') setNav(false); });
+
+  document.getElementById('top').addEventListener('click', function(){
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+})();
+</script>
+</body>
+</html>
