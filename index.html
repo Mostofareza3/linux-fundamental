@@ -356,6 +356,7 @@ td code{font-size:.9em}
   #searchBtn .kbdhint{display:none}
 }
 @media (max-width:520px){
+  .topbar a.iconbtn span{display:none}
   main{padding:24px 15px 70px}
   .pager{flex-direction:column}
   .code pre{font-size:12.5px}
@@ -380,6 +381,10 @@ td code{font-size:.9em}
     <span>mental model &gt; memorization</span>
   </div>
   <div class="spacer"></div>
+  <a class="iconbtn" href="simulators.html" title="Interactive simulators">
+    <svg viewBox="0 0 24 24"><path d="M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5zM8.5 20h7M12 16.5V20"/><path d="M8 8.5l2 2-2 2M12.5 12.5h3.5"/></svg>
+    <span>সিমুলেটর</span>
+  </a>
   <button class="iconbtn" id="searchBtn" aria-label="Search" title="খুঁজুন (/)">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
     <span class="kbdhint">/</span>
@@ -434,6 +439,10 @@ td code{font-size:.9em}
     <li><b>Cloud VPS</b> — যেকোনো $5 server, SSH দিয়ে ঢুকে যাবে।</li>
     <li><b>macOS Terminal</b> — বেশিরভাগ concept এক (দুটোই Unix পরিবার), কিন্তু কিছু জায়গা আলাদা। সেসব জায়গায় বইতে আলাদা করে বলা আছে।</li>
   </ul>
+
+  <h3>সাথে আছে Interactive Simulator</h3>
+  <p>বইয়ের যে জায়গাগুলো পড়ে বোঝা সবচেয়ে কঠিন — permission-এর অঙ্ক, <code>fork</code>/<code>exec</code>, pipe-এ data কোন পথে যায়, <code>PATH</code> কীভাবে খোঁজে, path কীভাবে resolve হয় — সেগুলোর জন্য আলাদা একটা পাতা আছে, যেখানে জিনিসগুলো নিজের হাতে নেড়েচেড়ে দেখা যায়।</p>
+  <p><a href="simulators.html"><b>→ Simulator গুলো খুলো</b></a> — অথবা উপরের <b>সিমুলেটর</b> বোতামে চাপো। সংশ্লিষ্ট chapter পড়ার পরপরই ঐ simulator টা চালিয়ে দেখলে সবচেয়ে ভালো কাজে দেয়।</p>
 
   <div class="box note">
     <div class="box-t">Keyboard</div>
@@ -801,6 +810,11 @@ D:\           (আলাদা গাছ)         ├── var
     <p><code>ls -l /bin</code>-এর output-এ যদি <code>bin -&gt; usr/bin</code> দেখো, তার মানে তোমার system usr-merged। <code>df -h</code>-এর output-এ দেখো একাধিক device আলাদা আলাদা path-এ mount করা আছে — কিন্তু সবগুলোই একই গাছের অংশ।</p>
   </div>
 
+  <div class="box tip">
+    <div class="box-t">হাতে-কলমে দেখো</div>
+    <p><a href="simulators.html#s5"><b>→ Path Resolution simulator</b></a> — গাছে হেঁটে দেখো — absolute আর relative path কীভাবে resolve হয়, প্রতিটা ধাপ আলাদা করে।</p>
+  </div>
+
   <div class="recap">
     <div class="box-t">Recap</div>
     <ul>
@@ -970,6 +984,11 @@ relative:  ../../       →  /home</pre>
     <p><b>"cd করলাম, কিন্তু কিছু হলো না?"</b> — <code>cd</code> সফল হলে কোনো output দেয় না। Linux-এর সাধারণ নিয়ম: <b>কোনো খবর মানেই ভালো খবর</b>। <code>pwd</code> দিয়ে যাচাই করো।</p>
     <p><b>"স্পেস আছে এমন নাম কাজ করছে না"</b> — <code>cd my folder</code> shell-এর কাছে দুটো আলাদা argument। quote দাও: <code>cd "my folder"</code>।</p>
     <p><b>"cp দিয়ে folder কপি হচ্ছে না"</b> — <code>-r</code> লাগবে, recursive।</p>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">হাতে-কলমে দেখো</div>
+    <p><a href="simulators.html#s5"><b>→ Path Resolution simulator</b></a> — <code>.</code> আর <code>..</code> কীভাবে কাজ করে, আর relative path কোথা থেকে হিসাব শুরু করে — চালিয়ে দেখো।</p>
   </div>
 
   <div class="recap">
@@ -1253,6 +1272,11 @@ rw- = 4+2+0 = 6      r-- = 4+0+0 = 4
     <p>File-এর content এক বিন্দুও বদলায়নি। শুধু একটা permission bit বদলেছে, আর তাতেই Linux এটাকে "চালানোর জিনিস" হিসেবে মেনে নিয়েছে। এই কারণেই git থেকে clone করা script-এ প্রায়ই <code>chmod +x</code> দিতে হয়।</p>
   </div>
 
+  <div class="box tip">
+    <div class="box-t">হাতে-কলমে দেখো</div>
+    <p><a href="simulators.html#s1"><b>→ Permission Calculator</b></a> — Switch টিপে দেখো rwx আর সংখ্যা কীভাবে একসাথে বদলায়, আর কে আসলে কী করতে পারবে।</p>
+  </div>
+
   <div class="recap">
     <div class="box-t">Recap</div>
     <ul>
@@ -1420,6 +1444,11 @@ bash (PID 2410) আবার prompt দেখায়</pre>
     <p><b>"Port already in use — কিন্তু কিছু তো চলছে না"</b> — চলছে, তুমি দেখতে পাচ্ছো না। <code>ss -tlnp | grep 3000</code> দিয়ে PID বের করে <code>kill</code> করো।</p>
   </div>
 
+  <div class="box tip">
+    <div class="box-t">হাতে-কলমে দেখো</div>
+    <p><a href="simulators.html#s2"><b>→ fork() ও exec() simulator</b></a> — ধাপে ধাপে দেখো — bash নিজের কপি বানিয়ে সেই কপির ভেতরটা কীভাবে ls দিয়ে বদলে ফেলে।</p>
+  </div>
+
   <div class="recap">
     <div class="box-t">Recap</div>
     <ul>
@@ -1574,6 +1603,11 @@ command not found = কোনোটাতেই পাওয়া যায়�
     <p><b><code>$</code> কখন লাগে?</b> — সেট করার সময় লাগে না (<code>NAME=value</code>), পড়ার সময় লাগে (<code>echo $NAME</code>)।</p>
     <p><b>সমান চিহ্নের পাশে space দেওয়া যায় না।</b> <code>NAME = value</code> লিখলে bash ভাববে <code>NAME</code> একটা command।</p>
     <p><b>Value-তে space থাকলে quote দাও:</b> <code>NAME="Mostofa Reza"</code>।</p>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">হাতে-কলমে দেখো</div>
+    <p><a href="simulators.html#s4"><b>→ PATH lookup simulator</b></a> — একটা command লিখে দেখো shell কোন directory-গুলোতে, কোন ক্রমে খোঁজে — আর কেন ভুল version চলে যায়।</p>
   </div>
 
   <div class="recap">
@@ -1740,6 +1774,11 @@ Program জানেই না ওপাশে কী আছে।
     <p><b>"grep কিছু পাচ্ছে না, অথচ error টা screen-এ দেখতে পাচ্ছি"</b> — কারণ error stderr-এ যায়, আর pipe শুধু stdout নেয়। <code>command 2&gt;&amp;1 | grep ...</code> লিখতে হবে।</p>
     <p><b><code>ps aux | grep node</code>-এ grep নিজেই দেখা যায়</b> — কারণ <code>grep</code> নিজেও তো একটা process, আর তার command line-এ "node" শব্দটা আছে। <code>| grep -v grep</code> দিয়ে বাদ দাও।</p>
     <p><b><code>|</code> আর <code>&gt;</code> গুলিয়ে ফেলা</b> — <code>|</code> আরেকটা <b>program</b>-এর দিকে পাঠায়, <code>&gt;</code> একটা <b>file</b>-এ পাঠায়। <code>ls | file.txt</code> লিখলে shell <code>file.txt</code> নামে একটা command খুঁজবে।</p>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">হাতে-কলমে দেখো</div>
+    <p><a href="simulators.html#s3"><b>→ Pipe ও Redirection simulator</b></a> — fd 0, 1, 2 — কোন তীর কোথায় যাচ্ছে চোখে দেখো। <code>make | grep error</code>-এর ফাঁদটাও আছে।</p>
   </div>
 
   <div class="recap">
