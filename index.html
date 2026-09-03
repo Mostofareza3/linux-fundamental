@@ -258,6 +258,58 @@ code{
 .recap .box-t{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
 .recap ul{margin-bottom:0}
 
+/* ============================================================
+   COMMAND REFERENCE
+   ============================================================ */
+.cmdref{
+  margin:36px 0;border:1px solid var(--border-strong);border-radius:var(--r);
+  overflow:hidden;background:var(--surface);
+}
+.cmdref > .cr-head{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:12px 18px;background:var(--surface-2);border-bottom:1px solid var(--border);
+}
+.cmdref > .cr-head b{font-size:14.5px;letter-spacing:-.01em}
+.cmdref > .cr-head span{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--muted);
+}
+.cmd{border-bottom:1px solid var(--border);padding:18px 18px 16px}
+.cmd:last-child{border-bottom:0}
+.cmd > .cn{
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:7px;
+}
+.cmd > .cn code{
+  font-size:14.5px;font-weight:700;background:var(--accent-soft);color:var(--accent);
+  border-color:transparent;padding:2px 9px;
+}
+.cmd > .cn em{font-style:normal;font-size:14.5px;color:var(--text-soft)}
+.cmd > .cd{margin:0 0 11px;font-size:15px;line-height:1.72;color:var(--text-soft)}
+.cmd > .cd:last-child{margin-bottom:0}
+.flags{width:100%;border-collapse:collapse;margin:0;font-size:14px}
+.flags td{border:0;border-top:1px solid var(--border);padding:6px 10px 6px 0;vertical-align:top}
+.flags tr:first-child td{border-top:0}
+.flags td:first-child{
+  width:1%;white-space:nowrap;font-family:var(--mono);font-size:13px;
+  color:var(--accent);font-weight:600;padding-right:16px;
+}
+.flags td:last-child{color:var(--text-soft);line-height:1.6}
+.cmd > div.cd{
+  margin-top:12px;padding:9px 13px;border-left:2px solid var(--border-strong);
+  background:var(--surface-2);border-radius:0 7px 7px 0;font-size:14.5px;
+}
+.cmd .ex{
+  margin-top:11px;background:var(--code-bg);border-radius:8px;padding:10px 13px;
+  font-family:var(--mono);font-size:12.8px;line-height:1.85;color:var(--code-text);
+  overflow-x:auto;white-space:pre;
+}
+.cmd .ex .c{color:#7E9A8C}
+.cmd .ex .p{color:#6FBF97}
+@media (max-width:640px){
+  .flags td:first-child{white-space:normal}
+  .cmd .ex{font-size:12px}
+}
+
 table{width:100%;border-collapse:collapse;margin:22px 0;font-size:15px}
 th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top}
 th{background:var(--surface-2);font-weight:600;font-size:13.5px}
@@ -704,6 +756,119 @@ td code{font-size:.9em}
     <p><b>"exit status 0 মানে কিছু হয়নি?"</b> — উল্টো। 0 মানেই সব ঠিকঠাক হয়েছে।</p>
   </div>
 
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>Terminal-এ চলাফেরা</b><span>Chapter 02</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>pwd</code><em>— এখন কোথায় আছি</em></div>
+      <p class="cd"><b>print working directory।</b> Shell তোমাকে current directory-র full absolute path দেখায়। হারিয়ে গেলে সবার আগে এটা।</p>
+      <table class="flags">
+        <tr><td>-P</td><td>symlink গুলো resolve করে <b>আসল</b> physical path দেখায়। <code>/home</code> যদি অন্য জায়গার link হয়, <code>-P</code> সেই আসল জায়গাটা দেখাবে।</td></tr>
+        <tr><td>-L</td><td>default। যে path দিয়ে তুমি এসেছো সেটাই দেখায়, symlink ভাঙে না।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> pwd
+/home/mostofa/projects</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>ls</code><em>— ভেতরে কী আছে দেখা</em></div>
+      <p class="cd"><b>list।</b> Directory-র ভেতরের নামগুলো দেখায়। Flag ছাড়া <code>ls</code> শুধু নাম দেয় — আসল কাজ শুরু হয় flag দিলে।</p>
+      <table class="flags">
+        <tr><td>-l</td><td><b>long format।</b> এক line-এ একটা করে entry, সাথে permission, link count, owner, group, size, তারিখ। সবচেয়ে বেশি ব্যবহৃত flag।</td></tr>
+        <tr><td>-a</td><td><b>all।</b> লুকানো file (নাম <code>.</code> দিয়ে শুরু) সহ সব দেখায়। <code>.bashrc</code>, <code>.git</code> এভাবেই দেখবে।</td></tr>
+        <tr><td>-A</td><td><code>-a</code>-র মতো, কিন্তু <code>.</code> আর <code>..</code> entry দুটো বাদ দেয়। Script-এ বেশি কাজের।</td></tr>
+        <tr><td>-h</td><td><b>human-readable।</b> Size টা <code>4096</code>-এর বদলে <code>4.0K</code>, <code>2.3M</code> এভাবে দেখায়। <code>-l</code>-এর সাথেই কাজে লাগে।</td></tr>
+        <tr><td>-t</td><td>সময় ধরে sort — নতুন file আগে। "শেষ কী বদলেছে" খুঁজতে।</td></tr>
+        <tr><td>-r</td><td>sort উল্টে দেয়। <code>-tr</code> মানে পুরনো আগে, নতুন সবার শেষে — লম্বা তালিকায় নতুনটা screen-এ থেকে যায়।</td></tr>
+        <tr><td>-S</td><td>size ধরে sort — বড় file আগে। Disk কে খাচ্ছে খুঁজতে।</td></tr>
+        <tr><td>-R</td><td><b>recursive।</b> ভেতরের সব sub-directory-ও ঘুরে দেখায়।</td></tr>
+        <tr><td>-d</td><td>directory-র <b>ভেতরে</b> না ঢুকে directory-টাকেই একটা entry হিসেবে দেখায়। <code>ls -ld mydir</code> — directory-র নিজের permission দেখতে।</td></tr>
+        <tr><td>-i</td><td>প্রতিটা নামের পাশে তার <b>inode number</b> দেখায়।</td></tr>
+        <tr><td>-1</td><td>এক line-এ একটা নাম, আর কিছু না। Pipe-এ পাঠানোর জন্য পরিষ্কার।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ls -lah          <span class="c"># সবচেয়ে দরকারি combo</span>
+<span class="p">$</span> ls -ltr           <span class="c"># নতুন file সবার নিচে</span>
+<span class="p">$</span> ls -lS /var/log   <span class="c"># সবচেয়ে বড় log কোনটা</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>cd</code><em>— directory বদলানো</em></div>
+      <p class="cd"><b>change directory।</b> এটা shell-এর নিজের builtin — <code>/bin</code>-এ এর কোনো file নেই। কারণ directory বদলানো মানে <b>shell process-এর নিজের</b> অবস্থা বদলানো, আলাদা program দিয়ে সেটা করা যায় না।</p>
+      <table class="flags">
+        <tr><td>cd</td><td>argument ছাড়া দিলে সোজা home directory-তে (<code>~</code>) নিয়ে যায়।</td></tr>
+        <tr><td>cd -</td><td><b>আগের</b> directory-তে ফিরে যায়। দুই জায়গার মধ্যে বারবার যাওয়া-আসা করার সহজ উপায়।</td></tr>
+        <tr><td>cd ..</td><td>এক ধাপ উপরে, parent directory-তে।</td></tr>
+        <tr><td>cd ~user</td><td>ঐ user-এর home directory-তে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> cd /var/log
+<span class="p">$</span> cd -              <span class="c"># আগের জায়গায় ফেরত</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>man</code><em>— manual পড়া</em></div>
+      <p class="cd">যেকোনো command-এর নিজস্ব documentation। Internet-এ খোঁজার আগে এটাই প্রথম জায়গা। ভেতরে <b>↑↓</b> দিয়ে চলাচল, <b>/শব্দ</b> দিয়ে খোঁজা, <b>q</b> দিয়ে বেরোনো।</p>
+      <table class="flags">
+        <tr><td>-k <i>শব্দ</i></td><td><b>keyword search।</b> command-এর নাম মনে নেই, কাজটা জানো — তখন এটা। <code>man -k compress</code>।</td></tr>
+        <tr><td>-f <i>নাম</i></td><td>এক line-এর সংক্ষিপ্ত বর্ণনা। <code>whatis</code>-এর সমান।</td></tr>
+        <tr><td><i>N নাম</i></td><td>নির্দিষ্ট section। <code>man 5 passwd</code> = file format, <code>man 1 passwd</code> = command। একই নামে দুটো জিনিস থাকলে দরকার হয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> man ls
+<span class="p">$</span> man -k "user account"
+<span class="p">$</span> man 5 crontab     <span class="c"># file format, command না</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>--help</code><em>— দ্রুত সাহায্য</em></div>
+      <p class="cd">প্রায় সব command-ই <code>--help</code> নিলে flag-এর একটা ছোট তালিকা দেয়। <code>man</code>-এর চেয়ে দ্রুত, কিন্তু কম বিস্তারিত। লম্বা হলে <code>| less</code> দিয়ে পড়ো।</p>
+      <div class="ex"><span class="p">$</span> ls --help | less</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>type</code> / <code>which</code><em>— command টা আসলে কী</em></div>
+      <p class="cd"><code>type</code> বলে দেয় জিনিসটা builtin, alias, function নাকি disk-এ থাকা একটা file। <code>which</code> শুধু file-এর path খোঁজে, তাই builtin-এর ক্ষেত্রে সে কিছুই পায় না — <code>type</code> বেশি সৎ উত্তর দেয়।</p>
+      <table class="flags">
+        <tr><td>type -a</td><td>ঐ নামের <b>সবগুলো</b> মিল দেখায় — alias, builtin আর PATH-এ থাকা সব file।</td></tr>
+        <tr><td>type -t</td><td>শুধু ধরনটা এক শব্দে বলে: <code>builtin</code>, <code>file</code>, <code>alias</code>, <code>function</code>।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> type cd
+cd is a shell builtin
+<span class="p">$</span> type -a ls
+ls is aliased to `ls --color=auto'
+ls is /usr/bin/ls</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>history</code><em>— আগে কী চালিয়েছিলাম</em></div>
+      <p class="cd">Shell তোমার চালানো command গুলো মনে রাখে। <b>↑</b> চাপা ছাড়াও পুরো তালিকা দেখা যায়, আর <b>Ctrl+R</b> চেপে টাইপ করলে পুরনো command খুঁজে বের হয়।</p>
+      <table class="flags">
+        <tr><td>history <i>N</i></td><td>শেষ N-টা command।</td></tr>
+        <tr><td>-c</td><td>চলতি session-এর history মুছে দেয়।</td></tr>
+        <tr><td>!!</td><td>ঠিক আগের command আবার চালায়। ভুলে <code>sudo</code> দিতে ভুলে গেলে: <code>sudo !!</code>।</td></tr>
+        <tr><td>!<i>N</i></td><td>তালিকার N নম্বর command চালায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> history | grep docker
+<span class="p">$</span> sudo !!           <span class="c"># আগের command, এবার sudo দিয়ে</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>clear</code><em>— পর্দা পরিষ্কার</em></div>
+      <p class="cd">Terminal-এর screen খালি করে। <b>Ctrl+L</b> একই কাজ করে, দ্রুততর। মনে রেখো — এটা history মোছে না, শুধু চোখের সামনেটা পরিষ্কার করে; scroll করে উপরে গেলে পুরনো লেখা এখনো পাওয়া যায়।</p>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>echo</code><em>— লেখা ছাপানো</em></div>
+      <p class="cd">যা দেবে তাই screen-এ ফেরত দেয়। শুনতে অকেজো, কিন্তু variable-এর মান দেখা আর script-এ বার্তা দেওয়ার প্রধান হাতিয়ার।</p>
+      <table class="flags">
+        <tr><td>-n</td><td>শেষে newline দেয় না — cursor একই line-এ থাকে।</td></tr>
+        <tr><td>-e</td><td><code>\n</code> (newline), <code>\t</code> (tab) এই escape গুলো সত্যিকারের অর্থে বদলে দেয়, নাহলে অক্ষর হিসেবেই ছাপে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> echo $HOME
+/home/mostofa
+<span class="p">$</span> echo -e "line1\nline2"</div>
+    </div>
+  </div>
+
   <div class="recap">
     <div class="box-t">Recap</div>
     <ul>
@@ -813,6 +978,109 @@ D:\           (আলাদা গাছ)         ├── var
   <div class="box tip">
     <div class="box-t">হাতে-কলমে দেখো</div>
     <p><a href="simulators.html#s5"><b>→ Path Resolution simulator</b></a> — গাছে হেঁটে দেখো — absolute আর relative path কীভাবে resolve হয়, প্রতিটা ধাপ আলাদা করে।</p>
+  </div>
+
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>Filesystem ঘুরে দেখা</b><span>Chapter 03</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>tree</code><em>— গাছের মতো করে দেখা</em></div>
+      <p class="cd">Directory structure-টা শাখা-প্রশাখা সহ ছবির মতো দেখায়। বেশিরভাগ system-এ আগে থেকে থাকে না — <code>sudo apt install tree</code> দিয়ে বসাতে হয়।</p>
+      <table class="flags">
+        <tr><td>-L <i>N</i></td><td>সর্বোচ্চ N ধাপ গভীরে যাবে। <code>/</code>-এ <code>tree</code> চালানোর আগে এটা <b>অবশ্যই</b> দাও, নাহলে লাখো line বেরোবে।</td></tr>
+        <tr><td>-d</td><td>শুধু directory দেখায়, file বাদ। কাঠামো বুঝতে সবচেয়ে পরিষ্কার।</td></tr>
+        <tr><td>-a</td><td>লুকানো file/directory-ও দেখায়।</td></tr>
+        <tr><td>-h</td><td>প্রতিটার size human-readable আকারে দেখায়।</td></tr>
+        <tr><td>-f</td><td>শুধু নাম না, প্রতিটার পুরো path ছাপে।</td></tr>
+        <tr><td>-I <i>pattern</i></td><td>যা বাদ দিতে চাও। <code>tree -I 'node_modules|.git'</code>।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> tree -L 1 /
+<span class="p">$</span> tree -L 2 -d /var
+<span class="p">$</span> tree -I node_modules -L 2</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>df</code><em>— disk-এ কত জায়গা বাকি</em></div>
+      <p class="cd"><b>disk free।</b> কোন filesystem কোথায় mount হয়ে আছে আর কতটা ভরে গেছে — দুটোই এক নজরে দেখায়। Server-এ "disk full" সন্দেহ হলে প্রথম command।</p>
+      <table class="flags">
+        <tr><td>-h</td><td><b>human-readable</b> — <code>G</code>, <code>M</code> এককে। এটা ছাড়া <code>df</code> প্রায় অপাঠ্য।</td></tr>
+        <tr><td>-T</td><td>filesystem-এর <b>ধরন</b> দেখায় (ext4, xfs, tmpfs)।</td></tr>
+        <tr><td>-i</td><td>জায়গা না, <b>inode</b> কত বাকি দেখায়। জায়গা আছে অথচ file বানানো যাচ্ছে না? — inode শেষ, এটা দিয়েই ধরা পড়ে।</td></tr>
+        <tr><td>-a</td><td>0-size pseudo filesystem গুলোও দেখায়।</td></tr>
+        <tr><td><i>path</i></td><td>নির্দিষ্ট একটা path দিলে শুধু সেটা যে filesystem-এ আছে সেটাই দেখায়। <code>df -h .</code></td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> df -h
+<span class="p">$</span> df -hT            <span class="c"># ধরন সহ</span>
+<span class="p">$</span> df -i             <span class="c"># inode ফুরিয়েছে কিনা</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>du</code><em>— কোন directory কত জায়গা খাচ্ছে</em></div>
+      <p class="cd"><b>disk usage।</b> <code>df</code> বলে "কত ভরেছে", <code>du</code> বলে "<b>কে</b> ভরিয়েছে"। জায়গা খুঁজে বের করার আসল কাজটা এই command-এর।</p>
+      <table class="flags">
+        <tr><td>-h</td><td>human-readable আকারে।</td></tr>
+        <tr><td>-s</td><td><b>summary</b> — ভেতরের প্রতিটা file আলাদা না দেখিয়ে শুধু মোট যোগফল।</td></tr>
+        <tr><td>-d <i>N</i></td><td>N ধাপ পর্যন্ত গভীরে গিয়ে যোগফল দেখায়। <code>-d 1</code> = শুধু সরাসরি ভেতরের directory গুলো।</td></tr>
+        <tr><td>-a</td><td>directory না, প্রতিটা <b>file</b>-এর size-ও দেখায়।</td></tr>
+        <tr><td>-x</td><td>অন্য filesystem-এ ঢুকবে না। <code>/</code>-এ চালানোর সময় mount করা disk বাদ দিতে।</td></tr>
+        <tr><td>--exclude=</td><td>নির্দিষ্ট pattern বাদ দেয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> du -sh ~/Downloads
+<span class="p">$</span> du -h -d 1 /var | sort -hr | head   <span class="c"># সবচেয়ে বড় ১০টা</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>mount</code> / <code>lsblk</code><em>— কোন disk কোথায় জোড়া লেগেছে</em></div>
+      <p class="cd">Linux-এ প্রতিটা disk একটা directory-র সাথে জোড়া লাগে — এটাই <b>mount</b>। <code>lsblk</code> disk আর partition গুলোকে গাছের মতো দেখায়, <code>mount</code> কোনটা কোথায় লেগেছে তার পুরো তালিকা দেয়।</p>
+      <table class="flags">
+        <tr><td>lsblk -f</td><td>filesystem-এর ধরন, label আর UUID সহ দেখায়।</td></tr>
+        <tr><td>mount | column -t</td><td>বিশৃঙ্খল output-টাকে সাজিয়ে column-এ দেখায়।</td></tr>
+        <tr><td>mount <i>dev dir</i></td><td>একটা device কোনো directory-তে জোড়া লাগায়। <code>sudo</code> লাগে।</td></tr>
+        <tr><td>umount <i>dir</i></td><td>জোড়া খুলে দেয়। USB খোলার আগে জরুরি। ব্যস্ত থাকলে <code>-l</code> (lazy) দিয়ে পরে খুলতে বলা যায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> lsblk -f
+<span class="p">$</span> mount | grep ^/dev</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>which</code> / <code>whereis</code><em>— program টা কোথায় থাকে</em></div>
+      <p class="cd"><code>which</code> শুধু <code>PATH</code>-এ খুঁজে প্রথম মিলটা দেয় — অর্থাৎ তুমি নাম লিখলে <b>ঠিক এই file-টাই</b> চলবে। <code>whereis</code> আরও চওড়া — binary, source আর man page তিনটাই খোঁজে।</p>
+      <table class="flags">
+        <tr><td>which -a</td><td>PATH-এ থাকা <b>সব</b> মিল দেখায়। একই program-এর দুটো version আছে কিনা ধরতে।</td></tr>
+        <tr><td>whereis -b</td><td>শুধু binary।</td></tr>
+        <tr><td>whereis -m</td><td>শুধু manual page।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> which python3
+/usr/bin/python3
+<span class="p">$</span> which -a node     <span class="c"># একাধিক version আছে কিনা</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>file</code><em>— এটা আসলে কী ধরনের file</em></div>
+      <p class="cd">Linux extension-এ বিশ্বাস করে না। <code>file</code> ভেতরের প্রথম কয়েকটা byte পড়ে (<b>magic number</b>) আসল ধরনটা বলে দেয়। নাম <code>photo.txt</code> হলেও ভেতরে PNG থাকলে ধরা পড়বে।</p>
+      <table class="flags">
+        <tr><td>-b</td><td><b>brief</b> — file-এর নামটা বাদ দিয়ে শুধু ধরনটা বলে।</td></tr>
+        <tr><td>-i</td><td>MIME type আকারে বলে (<code>text/plain</code>, <code>image/png</code>)। Script-এ পড়া সহজ।</td></tr>
+        <tr><td>-L</td><td>symlink হলে সেটা follow করে আসল file-টা দেখে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> file /bin/ls
+/bin/ls: ELF 64-bit LSB pie executable
+<span class="p">$</span> file -i notes.txt
+notes.txt: text/plain; charset=utf-8</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>stat</code><em>— file-এর সব metadata</em></div>
+      <p class="cd"><code>ls -l</code>-এর চেয়ে অনেক বেশি বিস্তারিত: inode number, block সংখ্যা, আর তিনটা আলাদা timestamp — <b>atime</b> (শেষ পড়া), <b>mtime</b> (content শেষ বদলানো), <b>ctime</b> (metadata শেষ বদলানো)।</p>
+      <table class="flags">
+        <tr><td>-c <i>FMT</i></td><td>নিজের পছন্দমতো format। <code>stat -c '%s %n' f</code> = size আর নাম।</td></tr>
+        <tr><td>-f</td><td>file না, সে যে <b>filesystem</b>-এ আছে তার তথ্য।</td></tr>
+        <tr><td>%a %U %s</td><td>যথাক্রমে numeric permission, owner-এর নাম, byte-এ size।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> stat notes.txt
+<span class="p">$</span> stat -c '%a %U %n' *.sh   <span class="c"># permission + owner + নাম</span></div>
+    </div>
   </div>
 
   <div class="recap">
@@ -991,6 +1259,162 @@ relative:  ../../       →  /home</pre>
     <p><a href="simulators.html#s5"><b>→ Path Resolution simulator</b></a> — <code>.</code> আর <code>..</code> কীভাবে কাজ করে, আর relative path কোথা থেকে হিসাব শুরু করে — চালিয়ে দেখো।</p>
   </div>
 
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>File আর directory নিয়ে কাজ</b><span>Chapter 04</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>mkdir</code><em>— directory বানানো</em></div>
+      <p class="cd"><b>make directory।</b> একবারে একাধিক নাম দিলে একাধিক directory বানায়।</p>
+      <table class="flags">
+        <tr><td>-p</td><td><b>parents।</b> মাঝের যেসব directory নেই সেগুলোও বানিয়ে নেয়, আর <b>আগে থেকে থাকলে error দেয় না</b>। Script-এ এই দ্বিতীয় গুণটার জন্যই সবচেয়ে বেশি ব্যবহার হয়।</td></tr>
+        <tr><td>-m <i>mode</i></td><td>বানানোর সময়েই permission বসিয়ে দেয়। <code>mkdir -m 700 ~/.secret</code> — এক ধাপে, তাই মাঝখানে ফাঁক থাকে না।</td></tr>
+        <tr><td>-v</td><td>কী কী বানালো তা বলে দেয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> mkdir -p project/src/components
+<span class="p">$</span> mkdir -m 700 ~/.secrets</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>touch</code><em>— খালি file বানানো / সময় বদলানো</em></div>
+      <p class="cd">File না থাকলে খালি একটা বানায়, থাকলে তার <b>timestamp</b> এখনকার সময়ে বদলে দেয় — content-এ হাত দেয় না। মূল কাজ আসলে দ্বিতীয়টাই, file বানানো পার্শ্বপ্রতিক্রিয়া।</p>
+      <table class="flags">
+        <tr><td>-c</td><td>file না থাকলে নতুন বানাবে <b>না</b>। শুধু আছে এমনটার সময় বদলাতে।</td></tr>
+        <tr><td>-a</td><td>শুধু access time বদলায়।</td></tr>
+        <tr><td>-m</td><td>শুধু modification time বদলায়।</td></tr>
+        <tr><td>-t <i>সময়</i></td><td>এখনকার সময় না, নির্দিষ্ট একটা সময় বসায়। Format: <code>YYYYMMDDhhmm</code>।</td></tr>
+        <tr><td>-r <i>file</i></td><td>অন্য একটা file-এর timestamp টা নকল করে বসায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> touch a.txt b.txt c.txt
+<span class="p">$</span> touch -t 202401011200 old.txt</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>cp</code><em>— কপি করা</em></div>
+      <p class="cd"><b>copy।</b> শেষ argument গন্তব্য, তার আগেরগুলো উৎস। <b>সাবধান:</b> default-এ গন্তব্যে file থাকলে চুপচাপ মুছে দিয়ে লিখে ফেলে — কিছু জিজ্ঞেস করে না।</p>
+      <table class="flags">
+        <tr><td>-r</td><td><b>recursive।</b> Directory কপি করতে <b>অবশ্যই</b> লাগে। এটা ছাড়া <code>cp</code> directory ছুঁবেও না।</td></tr>
+        <tr><td>-i</td><td><b>interactive।</b> কিছু overwrite করার আগে জিজ্ঞেস করে। গুরুত্বপূর্ণ কাজে অভ্যাস করে নেওয়া ভালো।</td></tr>
+        <tr><td>-n</td><td>যা আছে তা কখনো overwrite করবে না, চুপচাপ বাদ দেবে।</td></tr>
+        <tr><td>-p</td><td>permission, owner আর timestamp অক্ষত রাখে।</td></tr>
+        <tr><td>-a</td><td><b>archive</b> = <code>-r</code> + <code>-p</code> + symlink গুলো link হিসেবেই রাখা। Backup-এর জন্য সবচেয়ে নিরাপদ।</td></tr>
+        <tr><td>-u</td><td><b>update</b> — উৎসটা নতুন হলে তবেই কপি করে। বারবার sync করতে দ্রুত।</td></tr>
+        <tr><td>-v</td><td>কোনটা কোথায় গেল বলে দেয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> cp -i notes.txt backup.txt
+<span class="p">$</span> cp -a project/ project-backup/
+<span class="p">$</span> cp -ru src/ /mnt/backup/src/</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>mv</code><em>— সরানো বা নাম বদলানো</em></div>
+      <p class="cd"><b>move।</b> Linux-এ "rename" বলে আলাদা command নেই — নাম বদলানো আর সরানো একই কাজ, কারণ দুটোই মানে directory-র তালিকায় entry-টা বদলে দেওয়া। একই filesystem-এ হলে data একটুও নড়ে না, তাই বিশাল file-ও তাৎক্ষণিক সরে।</p>
+      <table class="flags">
+        <tr><td>-i</td><td>overwrite করার আগে জিজ্ঞেস করে।</td></tr>
+        <tr><td>-n</td><td>কখনো overwrite করবে না।</td></tr>
+        <tr><td>-u</td><td>উৎস নতুন হলে তবেই সরায়।</td></tr>
+        <tr><td>-v</td><td>কী করলো বলে দেয়।</td></tr>
+        <tr><td>-b</td><td>overwrite করার আগে পুরনোটার একটা backup (<code>file~</code>) রেখে দেয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> mv old.txt new.txt        <span class="c"># নাম বদল</span>
+<span class="p">$</span> mv *.log logs/            <span class="c"># সব সরিয়ে নেওয়া</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>rm</code><em>— মুছে ফেলা</em></div>
+      <p class="cd"><b>remove।</b> Linux-এ কোনো Recycle Bin নেই। <code>rm</code> মানে <b>সত্যিই চলে গেল</b>। Command টা চালানোর আগে path-টা দুবার পড়ো — বিশেষ করে <code>sudo</code> আর <code>*</code> একসাথে থাকলে।</p>
+      <table class="flags">
+        <tr><td>-r</td><td><b>recursive।</b> Directory আর তার ভেতরের সব মোছে।</td></tr>
+        <tr><td>-f</td><td><b>force।</b> কিছু জিজ্ঞেস করে না, না থাকা file নিয়েও অভিযোগ করে না। <code>-rf</code> একসাথে = কোনো প্রশ্ন ছাড়াই সব মুছে দাও।</td></tr>
+        <tr><td>-i</td><td>প্রতিটা file-এর আগে জিজ্ঞেস করে।</td></tr>
+        <tr><td>-I</td><td>ভদ্র মাঝামাঝি — ৩টার বেশি file হলে <b>একবার</b> জিজ্ঞেস করে। <code>-i</code>-র চেয়ে ব্যবহারযোগ্য।</td></tr>
+        <tr><td>-d</td><td>শুধু খালি directory মোছে।</td></tr>
+        <tr><td>-v</td><td>কোনটা মুছলো বলে দেয়।</td></tr>
+        <tr><td>--</td><td>এর পরের সবকিছুকে flag না, নাম ধরে নেয়। <code>-</code> দিয়ে শুরু হওয়া অদ্ভুত নামের file মুছতে: <code>rm -- -weird</code>।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> rm -I *.tmp        <span class="c"># একবার confirm চাইবে</span>
+<span class="p">$</span> rm -r old-project/
+<span class="c"># কখনো না: rm -rf /  বা  rm -rf $VAR/  (VAR খালি হলে সর্বনাশ)</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>cat</code><em>— file-এর content দেখা</em></div>
+      <p class="cd"><b>concatenate।</b> নাম থেকেই বোঝা যায় আসল কাজ ছিল একাধিক file জোড়া লাগানো, কিন্তু ছোট file দেখার জন্যই সবচেয়ে বেশি চলে। বড় file-এ <code>cat</code> দিও না — পুরোটা এক ঝটকায় screen-এ ঢেলে দেবে; সেখানে <code>less</code>।</p>
+      <table class="flags">
+        <tr><td>-n</td><td>প্রতিটা line-এ number বসায়।</td></tr>
+        <tr><td>-b</td><td>number বসায়, কিন্তু খালি line গুলো বাদ দিয়ে।</td></tr>
+        <tr><td>-A</td><td>অদৃশ্য অক্ষর দেখায় — tab <code>^I</code>, line-এর শেষ <code>$</code>। Windows-এর <code>\r</code> ঢুকে গেছে কিনা ধরতে দারুণ।</td></tr>
+        <tr><td>-s</td><td>পরপর অনেকগুলো খালি line-কে একটায় নামায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> cat -n script.sh
+<span class="p">$</span> cat file1 file2 &gt; joined.txt
+<span class="p">$</span> cat -A weird.txt   <span class="c"># লুকানো অক্ষর ধরতে</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>less</code><em>— বড় file আরাম করে পড়া</em></div>
+      <p class="cd">File টা পুরো memory-তে না তুলে যতটুকু দেখাচ্ছে ততটুকুই পড়ে — তাই GB আকারের log-ও সাথে সাথে খোলে। ভেতরে: <b>↑↓</b> চলাচল, <b>Space</b> পরের পাতা, <b>/শব্দ</b> খোঁজা, <b>n</b> পরের মিল, <b>g</b> শুরুতে, <b>G</b> শেষে, <b>q</b> বেরোনো।</p>
+      <table class="flags">
+        <tr><td>-N</td><td>line number দেখায়।</td></tr>
+        <tr><td>-S</td><td>লম্বা line ভেঙে পরের line-এ নামায় না, ডানে scroll করতে হয়। Table-এর মতো output-এ দরকারি।</td></tr>
+        <tr><td>+F</td><td><code>tail -f</code>-এর মতো নতুন line আসতে থাকলে দেখাতে থাকে — কিন্তু <b>Ctrl+C</b> চেপে যেকোনো সময় থেমে উপরে scroll করা যায়। Log দেখার সেরা উপায়।</td></tr>
+        <tr><td>-i</td><td>খোঁজার সময় ছোট-বড় হাতের অক্ষর আলাদা করে দেখে না।</td></tr>
+        <tr><td>+<i>N</i></td><td>সরাসরি N নম্বর line-এ গিয়ে খোলে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> less -N /etc/services
+<span class="p">$</span> less +F /var/log/syslog</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>head</code> / <code>tail</code><em>— শুরুর বা শেষের অংশ</em></div>
+      <p class="cd"><code>head</code> প্রথম ১০ line, <code>tail</code> শেষ ১০ line। Log ফাইলে সবচেয়ে কাজের হলো <code>tail</code> — কারণ নতুন ঘটনা সবসময় শেষে যোগ হয়।</p>
+      <table class="flags">
+        <tr><td>-n <i>N</i></td><td>১০-এর বদলে N লাইন। <code>tail -n 50</code>।</td></tr>
+        <tr><td>-n +<i>N</i></td><td><code>head</code>-এ: শুরুর N-১ লাইন বাদ। <code>tail -n +2</code> = CSV-র header line টা ফেলে দেওয়া।</td></tr>
+        <tr><td>-c <i>N</i></td><td>line না, N byte।</td></tr>
+        <tr><td>-f</td><td><b>follow</b> (শুধু tail) — file-এ নতুন line যোগ হলে সাথে সাথে দেখায়। Live log দেখার প্রধান হাতিয়ার। <b>Ctrl+C</b> দিয়ে বেরোতে হয়।</td></tr>
+        <tr><td>-F</td><td><code>-f</code>-এর মতো, তবে file টা rotate হয়ে নতুন করে তৈরি হলেও আঁকড়ে ধরে রাখে। Server-এ <code>-f</code>-এর চেয়ে ভালো।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> head -n 3 data.csv
+<span class="p">$</span> tail -f /var/log/nginx/error.log
+<span class="p">$</span> tail -n +2 data.csv | wc -l   <span class="c"># header বাদে কত row</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>find</code><em>— file খুঁজে বের করা</em></div>
+      <p class="cd">Filesystem-এর সবচেয়ে শক্তিশালী command। গঠন: <code>find</code> <i>কোথায়</i> <i>শর্ত</i> <i>কী করবে</i>। শর্ত পরপর দিলে সেগুলো <b>AND</b> হিসেবে কাজ করে।</p>
+      <table class="flags">
+        <tr><td>-name <i>"pat"</i></td><td>নাম মেলায়। Pattern-টা <b>quote-এ রাখো</b>, নাহলে shell আগেই <code>*</code> খেয়ে ফেলবে।</td></tr>
+        <tr><td>-iname</td><td>একই, তবে ছোট-বড় হাতের অক্ষর আলাদা দেখে না।</td></tr>
+        <tr><td>-type</td><td>ধরন: <code>f</code> file, <code>d</code> directory, <code>l</code> symlink।</td></tr>
+        <tr><td>-size</td><td>আকার। <code>+100M</code> = ১০০MB-র বেশি, <code>-1k</code> = ১KB-র কম।</td></tr>
+        <tr><td>-mtime</td><td>কত দিন আগে বদলেছে। <code>-7</code> = শেষ ৭ দিনে, <code>+30</code> = ৩০ দিনের বেশি পুরনো। মিনিটের জন্য <code>-mmin</code>।</td></tr>
+        <tr><td>-maxdepth <i>N</i></td><td>N ধাপের বেশি গভীরে যাবে না। বিশাল গাছে অনেক সময় বাঁচায়।</td></tr>
+        <tr><td>-delete</td><td>যা পেল মুছে দেয়। <b>আগে <code>-delete</code> ছাড়া চালিয়ে দেখে নাও</b> কী কী ধরা পড়ছে।</td></tr>
+        <tr><td>-exec … \;</td><td>প্রতিটা ফলাফলের উপর একটা command চালায়; <code>{}</code> জায়গায় নামটা বসে। <code>\;</code>-এর বদলে <code>+</code> দিলে একসাথে অনেকগুলো নিয়ে একবারে চালায় — অনেক দ্রুত।</td></tr>
+        <tr><td>-empty</td><td>খালি file বা directory।</td></tr>
+        <tr><td>2&gt;/dev/null</td><td>flag না, তবে জরুরি অভ্যাস — permission denied-এর ঝাঁক লুকিয়ে দেয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> find . -name "*.log" -mtime +30
+<span class="p">$</span> find /var -type f -size +100M 2&gt;/dev/null
+<span class="p">$</span> find . -name "*.tmp" -delete
+<span class="p">$</span> find . -name "*.sh" -exec chmod +x {} +</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>ln</code><em>— link বানানো</em></div>
+      <p class="cd">দুই ধরনের link। <b>Hard link</b> — একই inode-এর দ্বিতীয় একটা নাম; আসল file মুছলেও data থাকে। <b>Symbolic link</b> (<code>-s</code>) — শুধু একটা path লিখে রাখা ছোট file; লক্ষ্য মুছে গেলে link ভেঙে যায়। বাস্তবে ৯৫% ক্ষেত্রে <code>-s</code>-ই ব্যবহার হয়।</p>
+      <table class="flags">
+        <tr><td>-s</td><td><b>symbolic।</b> Directory-তেও কাজ করে, আলাদা filesystem জুড়েও কাজ করে — hard link কোনোটাই পারে না।</td></tr>
+        <tr><td>-f</td><td>গন্তব্যে আগে থেকে কিছু থাকলে মুছে দিয়ে বসায়।</td></tr>
+        <tr><td>-n</td><td>গন্তব্য নিজেই একটা symlink হলে তার ভেতরে না ঢুকে সেটাকেই বদলায়। Symlink update করতে <code>-sfn</code> ব্যবহার করো।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ln -s /opt/app/v2 /opt/app/current
+<span class="p">$</span> ln -sfn /opt/app/v3 /opt/app/current  <span class="c"># নতুন version-এ ঘোরানো</span>
+<span class="p">$</span> ls -l /opt/app/current</div>
+    </div>
+  </div>
+
   <div class="recap">
     <div class="box-t">Recap</div>
     <ul>
@@ -1112,6 +1536,111 @@ relative:  ../../       →  /home</pre>
     <div class="box-t">যেখানে beginner আটকায়</div>
     <p><b>"তাহলে সব কিছু কি হার্ডডিস্কে file হিসেবে আছে?"</b> — না। <code>/proc</code> আর <code>/dev</code>-এর জিনিসগুলো memory-তে kernel বানিয়ে দেখায়। কথাটা storage নিয়ে না, interface নিয়ে।</p>
     <p><b>"symlink কি file-টার কপি?"</b> — না, শুধু একটা path লেখা আছে। আসল file মুছে গেলে symlink ভেঙে যায়।</p>
+  </div>
+
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>File যখন সবকিছু</b><span>Chapter 05</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>file</code><em>— এটা কোন জাতের file</em></div>
+      <p class="cd">"Everything is a file" ঠিক আছে, কিন্তু সব file এক রকম না। <code>file</code> বলে দেয় এটা সাধারণ file, directory, symlink, নাকি <b>character device</b> / <b>block device</b> / <b>socket</b> / <b>FIFO</b>।</p>
+      <table class="flags">
+        <tr><td>-b</td><td>নাম বাদ দিয়ে শুধু ধরনটা।</td></tr>
+        <tr><td>-i</td><td>MIME type আকারে।</td></tr>
+        <tr><td>-s</td><td>Device file-এর <b>ভেতরটা</b> পড়ে দেখে। <code>file -s /dev/sda1</code> দিলে partition-এ কোন filesystem আছে বলে দেয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> file /dev/null
+/dev/null: character special
+<span class="p">$</span> file /dev/sda
+/dev/sda: block special</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>ls -l</code>-এর প্রথম অক্ষর<em>— ধরন চেনার সহজ উপায়</em></div>
+      <p class="cd"><code>ls -l</code>-এর একদম বাঁয়ে যে অক্ষরটা থাকে, সেটাই file-এর ধরন। এটা permission-এর অংশ না, আলাদা তথ্য।</p>
+      <table class="flags">
+        <tr><td>-</td><td>সাধারণ file</td></tr>
+        <tr><td>d</td><td>directory</td></tr>
+        <tr><td>l</td><td>symbolic link</td></tr>
+        <tr><td>c</td><td>character device — byte ধরে ধরে পড়া হয় (<code>/dev/null</code>, <code>/dev/tty</code>)</td></tr>
+        <tr><td>b</td><td>block device — একসাথে block ধরে পড়া হয় (disk: <code>/dev/sda</code>)</td></tr>
+        <tr><td>p</td><td>named pipe (FIFO)</td></tr>
+        <tr><td>s</td><td>socket — process-দের মধ্যে কথা বলার জন্য</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ls -l /dev/null /dev/sda /etc
+crw-rw-rw- 1 root root  /dev/null
+brw-rw---- 1 root disk  /dev/sda
+drwxr-xr-x 1 root root  /etc</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>/dev/null</code><em>— যা ফেললেই হারিয়ে যায়</em></div>
+      <p class="cd">Command না, একটা device file — যা লেখা হয় সব গিলে ফেলে, আর পড়তে গেলে সাথে সাথে "শেষ" বলে দেয়। অপ্রয়োজনীয় output ফেলে দেওয়ার আবর্জনার ঝুড়ি।</p>
+      <table class="flags">
+        <tr><td>&gt; /dev/null</td><td>স্বাভাবিক output (stdout) ফেলে দেয়, error থেকে যায়।</td></tr>
+        <tr><td>2&gt; /dev/null</td><td>শুধু error (stderr) ফেলে দেয়। <code>find</code>-এর permission denied লুকাতে।</td></tr>
+        <tr><td>&amp;&gt; /dev/null</td><td>দুটোই ফেলে দেয়। শুধু exit code-টা জানার দরকার হলে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> find / -name x 2&gt;/dev/null
+<span class="p">$</span> command -v docker &amp;&gt;/dev/null &amp;&amp; echo "আছে"</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>/proc</code> ঘেঁটে দেখা<em>— kernel-এর সাথে file-এর ভাষায় কথা</em></div>
+      <p class="cd"><code>/proc</code> disk-এ নেই — kernel প্রতিবার পড়ার সময় বানিয়ে দেয়। তাই <code>cat</code> দিয়েই system-এর ভেতরের অবস্থা পড়া যায়, কোনো বিশেষ tool লাগে না।</p>
+      <table class="flags">
+        <tr><td>/proc/cpuinfo</td><td>CPU-র প্রতিটা core-এর তথ্য।</td></tr>
+        <tr><td>/proc/meminfo</td><td>RAM-এর বিস্তারিত হিসাব। <code>free</code> command এখান থেকেই পড়ে।</td></tr>
+        <tr><td>/proc/uptime</td><td>machine কত সেকেন্ড ধরে চলছে।</td></tr>
+        <tr><td>/proc/<i>PID</i>/</td><td>প্রতিটা চলমান process-এর নিজস্ব directory।</td></tr>
+        <tr><td>/proc/<i>PID</i>/cmdline</td><td>ঐ process ঠিক কোন command দিয়ে চালু হয়েছিল।</td></tr>
+        <tr><td>/proc/<i>PID</i>/environ</td><td>তার environment variable গুলো (<code>\0</code> দিয়ে আলাদা করা)।</td></tr>
+        <tr><td>/proc/<i>PID</i>/fd/</td><td>সে এখন কোন কোন file খুলে রেখেছে — সবই symlink।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> cat /proc/uptime
+<span class="p">$</span> ls -l /proc/$$/fd        <span class="c"># নিজের shell কী কী খুলে রেখেছে</span>
+<span class="p">$</span> tr '\0' '\n' &lt; /proc/$$/environ | head</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>lsof</code><em>— কে কোন file খুলে রেখেছে</em></div>
+      <p class="cd"><b>list open files।</b> "Everything is a file" ধারণাটার সবচেয়ে ব্যবহারিক ফল — এই এক command দিয়ে file, network connection, socket সবই দেখা যায়, কারণ সবই file। প্রায়ই <code>sudo</code> লাগে।</p>
+      <table class="flags">
+        <tr><td>-i :<i>PORT</i></td><td>ঐ port কে দখল করে আছে। "port already in use" error-এর সরাসরি উত্তর।</td></tr>
+        <tr><td>-i</td><td>সব network connection।</td></tr>
+        <tr><td>-p <i>PID</i></td><td>নির্দিষ্ট process কী কী খুলেছে।</td></tr>
+        <tr><td>-u <i>user</i></td><td>ঐ user-এর খোলা সব file।</td></tr>
+        <tr><td>+D <i>dir</i></td><td>ঐ directory-র ভেতরের কোন file কে ব্যবহার করছে। USB unmount না হলে কারণ খুঁজতে।</td></tr>
+        <tr><td>-n</td><td>IP-কে hostname-এ বদলানোর চেষ্টা করে না — অনেক দ্রুত।</td></tr>
+        <tr><td>-P</td><td>port number-কে নামে বদলায় না (<code>80</code> দেখাবে, <code>http</code> না)।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo lsof -i :3000       <span class="c"># port কে আটকে রেখেছে</span>
+<span class="p">$</span> sudo lsof +D /mnt/usb    <span class="c"># কে ব্যস্ত রেখেছে</span>
+<span class="p">$</span> sudo lsof -nP -i         <span class="c"># সব connection, দ্রুত</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>mkfifo</code><em>— named pipe বানানো</em></div>
+      <p class="cd">একটা file বানায় যেটা আসলে file না — এক প্রান্তে লেখা হলে অন্য প্রান্তে পড়া যায়। Disk-এ কোনো data জমে না। <code>|</code>-এর মতোই, তবে এটার একটা নাম আছে বলে সম্পর্কহীন দুটো program-ও এটা দিয়ে কথা বলতে পারে।</p>
+      <table class="flags">
+        <tr><td>-m <i>mode</i></td><td>বানানোর সময়েই permission ঠিক করে দেয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> mkfifo mypipe
+<span class="p">$</span> ls -l mypipe             <span class="c"># প্রথম অক্ষর p</span>
+<span class="p">$</span> cat mypipe &amp;             <span class="c"># এক প্রান্তে অপেক্ষা</span>
+<span class="p">$</span> echo "hello" &gt; mypipe    <span class="c"># অন্য প্রান্তে লেখা</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>readlink</code><em>— symlink কোথায় যাচ্ছে</em></div>
+      <p class="cd">Symlink-এর ভেতরে লেখা path-টা পড়ে দেখায়।</p>
+      <table class="flags">
+        <tr><td>-f</td><td>একটার পর একটা link ধরে ধরে গিয়ে <b>শেষ আসল</b> file-এর absolute path দেয়। Script-এ path বের করার নির্ভরযোগ্য উপায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> readlink -f /usr/bin/python3
+/usr/bin/python3.11</div>
+    </div>
   </div>
 
   <div class="recap">
@@ -1275,6 +1804,125 @@ rw- = 4+2+0 = 6      r-- = 4+0+0 = 4
   <div class="box tip">
     <div class="box-t">হাতে-কলমে দেখো</div>
     <p><a href="simulators.html#s1"><b>→ Permission Calculator</b></a> — Switch টিপে দেখো rwx আর সংখ্যা কীভাবে একসাথে বদলায়, আর কে আসলে কী করতে পারবে।</p>
+  </div>
+
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>User, group আর permission</b><span>Chapter 06</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>whoami</code> / <code>id</code><em>— আমি কে</em></div>
+      <p class="cd"><code>whoami</code> শুধু নামটা বলে। <code>id</code> পুরো ছবি দেয় — UID, primary group, আর তুমি আর কোন কোন group-এ আছো। "Permission denied" পেলে সবার আগে <code>id</code> চালাও: হয়তো দরকারি group-টায় তুমি নেই।</p>
+      <table class="flags">
+        <tr><td>id -u</td><td>শুধু UID number। <code>[ $(id -u) -eq 0 ]</code> দিয়ে script-এ root কিনা যাচাই করা হয়।</td></tr>
+        <tr><td>id -g</td><td>শুধু primary group-এর GID।</td></tr>
+        <tr><td>id -G</td><td>যত group-এ আছো সবগুলোর GID।</td></tr>
+        <tr><td>id -n</td><td>number-এর বদলে নাম দেখায়। <code>-u</code>/<code>-g</code>/<code>-G</code>-র সাথে জুড়ে দিতে হয়।</td></tr>
+        <tr><td>id <i>user</i></td><td>অন্য কোনো user-এর তথ্য।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> id
+uid=1000(mostofa) gid=1000(mostofa) groups=1000(mostofa),27(sudo),999(docker)
+<span class="p">$</span> id -nG           <span class="c"># শুধু group-এর নামগুলো</span></div>
+      <div class="cd"><b>মনে রেখো:</b> নতুন group-এ যোগ হওয়ার পর <code>id</code>-তে সাথে সাথে দেখা যায় না — group তালিকা login-এর সময় একবার ঠিক হয়। Log out করে আবার ঢুকতে হয়।</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>chmod</code><em>— permission বদলানো</em></div>
+      <p class="cd">দুই ভাবে লেখা যায়। <b>Numeric</b> (<code>644</code>) — পুরো permission মুছে নতুন করে বসায়। <b>Symbolic</b> (<code>u+x</code>) — যা আছে তা রেখে শুধু যেটুকু বললে সেটুকু বদলায়।</p>
+      <table class="flags">
+        <tr><td>u g o a</td><td>কার জন্য: user/owner, group, others, all (সবার)।</td></tr>
+        <tr><td>+ - =</td><td>যোগ করো, বাদ দাও, বা <b>ঠিক এটাই</b> বসাও (বাকি সব মুছে)।</td></tr>
+        <tr><td>r w x</td><td>read (4), write (2), execute (1)।</td></tr>
+        <tr><td>-R</td><td><b>recursive।</b> ভেতরের সবকিছুতে। সাবধান — <code>-R 755</code> দিলে সব সাধারণ file-ও executable হয়ে যায়।</td></tr>
+        <tr><td>-v</td><td>কোনটা কী থেকে কী হলো বলে দেয়।</td></tr>
+        <tr><td>--reference=<i>f</i></td><td>অন্য একটা file-এর permission হুবহু নকল করে বসায়।</td></tr>
+        <tr><td>X (বড় হাতের)</td><td>চতুর flag — directory-তে <b>আর</b> যেসব file-এ ইতিমধ্যেই x আছে শুধু তাতে x বসায়। <code>chmod -R a+rX dir</code> = directory-তে ঢোকা যাবে, কিন্তু text file গুলো অহেতুক executable হবে না।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> chmod 600 ~/.ssh/id_rsa    <span class="c"># private key, নাহলে SSH মানবে না</span>
+<span class="p">$</span> chmod u+x,go-w deploy.sh
+<span class="p">$</span> chmod -R a+rX public/       <span class="c"># নিরাপদ recursive</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>chown</code> / <code>chgrp</code><em>— মালিকানা বদলানো</em></div>
+      <p class="cd"><code>chown</code> owner (আর চাইলে group-ও) বদলায়, <code>chgrp</code> শুধু group। মালিকানা <b>দিয়ে দেওয়া</b> যায় না নিজে থেকে — তাই <code>sudo</code> লাগে।</p>
+      <table class="flags">
+        <tr><td>user</td><td>শুধু owner বদলায়।</td></tr>
+        <tr><td>user:group</td><td>দুটোই একসাথে।</td></tr>
+        <tr><td>:group</td><td>শুধু group (<code>chgrp</code>-র সমান)।</td></tr>
+        <tr><td>user:</td><td>owner বদলায় আর group-টা ঐ user-এর নিজের group-এ বসিয়ে দেয়।</td></tr>
+        <tr><td>-R</td><td>recursive।</td></tr>
+        <tr><td>-h</td><td>symlink-টা follow না করে <b>link-টারই</b> মালিকানা বদলায়।</td></tr>
+        <tr><td>--reference=<i>f</i></td><td>অন্য file-এর মালিকানা নকল করে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo chown -R www-data:www-data /var/www
+<span class="p">$</span> sudo chown mostofa: notes.txt</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>sudo</code><em>— এক command-এর জন্য root ক্ষমতা</em></div>
+      <p class="cd">তোমাকে root বানায় না — শুধু <b>ঐ একটা command</b> root হিসেবে চালিয়ে ক্ষমতা ফিরিয়ে নেয়। প্রতিটা ব্যবহার log হয়।</p>
+      <table class="flags">
+        <tr><td>-i</td><td>root-এর পূর্ণ login shell খোলে — root-এর environment, root-এর home। বেরোতে <code>exit</code>।</td></tr>
+        <tr><td>-s</td><td>root shell খোলে কিন্তু <b>তোমার</b> environment রেখে দেয়।</td></tr>
+        <tr><td>-u <i>user</i></td><td>root না, অন্য কোনো user হিসেবে চালায়। <code>sudo -u postgres psql</code>।</td></tr>
+        <tr><td>-l</td><td>তুমি sudo দিয়ে ঠিক কী কী চালাতে পারবে তার তালিকা।</td></tr>
+        <tr><td>-k</td><td>মনে রাখা password টা ভুলে যায় — পরেরবার আবার চাইবে।</td></tr>
+        <tr><td>-E</td><td>তোমার environment variable গুলো root-এর কাছে পৌঁছে দেয় (sudoers অনুমতি দিলে)।</td></tr>
+        <tr><td>!!</td><td>flag না, কিন্তু সবচেয়ে ব্যবহৃত কৌশল — <code>sudo !!</code> মানে "আগের command টাই, এবার sudo দিয়ে"।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo -l
+<span class="p">$</span> sudo -u postgres psql
+<span class="c"># কাজ করে না: sudo echo "x" &gt; /etc/f   ← redirection টা shell করে, root না</span>
+<span class="p">$</span> echo "x" | sudo tee /etc/f &gt; /dev/null   <span class="c"># এটাই সঠিক উপায়</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>su</code><em>— user বদলে ফেলা</em></div>
+      <p class="cd"><b>switch user।</b> <code>sudo</code>-র সাথে পার্থক্য: <code>sudo</code> চায় <b>তোমার</b> password, <code>su</code> চায় <b>গন্তব্য user-এর</b> password। Ubuntu-তে root-এর কোনো password সেট থাকে না, তাই <code>su</code>-র বদলে <code>sudo -i</code> ব্যবহার হয়।</p>
+      <table class="flags">
+        <tr><td>-</td><td>বা <code>-l</code>। পূর্ণ login — ঐ user-এর environment, home আর shell সব নিয়ে। <b>এই dash টা প্রায় সবসময়ই দরকার</b>; নাহলে তুমি নতুন user হবে ঠিকই কিন্তু পুরনো environment নিয়ে ঘুরবে।</td></tr>
+        <tr><td>-c <i>'cmd'</i></td><td>shell না খুলে শুধু একটা command চালিয়ে ফিরে আসে।</td></tr>
+        <tr><td>-s <i>shell</i></td><td>অন্য একটা shell দিয়ে খোলে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> su - mostofa
+<span class="p">$</span> sudo su - postgres</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>useradd</code> / <code>usermod</code> / <code>passwd</code><em>— account সামলানো</em></div>
+      <p class="cd">নতুন user বানানো, তাকে group-এ ঢোকানো, password দেওয়া। সবই <code>sudo</code> লাগে।</p>
+      <table class="flags">
+        <tr><td>useradd -m</td><td>home directory-ও বানায়। <b>এটা ছাড়া user-এর কোনো home থাকবে না</b> — সবচেয়ে বেশি ভুল হওয়া জায়গা।</td></tr>
+        <tr><td>useradd -s <i>shell</i></td><td>Login shell ঠিক করে দেয়। <code>-s /usr/sbin/nologin</code> = service-এর জন্য user, login করা যাবে না।</td></tr>
+        <tr><td>useradd -G <i>g1,g2</i></td><td>বানানোর সময়েই কিছু group-এ ঢুকিয়ে দেয়।</td></tr>
+        <tr><td>usermod -aG <i>grp</i></td><td>বিদ্যমান group তালিকায় <b>যোগ</b> করে। <b><code>-a</code> ভুলে গেলে সর্বনাশ</b> — পুরনো সব group মুছে গিয়ে শুধু নতুনটা থাকবে।</td></tr>
+        <tr><td>usermod -l</td><td>login নাম বদলায়।</td></tr>
+        <tr><td>usermod -L / -U</td><td>account lock / unlock করে।</td></tr>
+        <tr><td>passwd</td><td>argument ছাড়া দিলে <b>নিজের</b> password বদলায়।</td></tr>
+        <tr><td>passwd <i>user</i></td><td>অন্যের password বদলায় (root লাগে)।</td></tr>
+        <tr><td>userdel -r</td><td>user-এর সাথে তার home directory আর mail-ও মুছে দেয়।</td></tr>
+        <tr><td>groups <i>user</i></td><td>কে কোন group-এ আছে তার দ্রুত উত্তর।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo useradd -m -s /bin/bash rahim
+<span class="p">$</span> sudo passwd rahim
+<span class="p">$</span> sudo usermod -aG docker mostofa   <span class="c"># -a টা কখনো ভুলো না</span>
+<span class="p">$</span> groups mostofa</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>umask</code><em>— নতুন file-এর default permission</em></div>
+      <p class="cd">নতুন file বানালে সে permission পায় কোথা থেকে? <code>umask</code> থেকে। এটা যোগ করে না, <b>বাদ দেয়</b> — একটা mask। File-এর সর্বোচ্চ 666 আর directory-র 777 থেকে umask-এর bit গুলো কেটে নেওয়া হয়।</p>
+      <table class="flags">
+        <tr><td>umask</td><td>এখনকার মান দেখায় (সাধারণত <code>0022</code>)।</td></tr>
+        <tr><td>-S</td><td>number-এর বদলে <code>u=rwx,g=rx,o=rx</code> এভাবে পড়ার মতো করে দেখায়।</td></tr>
+        <tr><td>umask 077</td><td>নতুন যা বানাবে সব শুধু তোমার — group আর others কিছুই পাবে না।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> umask
+0022
+<span class="c"># file: 666 - 022 = 644,  directory: 777 - 022 = 755</span>
+<span class="p">$</span> umask -S</div>
+    </div>
   </div>
 
   <div class="recap">
@@ -1449,6 +2097,131 @@ bash (PID 2410) আবার prompt দেখায়</pre>
     <p><a href="simulators.html#s2"><b>→ fork() ও exec() simulator</b></a> — ধাপে ধাপে দেখো — bash নিজের কপি বানিয়ে সেই কপির ভেতরটা কীভাবে ls দিয়ে বদলে ফেলে।</p>
   </div>
 
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>Process দেখা আর সামলানো</b><span>Chapter 07</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>ps</code><em>— এখন কী কী চলছে</em></div>
+      <p class="cd"><b>process status।</b> এক মুহূর্তের ছবি — চালানোর ঠিক ঐ সময়ে যা চলছিল তার তালিকা। <code>ps</code>-এর flag গুলো দুই ঘরানার (BSD আর UNIX), তাই কখনো dash লাগে কখনো লাগে না। বাস্তবে দুটো combo মুখস্থ রাখলেই চলে: <code>aux</code> আর <code>-ef</code>।</p>
+      <table class="flags">
+        <tr><td>a</td><td>শুধু নিজের না, সব user-এর process।</td></tr>
+        <tr><td>u</td><td>user-বান্ধব format — CPU%, MEM%, শুরুর সময় সহ।</td></tr>
+        <tr><td>x</td><td>terminal-এর সাথে যুক্ত না এমন process-ও দেখায় — অর্থাৎ সব service/daemon।</td></tr>
+        <tr><td>-e</td><td>সব process (<code>-A</code>-র সমান)।</td></tr>
+        <tr><td>-f</td><td><b>full format</b> — PPID সহ, অর্থাৎ কে কার সন্তান বোঝা যায়।</td></tr>
+        <tr><td>-p <i>PID</i></td><td>নির্দিষ্ট PID গুলো।</td></tr>
+        <tr><td>-u <i>user</i></td><td>ঐ user-এর process।</td></tr>
+        <tr><td>--sort</td><td>sort করে। <code>--sort=-%mem</code> = সবচেয়ে বেশি RAM খাওয়াটা আগে (<code>-</code> মানে উল্টো ক্রম)।</td></tr>
+        <tr><td>-o</td><td>নিজের পছন্দের column। <code>ps -eo pid,ppid,user,comm</code>।</td></tr>
+        <tr><td>--forest</td><td>parent-child সম্পর্ক গাছের মতো এঁকে দেখায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ps aux | grep nginx
+<span class="p">$</span> ps -ef --forest | head -30
+<span class="p">$</span> ps aux --sort=-%mem | head    <span class="c"># RAM কে খাচ্ছে</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>top</code> / <code>htop</code><em>— চলমান ছবি</em></div>
+      <p class="cd"><code>ps</code> এক মুহূর্তের ছবি, <code>top</code> চলমান ভিডিও — প্রতি কয়েক সেকেন্ডে নিজে থেকে হালনাগাদ হয়। <code>htop</code> একই জিনিসের রঙিন, mouse-চালিত সংস্করণ (আলাদা install করতে হয়)।</p>
+      <table class="flags">
+        <tr><td>top -u <i>user</i></td><td>শুধু ঐ user-এর process।</td></tr>
+        <tr><td>top -p <i>PID</i></td><td>নির্দিষ্ট process গুলোর উপরই নজর।</td></tr>
+        <tr><td>top -b -n 1</td><td><b>batch mode</b> — একবার output দিয়ে বেরিয়ে যায়। Script বা log-এ লেখার জন্য।</td></tr>
+        <tr><td>top -d <i>N</i></td><td>N সেকেন্ড পরপর হালনাগাদ।</td></tr>
+        <tr><td>ভেতরে: P</td><td>CPU ধরে sort।</td></tr>
+        <tr><td>ভেতরে: M</td><td>Memory ধরে sort।</td></tr>
+        <tr><td>ভেতরে: k</td><td>একটা process kill করা।</td></tr>
+        <tr><td>ভেতরে: 1</td><td>প্রতিটা CPU core আলাদা করে দেখায়।</td></tr>
+        <tr><td>ভেতরে: q</td><td>বেরিয়ে আসা।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> top
+<span class="p">$</span> top -b -n 1 &gt; snapshot.txt</div>
+      <div class="cd"><b>load average পড়ার নিয়ম:</b> তিনটা সংখ্যা = শেষ ১, ৫, ১৫ মিনিটের গড়। সংখ্যাটা তোমার CPU core সংখ্যার সমান হলে system পুরো ব্যস্ত, বেশি হলে কাজ জমে যাচ্ছে। ৪ core-এ 4.0 মানে ঠিক আছে, 1 core-এ 4.0 মানে সমস্যা।</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>kill</code><em>— process-কে সংকেত পাঠানো</em></div>
+      <p class="cd">নামটা ভুল বোঝায় — <code>kill</code> আসলে <b>signal পাঠায়</b>, মারে না। বেশিরভাগ signal-এর default আচরণ থেমে যাওয়া, তাই এই নাম।</p>
+      <table class="flags">
+        <tr><td>-15 / -TERM</td><td><b>default।</b> ভদ্র অনুরোধ — "গুছিয়ে বন্ধ হও"। Program ধরতে পারে, file save করে, connection বন্ধ করে তারপর বেরোয়। <b>সবসময় আগে এটাই দাও।</b></td></tr>
+        <tr><td>-9 / -KILL</td><td>নির্মম। Kernel সরাসরি মেরে ফেলে, process কিছু জানতেও পারে না — তাই কিছু গোছাতেও পারে না। Data নষ্ট হতে পারে। <b>শেষ উপায়।</b></td></tr>
+        <tr><td>-1 / -HUP</td><td>"hang up"। বহু daemon এটা পেলে config file আবার পড়ে নেয় — restart না করেই। nginx, sshd-তে খুব কাজের।</td></tr>
+        <tr><td>-2 / -INT</td><td>Terminal-এ <b>Ctrl+C</b> চাপলে যা যায়, ঠিক তাই।</td></tr>
+        <tr><td>-19 / -STOP</td><td>process-কে থামিয়ে রাখে (মারে না)।</td></tr>
+        <tr><td>-18 / -CONT</td><td>থামানো process-কে আবার চালু করে।</td></tr>
+        <tr><td>-l</td><td>সব signal-এর তালিকা।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> kill 4821          <span class="c"># ভদ্র অনুরোধ</span>
+<span class="p">$</span> kill -9 4821       <span class="c"># শোনেনি, এবার জোর করে</span>
+<span class="p">$</span> kill -HUP $(pgrep nginx)   <span class="c"># config আবার পড়ো</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>pkill</code> / <code>pgrep</code> / <code>killall</code><em>— নাম ধরে খোঁজা ও মারা</em></div>
+      <p class="cd">PID মনে রাখার ঝামেলা এড়াতে। <code>pgrep</code> শুধু <b>খুঁজে PID দেখায়</b>, <code>pkill</code> সেগুলোকে signal পাঠায়। <b>অভ্যাস করো: আগে <code>pgrep</code> দিয়ে দেখে নাও কারা ধরা পড়ছে, তারপর <code>pkill</code>।</b></p>
+      <table class="flags">
+        <tr><td>-f</td><td>শুধু program-এর নাম না, <b>পুরো command line</b> মিলিয়ে দেখে। <code>pkill -f "python app.py"</code>।</td></tr>
+        <tr><td>-u <i>user</i></td><td>শুধু ঐ user-এর process।</td></tr>
+        <tr><td>-l</td><td>(pgrep) PID-এর সাথে নামটাও দেখায়।</td></tr>
+        <tr><td>-a</td><td>(pgrep) পুরো command line দেখায়।</td></tr>
+        <tr><td>-x</td><td>নামটা <b>হুবহু</b> মিলতে হবে, অংশমাত্র নয়।</td></tr>
+        <tr><td>-<i>SIG</i></td><td>(pkill) কোন signal। <code>pkill -9 -f worker</code>।</td></tr>
+        <tr><td>-n / -o</td><td>সবচেয়ে নতুন / সবচেয়ে পুরনো মিলটা।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> pgrep -a node          <span class="c"># আগে দেখে নাও</span>
+<span class="p">$</span> pkill -f "node server.js"
+<span class="c"># সাবধান: pkill -f python  → সব python মরবে, এমনকি system-এরটাও</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn">background job<em>— <code>&amp;</code>, <code>jobs</code>, <code>fg</code>, <code>bg</code>, <code>nohup</code></em></div>
+      <p class="cd">Command-এর শেষে <code>&amp;</code> দিলে সেটা background-এ চলে, terminal সাথে সাথে ফেরত পাও। কিন্তু terminal বন্ধ করলে সে <b>SIGHUP</b> পেয়ে মরে যায় — সেখানেই <code>nohup</code>।</p>
+      <table class="flags">
+        <tr><td>&amp;</td><td>background-এ চালায়।</td></tr>
+        <tr><td>jobs</td><td>এই shell-এর background job গুলোর তালিকা।</td></tr>
+        <tr><td>fg %<i>N</i></td><td>N নম্বর job-কে সামনে (foreground) নিয়ে আসে।</td></tr>
+        <tr><td>bg %<i>N</i></td><td>থামানো job-কে background-এ চালু করে।</td></tr>
+        <tr><td>Ctrl+Z</td><td>চলমান process থামিয়ে দেয় (মারে না)। তারপর <code>bg</code> দিয়ে background-এ পাঠানো যায়।</td></tr>
+        <tr><td>nohup</td><td>SIGHUP উপেক্ষা করায় — terminal বন্ধ করলেও চলতে থাকে। Output যায় <code>nohup.out</code>-এ।</td></tr>
+        <tr><td>disown</td><td>চলতি job-কে shell-এর তালিকা থেকে খুলে দেয়, ফলে সেও terminal বন্ধে মরে না।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ./long-task.sh &amp;
+<span class="p">$</span> jobs
+<span class="p">$</span> fg %1
+<span class="p">$</span> nohup ./server.sh &gt; out.log 2&gt;&amp;1 &amp;</div>
+      <div class="cd">সত্যিকারের server-এ এসবের বদলে <code>systemd</code> service বানানোই ঠিক পথ — Chapter 11-এ।</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>nice</code> / <code>renice</code><em>— অগ্রাধিকার ঠিক করা</em></div>
+      <p class="cd">Niceness যত <b>বেশি</b>, process তত বেশি "ভদ্র" — অর্থাৎ CPU-তে তত কম অগ্রাধিকার। পাল্লা <b>-20</b> (সবচেয়ে লোভী) থেকে <b>+19</b> (সবচেয়ে ভদ্র), default 0। ঋণাত্মক করতে <code>sudo</code> লাগে।</p>
+      <table class="flags">
+        <tr><td>nice -n <i>N</i></td><td>N niceness নিয়ে নতুন command চালায়।</td></tr>
+        <tr><td>renice -n <i>N</i> -p <i>PID</i></td><td>চলমান process-এর niceness বদলায়।</td></tr>
+        <tr><td>renice -u <i>user</i></td><td>ঐ user-এর সব process-এর।</td></tr>
+        <tr><td>ionice</td><td>CPU না, <b>disk</b>-এর অগ্রাধিকার। বড় backup চালানোর সময় কাজে লাগে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> nice -n 19 ./heavy-build.sh
+<span class="p">$</span> sudo renice -n -5 -p 4821</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>free</code> / <code>uptime</code><em>— system-এর অবস্থা</em></div>
+      <p class="cd"><code>free</code> RAM-এর হিসাব দেয়, <code>uptime</code> বলে machine কতক্ষণ চলছে আর load average কত।</p>
+      <table class="flags">
+        <tr><td>free -h</td><td>human-readable এককে।</td></tr>
+        <tr><td>free -s <i>N</i></td><td>N সেকেন্ড পরপর নতুন করে দেখায়।</td></tr>
+        <tr><td>free -t</td><td>শেষে মোট যোগফলের একটা line।</td></tr>
+        <tr><td>uptime -p</td><td>"up 3 days, 4 hours" — এভাবে পড়ার মতো করে।</td></tr>
+        <tr><td>uptime -s</td><td>কখন boot হয়েছিল সেই তারিখ-সময়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> free -h
+<span class="p">$</span> uptime</div>
+      <div class="cd"><b>যে ভুলটা সবাই করে:</b> <code>free</code>-তে "available" দেখো, "free" না। Linux খালি RAM-কে disk cache হিসেবে ব্যবহার করে — তাই "free" কম দেখানো স্বাভাবিক এবং ভালো লক্ষণ। দরকার হলে cache সাথে সাথে ছেড়ে দেওয়া হয়।</div>
+    </div>
+  </div>
+
   <div class="recap">
     <div class="box-t">Recap</div>
     <ul>
@@ -1608,6 +2381,122 @@ command not found = কোনোটাতেই পাওয়া যায়�
   <div class="box tip">
     <div class="box-t">হাতে-কলমে দেখো</div>
     <p><a href="simulators.html#s4"><b>→ PATH lookup simulator</b></a> — একটা command লিখে দেখো shell কোন directory-গুলোতে, কোন ক্রমে খোঁজে — আর কেন ভুল version চলে যায়।</p>
+  </div>
+
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>Environment আর PATH</b><span>Chapter 08</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>echo $VAR</code><em>— variable-এর মান দেখা</em></div>
+      <p class="cd"><code>$</code> চিহ্নটা shell-কে বলে "এই নামটা নয়, এর <b>মান</b>টা বসাও"। মান বসানোর কাজটা shell করে, command চালু হওয়ার <b>আগেই</b>।</p>
+      <table class="flags">
+        <tr><td>$HOME</td><td>তোমার home directory।</td></tr>
+        <tr><td>$PATH</td><td>কোন কোন directory-তে program খোঁজা হবে, <code>:</code> দিয়ে আলাদা করা।</td></tr>
+        <tr><td>$USER</td><td>তোমার login নাম।</td></tr>
+        <tr><td>$PWD</td><td>current directory।</td></tr>
+        <tr><td>$SHELL</td><td>তোমার default shell (এখন কোনটা চলছে তা নয়!)।</td></tr>
+        <tr><td>$?</td><td>আগের command-এর exit code। <b>0 = সফল</b>, বাকি সব = কোনো না কোনো ভুল।</td></tr>
+        <tr><td>$$</td><td>চলতি shell-এর নিজের PID।</td></tr>
+        <tr><td>${VAR}</td><td>Brace দিলে নামের সীমা স্পষ্ট হয়। <code>${VAR}_backup</code> না লিখলে shell <code>VAR_backup</code> নামে খুঁজবে।</td></tr>
+        <tr><td>"$VAR"</td><td><b>সবসময় quote-এ রাখো।</b> মানে space থাকলে quote ছাড়া সেটা একাধিক argument-এ ভেঙে যায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> echo $PATH
+<span class="p">$</span> ls /nonexistent; echo $?
+2</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>export</code><em>— variable সন্তানদের কাছে পাঠানো</em></div>
+      <p class="cd">এখানেই আসল ধারণাটা: <code>VAR=x</code> বানালে সেটা <b>শুধু এই shell-এর</b>। <code>export</code> করলে তবেই সেটা এই shell থেকে চালু হওয়া প্রতিটা program-ও পায়। Variable বাবা থেকে সন্তানে যায়, কখনো উল্টো দিকে না — তাই script-এ variable বদলালে তোমার shell-এ তার কোনো প্রভাব পড়ে না।</p>
+      <table class="flags">
+        <tr><td>export VAR=মান</td><td>বানানো আর export একসাথে।</td></tr>
+        <tr><td>export VAR</td><td>আগে বানানো একটা variable-কে export করা।</td></tr>
+        <tr><td>-n</td><td>export বাতিল করে — variable থাকে, কিন্তু আর সন্তানের কাছে যায় না।</td></tr>
+        <tr><td>-p</td><td>export করা সব variable-এর তালিকা।</td></tr>
+        <tr><td>VAR=x cmd</td><td>শুধু <b>এই একটা</b> command-এর জন্য variable সেট করে, পরে আর থাকে না।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> export EDITOR=vim
+<span class="p">$</span> NODE_ENV=production node app.js   <span class="c"># শুধু এইবারের জন্য</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>env</code> / <code>printenv</code> / <code>set</code><em>— কী কী variable আছে</em></div>
+      <p class="cd"><code>printenv</code> আর <code>env</code> শুধু <b>export করা</b> variable দেখায়। <code>set</code> সব দেখায় — শুধু shell-এর ভেতরের গুলো সহ, তাই তালিকাটা অনেক লম্বা।</p>
+      <table class="flags">
+        <tr><td>printenv <i>VAR</i></td><td>একটা নির্দিষ্ট variable।</td></tr>
+        <tr><td>env</td><td>সব environment variable।</td></tr>
+        <tr><td>env VAR=x cmd</td><td>বদলানো environment নিয়ে একটা command চালায়।</td></tr>
+        <tr><td>env -i cmd</td><td><b>একদম খালি</b> environment নিয়ে চালায়। "আমার মেশিনে চলে, ওখানে চলে না" ধরনের সমস্যা খুঁজতে দারুণ।</td></tr>
+        <tr><td>env -u <i>VAR</i></td><td>একটা variable বাদ দিয়ে চালায়।</td></tr>
+        <tr><td>set | less</td><td>shell variable সহ সব।</td></tr>
+        <tr><td>unset <i>VAR</i></td><td>variable টা একেবারে মুছে দেয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> printenv PATH
+<span class="p">$</span> env | sort | less
+<span class="p">$</span> env -i bash --norc     <span class="c"># খালি environment-এ পরীক্ষা</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>PATH</code> সামলানো<em>— shell program খুঁজে পায় কীভাবে</em></div>
+      <p class="cd">তুমি <code>ls</code> লিখলে shell <code>PATH</code>-এর directory গুলো <b>বাঁ থেকে ডানে</b> খোঁজে, আর <b>প্রথম</b> মিলটা পেলেই থেমে যায়। তাই আগে বসানো directory পরেরগুলোকে ঢেকে দেয়।</p>
+      <table class="flags">
+        <tr><td>PATH="$HOME/bin:$PATH"</td><td>নিজের directory <b>সামনে</b> বসানো — তোমার version-টা আগে চলবে।</td></tr>
+        <tr><td>PATH="$PATH:$HOME/bin"</td><td>পেছনে বসানো — system-এরটা না পেলে তবে তোমারটা।</td></tr>
+        <tr><td>which -a <i>cmd</i></td><td>PATH-এ কতগুলো version আছে দেখায় — ছায়া পড়ছে কিনা ধরতে।</td></tr>
+        <tr><td>echo $PATH | tr ':' '\n'</td><td>এক line-এর জট খুলে প্রতিটা directory আলাদা line-এ।</td></tr>
+        <tr><td>hash -r</td><td>shell যে path গুলো মনে রেখেছিল তা ভুলিয়ে দেয়। PATH বদলানোর পরেও পুরনো program চললে এটা দাও।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> echo $PATH | tr ':' '\n'
+<span class="p">$</span> which -a python3
+<span class="c"># ভুলেও করো না: PATH="$HOME/bin"  ← : $PATH বাদ পড়লে সব command হারিয়ে যাবে</span></div>
+      <div class="cd"><b>কেন <code>./script.sh</code> লিখতে হয়?</b> কারণ current directory (<code>.</code>) PATH-এ নেই — ইচ্ছে করেই রাখা হয়নি। থাকলে কেউ একটা directory-তে <code>ls</code> নামে ক্ষতিকর script রেখে দিলেই তুমি অজান্তে সেটা চালিয়ে ফেলতে।</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn">config file<em>— <code>.bashrc</code>, <code>.profile</code>, <code>.zshrc</code></em></div>
+      <p class="cd">কোন file কখন পড়া হয় — এটা না জানলে "variable সেট করলাম, কিন্তু থাকছে না" সমস্যায় ঘুরপাক খেতে হয়। <b>Login shell</b> (SSH করে ঢুকলে) পড়ে <code>.bash_profile</code> বা <code>.profile</code>। <b>Interactive non-login shell</b> (terminal window খুললে) পড়ে <code>.bashrc</code>।</p>
+      <table class="flags">
+        <tr><td>~/.bashrc</td><td>প্রতিবার terminal খুললে চলে। alias আর prompt এখানে।</td></tr>
+        <tr><td>~/.bash_profile</td><td>শুধু login-এর সময়। PATH আর export এখানে রাখাই রীতি। বেশিরভাগ মানুষ এখান থেকে <code>.bashrc</code>-কেও ডেকে নেয়।</td></tr>
+        <tr><td>~/.profile</td><td>shell-নিরপেক্ষ সংস্করণ। <code>.bash_profile</code> না থাকলে bash এটাই পড়ে।</td></tr>
+        <tr><td>~/.zshrc</td><td>zsh-এর জন্য। macOS আর নতুন Linux-এ default shell এখন zsh।</td></tr>
+        <tr><td>/etc/environment</td><td>সব user-এর জন্য system-wide। শুধু <code>নাম=মান</code> লেখা যায়, কোনো script না।</td></tr>
+        <tr><td>source <i>file</i></td><td>বা <code>.</code> — file-টা <b>চলতি</b> shell-এ চালায়, নতুন shell খুলে না। তাই ভেতরের variable তোমার shell-এ থেকে যায়। Config বদলানোর পর terminal বন্ধ না করে এটা দাও।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> echo 'export EDITOR=vim' &gt;&gt; ~/.bashrc
+<span class="p">$</span> source ~/.bashrc
+<span class="c"># bash ~/.bashrc দিলে কাজ হবে না — সেটা নতুন shell খুলে সেখানেই সব রেখে দেয়</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>alias</code><em>— নিজের সংক্ষিপ্ত নাম</em></div>
+      <p class="cd">লম্বা command-এর ছোট ডাকনাম। Terminal বন্ধ করলে হারিয়ে যায় — স্থায়ী করতে <code>.bashrc</code>-তে লিখে রাখতে হয়।</p>
+      <table class="flags">
+        <tr><td>alias</td><td>argument ছাড়া দিলে সব alias-এর তালিকা।</td></tr>
+        <tr><td>alias নাম='cmd'</td><td>নতুন alias। <code>=</code>-এর দুপাশে <b>space দেওয়া যাবে না</b>।</td></tr>
+        <tr><td>unalias <i>নাম</i></td><td>মুছে দেয়।</td></tr>
+        <tr><td>\<i>cmd</i></td><td>সামনে backslash দিলে alias উপেক্ষা করে আসল command চলে। <code>\ls</code>।</td></tr>
+        <tr><td>type <i>নাম</i></td><td>এটা alias কিনা যাচাই করে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> alias ll='ls -lah'
+<span class="p">$</span> alias gs='git status'
+<span class="p">$</span> alias rm='rm -I'      <span class="c"># নিজেকে বাঁচানোর alias</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>bash -x</code><em>— script কী করছে দেখা</em></div>
+      <p class="cd">Environment ঠিকমতো পৌঁছাচ্ছে না? Script-এর প্রতিটা line চলার আগে সেটা ছাপিয়ে দেখাও — variable বসানোর পর ঠিক কী হচ্ছে চোখে পড়বে।</p>
+      <table class="flags">
+        <tr><td>-x</td><td>প্রতিটা command চালানোর আগে ছাপে (variable বসানোর <b>পরের</b> রূপ)।</td></tr>
+        <tr><td>-e</td><td>কোনো command ব্যর্থ হলে সাথে সাথে থেমে যায়।</td></tr>
+        <tr><td>-u</td><td>যে variable সেট করা নেই তা ব্যবহার করলে error দেয়। টাইপো ধরার সেরা উপায়।</td></tr>
+        <tr><td>set -euo pipefail</td><td>script-এর মাথায় লিখে দেওয়ার রীতি — ভুল হলে চুপচাপ চলতে থাকার বদলে থেমে যায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> bash -x deploy.sh
+<span class="p">$</span> set -x            <span class="c"># চলতি shell-এ চালু</span>
+<span class="p">$</span> set +x            <span class="c"># বন্ধ</span></div>
+    </div>
   </div>
 
   <div class="recap">
@@ -1781,6 +2670,145 @@ Program জানেই না ওপাশে কী আছে।
     <p><a href="simulators.html#s3"><b>→ Pipe ও Redirection simulator</b></a> — fd 0, 1, 2 — কোন তীর কোথায় যাচ্ছে চোখে দেখো। <code>make | grep error</code>-এর ফাঁদটাও আছে।</p>
   </div>
 
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>Redirection, pipe আর text tool</b><span>Chapter 09</span></div>
+
+    <div class="cmd">
+      <div class="cn">Redirection চিহ্নগুলো<em>— output কোথায় যাবে</em></div>
+      <p class="cd">প্রতিটা process তিনটা stream নিয়ে জন্মায়: <b>0 = stdin</b> (input), <b>1 = stdout</b> (স্বাভাবিক output), <b>2 = stderr</b> (error)। Error আলাদা রাখা হয়েছে যাতে output pipe করে পাঠানোর পরেও error টা তোমার চোখে পড়ে।</p>
+      <table class="flags">
+        <tr><td>&gt;</td><td>stdout file-এ পাঠায়, <b>আগের content মুছে</b>। সাবধান।</td></tr>
+        <tr><td>&gt;&gt;</td><td>শেষে যোগ করে, মোছে না। Log-এর জন্য এটাই।</td></tr>
+        <tr><td>&lt;</td><td>file থেকে input নেয়।</td></tr>
+        <tr><td>2&gt;</td><td>শুধু error file-এ পাঠায়।</td></tr>
+        <tr><td>2&gt;&amp;1</td><td>"error-কেও ঐ জায়গায় পাঠাও যেখানে output যাচ্ছে"। <b>ক্রম গুরুত্বপূর্ণ</b> — <code>&gt; f 2&gt;&amp;1</code> কাজ করে, <code>2&gt;&amp;1 &gt; f</code> করে না।</td></tr>
+        <tr><td>&amp;&gt;</td><td>দুটোই একসাথে file-এ। <code>&gt; f 2&gt;&amp;1</code>-এর সংক্ষিপ্ত রূপ।</td></tr>
+        <tr><td>&amp;&gt;&gt;</td><td>দুটোই, তবে যোগ করে।</td></tr>
+        <tr><td>&lt;&lt;EOF</td><td><b>heredoc</b> — কয়েক line লেখা সরাসরি command-এর input হিসেবে দেওয়া।</td></tr>
+        <tr><td>&lt;&lt;&lt;"text"</td><td><b>herestring</b> — এক line-এর লেখা input হিসেবে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ls &gt; files.txt
+<span class="p">$</span> ./app &gt; out.log 2&gt;&amp;1 &amp;
+<span class="p">$</span> cat &lt;&lt;EOF &gt; config.yml
+port: 8080
+EOF</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>|</code> — pipe<em>— এক command-এর output পরেরটার input</em></div>
+      <p class="cd">Unix দর্শনের হৃদয়। প্রতিটা tool একটা কাজ ভালো করে করে, আর pipe দিয়ে জোড়া লাগিয়ে যেকোনো কিছু বানানো যায়। <b>Pipe শুধু stdout পাঠায়</b> — error যায় না, তাই error তোমার screen-এই থেকে যায়।</p>
+      <table class="flags">
+        <tr><td>|&amp;</td><td>error-ও pipe করে পাঠায় (<code>2&gt;&amp;1 |</code>-এর সংক্ষিপ্ত রূপ)।</td></tr>
+        <tr><td>tee <i>file</i></td><td>output-কে দুই ভাগ করে — একদিকে file-এ লেখে, একদিকে পরের command-এ পাঠায়। "দেখতেও চাই, রাখতেও চাই" — তখন এটা।</td></tr>
+        <tr><td>tee -a</td><td>file-এ যোগ করে, মোছে না।</td></tr>
+        <tr><td>xargs</td><td>input-এর প্রতিটা line-কে <b>argument</b> বানিয়ে দেয়। কিছু command (যেমন <code>rm</code>) stdin পড়ে না, argument নেয় — সেখানে সেতু।</td></tr>
+        <tr><td>xargs -0</td><td>newline না, <code>\0</code> দিয়ে আলাদা করা ধরে নেয়। নামে space থাকলে <code>find -print0</code>-র সাথে এটাই নিরাপদ।</td></tr>
+        <tr><td>xargs -n <i>N</i></td><td>একবারে N-টা করে argument দেয়।</td></tr>
+        <tr><td>xargs -I{}</td><td><code>{}</code> জায়গায় মানটা বসায় — argument মাঝখানে দরকার হলে।</td></tr>
+        <tr><td>pipefail</td><td><code>set -o pipefail</code> — pipe-এর <b>মাঝের</b> কোনো command ব্যর্থ হলেও পুরোটা ব্যর্থ ধরা হয়। নাহলে শুধু শেষেরটার ফল গোনা হয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> cat access.log | grep 404 | wc -l
+<span class="p">$</span> make 2&gt;&amp;1 | tee build.log
+<span class="p">$</span> find . -name "*.tmp" -print0 | xargs -0 rm</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>grep</code><em>— লেখা খুঁজে বের করা</em></div>
+      <p class="cd">যে line-গুলোতে খোঁজা pattern আছে সেগুলো ছেপে দেয়। Pipeline-এর সবচেয়ে ব্যবহৃত tool। Pattern টা সবসময় <b>quote-এ রাখো</b>।</p>
+      <table class="flags">
+        <tr><td>-i</td><td>ছোট-বড় হাতের অক্ষর আলাদা দেখে না।</td></tr>
+        <tr><td>-v</td><td><b>উল্টো</b> — যেসব line-এ pattern <b>নেই</b> সেগুলো দেখায়। অপ্রয়োজনীয় জিনিস ছেঁকে ফেলতে।</td></tr>
+        <tr><td>-r</td><td><b>recursive</b> — directory-র সব file-এ খোঁজে।</td></tr>
+        <tr><td>-n</td><td>line number দেখায়।</td></tr>
+        <tr><td>-c</td><td>line না, কতগুলো মিল পেল সেই সংখ্যাটা।</td></tr>
+        <tr><td>-l</td><td>line না, <b>কোন file</b>-এ পাওয়া গেল শুধু সেই নামগুলো।</td></tr>
+        <tr><td>-w</td><td>পুরো শব্দ মিলতে হবে। <code>grep -w cat</code> "concatenate"-এ মিলবে না।</td></tr>
+        <tr><td>-A <i>N</i></td><td>মিলের <b>পরের</b> N লাইনও দেখায়। Stack trace পড়তে অপরিহার্য।</td></tr>
+        <tr><td>-B <i>N</i></td><td>মিলের <b>আগের</b> N লাইন।</td></tr>
+        <tr><td>-C <i>N</i></td><td>আগে-পরে দুদিকেই N লাইন।</td></tr>
+        <tr><td>-E</td><td>বর্ধিত regex — <code>|</code>, <code>+</code>, <code>?</code>, <code>()</code> কাজ করে। <code>egrep</code>-এর সমান।</td></tr>
+        <tr><td>-o</td><td>পুরো line না, শুধু যেটুকু মিলেছে সেটুকু ছাপে।</td></tr>
+        <tr><td>-q</td><td>কিছু ছাপে না, শুধু exit code দেয়। <code>if grep -q x f; then</code>।</td></tr>
+        <tr><td>--exclude-dir=</td><td>ঐ directory বাদ দেয়। <code>--exclude-dir=node_modules</code> — প্রায় সবসময় দরকার।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> grep -rn "TODO" src/ --exclude-dir=node_modules
+<span class="p">$</span> grep -i -A5 "error" app.log
+<span class="p">$</span> ps aux | grep -v grep | grep node   <span class="c"># নিজের grep বাদ</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>sort</code> / <code>uniq</code><em>— সাজানো আর একবার করে গোনা</em></div>
+      <p class="cd">দুটো একসাথেই চলে — কারণ <code>uniq</code> শুধু <b>পাশাপাশি</b> থাকা একই line ধরতে পারে। তাই আগে <code>sort</code> না করলে সে বেশিরভাগ পুনরাবৃত্তি মিস করবে।</p>
+      <table class="flags">
+        <tr><td>sort -n</td><td>অক্ষর হিসেবে না, <b>সংখ্যা</b> হিসেবে সাজায়। নাহলে "10" আসে "9"-এর আগে।</td></tr>
+        <tr><td>sort -h</td><td><code>2K</code>, <code>3M</code>, <code>1G</code> এসব বুঝে সাজায়। <code>du -h</code>-র output-এ অপরিহার্য।</td></tr>
+        <tr><td>sort -r</td><td>উল্টো ক্রম — বড় আগে।</td></tr>
+        <tr><td>sort -u</td><td>সাজানোর সাথে সাথে পুনরাবৃত্তি বাদ (<code>| uniq</code>-এর দরকার পড়ে না)।</td></tr>
+        <tr><td>sort -k <i>N</i></td><td>N নম্বর column ধরে সাজায়।</td></tr>
+        <tr><td>sort -t <i>চিহ্ন</i></td><td>column আলাদা করার চিহ্ন। <code>-t: -k3 -n</code> দিয়ে <code>/etc/passwd</code> UID ধরে সাজানো যায়।</td></tr>
+        <tr><td>uniq -c</td><td>প্রতিটা line কতবার এসেছে সেই সংখ্যা সামনে বসায়। <b>সবচেয়ে কাজের flag।</b></td></tr>
+        <tr><td>uniq -d</td><td>শুধু যেগুলো একাধিকবার এসেছে।</td></tr>
+        <tr><td>uniq -u</td><td>শুধু যেগুলো একবারই এসেছে।</td></tr>
+      </table>
+      <div class="ex"><span class="c"># সবচেয়ে বিখ্যাত pipeline: কে কতবার এসেছে, বেশি থেকে কম</span>
+<span class="p">$</span> cut -d' ' -f1 access.log | sort | uniq -c | sort -rn | head</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>wc</code> / <code>cut</code> / <code>tr</code><em>— গোনা, কাটা, বদলানো</em></div>
+      <p class="cd">তিনটে ছোট কিন্তু pipeline-এ অপরিহার্য tool।</p>
+      <table class="flags">
+        <tr><td>wc -l</td><td>কত লাইন। সবচেয়ে বেশি ব্যবহৃত।</td></tr>
+        <tr><td>wc -w / -c</td><td>কত শব্দ / কত byte।</td></tr>
+        <tr><td>cut -d <i>চিহ্ন</i></td><td>column আলাদা করার চিহ্ন। <code>-d','</code> CSV-র জন্য, <code>-d':'</code> <code>/etc/passwd</code>-র জন্য।</td></tr>
+        <tr><td>cut -f <i>N</i></td><td>কোন column। <code>-f1,3</code> বা <code>-f2-</code> (২ থেকে শেষ পর্যন্ত)।</td></tr>
+        <tr><td>cut -c <i>N-M</i></td><td>column না, অক্ষর ধরে কাটে।</td></tr>
+        <tr><td>tr <i>a b</i></td><td>a-র প্রতিটা অক্ষরকে b দিয়ে বদলায়। File না, শুধু stdin পড়ে।</td></tr>
+        <tr><td>tr -d</td><td>ঐ অক্ষরগুলো মুছে দেয়। <code>tr -d '\r'</code> — Windows-এর line ending সাফ করা।</td></tr>
+        <tr><td>tr -s</td><td>পরপর একই অক্ষর থাকলে একটায় নামায়। <code>tr -s ' '</code> — অতিরিক্ত space সরানো।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> cut -d: -f1 /etc/passwd | sort
+<span class="p">$</span> tr 'a-z' 'A-Z' &lt; file.txt
+<span class="p">$</span> grep -c ERROR app.log</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>sed</code><em>— লেখা বদলে দেওয়া</em></div>
+      <p class="cd"><b>stream editor।</b> প্রতিটা line-এর উপর দিয়ে গিয়ে নিয়ম প্রয়োগ করে। <b>Default-এ file বদলায় না</b> — শুধু বদলানো রূপটা screen-এ দেখায়। এটাই নিরাপত্তা।</p>
+      <table class="flags">
+        <tr><td>s/a/b/</td><td>প্রতিটা line-এর <b>প্রথম</b> a-কে b করে।</td></tr>
+        <tr><td>s/a/b/g</td><td><b>global</b> — line-এর সব a।</td></tr>
+        <tr><td>s/a/b/gi</td><td>ছোট-বড় হাতের অক্ষর না দেখে।</td></tr>
+        <tr><td>-i</td><td><b>in-place</b> — file টা সত্যিই বদলে ফেলে। <code>-i.bak</code> দিলে আগে একটা backup রেখে দেয়। <b>আগে <code>-i</code> ছাড়া চালিয়ে দেখে নাও</b>।</td></tr>
+        <tr><td>-E</td><td>বর্ধিত regex — <code>+</code>, <code>?</code>, <code>()</code> escape করা লাগে না।</td></tr>
+        <tr><td>-n</td><td>কিছু ছাপে না; <code>p</code>-র সাথে মিলিয়ে শুধু বাছাই করা line ছাপাতে।</td></tr>
+        <tr><td><i>N</i>d</td><td>N নম্বর line মুছে দেয়। <code>/pattern/d</code> = মিলে যাওয়া line গুলো মুছে দেয়।</td></tr>
+        <tr><td>s|a|b|</td><td>Separator হিসেবে <code>/</code>-এর বদলে যেকোনো অক্ষর চলে। Path বদলানোর সময় <code>|</code> ব্যবহার করলে অজস্র escape এড়ানো যায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sed 's/localhost/example.com/g' config.txt
+<span class="p">$</span> sed -i.bak 's/8080/3000/g' config.txt
+<span class="p">$</span> sed -n '10,20p' big.log     <span class="c"># শুধু ১০-২০ line</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>awk</code><em>— column ধরে কাজ</em></div>
+      <p class="cd">নিজেই একটা ছোট programming language, কিন্তু ৯০% কাজে শুধু একটা জিনিসই লাগে: <b>column বেছে নেওয়া</b>। <code>$1</code> প্রথম column, <code>$2</code> দ্বিতীয়, <code>$NF</code> শেষটা, <code>$0</code> পুরো line।</p>
+      <table class="flags">
+        <tr><td>'{print $N}'</td><td>N নম্বর column ছাপে। Space/tab এমনিতেই বুঝে নেয় — <code>cut</code>-এর চেয়ে এখানেই সুবিধা।</td></tr>
+        <tr><td>-F <i>চিহ্ন</i></td><td>আলাদা করার চিহ্ন বদলায়। <code>-F:</code> বা <code>-F','</code>।</td></tr>
+        <tr><td>$NF</td><td>শেষ column — কয়টা column আছে না জানলেও কাজ করে।</td></tr>
+        <tr><td>NR</td><td>এখন কত নম্বর line। <code>NR&gt;1</code> = header বাদ।</td></tr>
+        <tr><td>/pat/{...}</td><td>শুধু মিলে যাওয়া line-এ কাজটা করে — <code>grep</code>-এর কাজও এতে হয়ে যায়।</td></tr>
+        <tr><td>{s+=$N} END{...}</td><td>একটা column-এর যোগফল। <code>END</code> ব্লক সব line শেষে একবার চলে।</td></tr>
+        <tr><td>-v <i>var=মান</i></td><td>বাইরের shell variable ভেতরে পাঠানো।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ps aux | awk '{print $2, $11}'
+<span class="p">$</span> awk -F: '$3 &gt;= 1000 {print $1}' /etc/passwd   <span class="c"># আসল user গুলো</span>
+<span class="p">$</span> du -s * | awk '{s+=$1} END {print s/1024 " MB"}'</div>
+    </div>
+  </div>
+
   <div class="recap">
     <div class="box-t">Recap</div>
     <ul>
@@ -1906,6 +2934,103 @@ Program জানেই না ওপাশে কী আছে।
     <p><b>npm/pip কি একই জিনিস?</b> — ধারণাটা এক, কিন্তু স্তর আলাদা। <code>apt</code> পুরো system-এর জন্য, <code>npm</code> শুধু তোমার একটা project-এর জন্য। দুটো একে অন্যের সম্পর্কে জানে না।</p>
   </div>
 
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>Package সামলানো</b><span>Chapter 10</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>apt update</code> / <code>upgrade</code><em>— তালিকা আর software হালনাগাদ</em></div>
+      <p class="cd">দুটো আলাদা কাজ, প্রায়ই গুলিয়ে ফেলা হয়। <code>update</code> কোনো software বসায় না — শুধু "কোথায় কোন version আছে" সেই <b>ক্যাটালগটা</b> নতুন করে নামায়। <code>upgrade</code> সেই তালিকা দেখে আসল software নতুন করে বসায়। তাই <b>সবসময় <code>update</code> আগে</b>।</p>
+      <table class="flags">
+        <tr><td>update</td><td>শুধু package তালিকা নতুন করে আনে।</td></tr>
+        <tr><td>upgrade</td><td>যা আছে সব নতুন version-এ নেয়, কিন্তু <b>কিছু মোছে না</b>।</td></tr>
+        <tr><td>full-upgrade</td><td>দরকার হলে পুরনো package মুছেও upgrade করে। ঝুঁকি বেশি।</td></tr>
+        <tr><td>-y</td><td>সব প্রশ্নে "হ্যাঁ"। Script-এ দরকারি, হাতে চালানোর সময় ঝুঁকিপূর্ণ।</td></tr>
+        <tr><td>--dry-run</td><td>কী কী হতো তা দেখায়, কিন্তু করে না। বড় upgrade-এর আগে চালিয়ে দেখো।</td></tr>
+        <tr><td>-s</td><td><code>--dry-run</code>-এর সমান (simulate)।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo apt update &amp;&amp; sudo apt upgrade
+<span class="p">$</span> sudo apt upgrade --dry-run</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>apt install</code> / <code>remove</code><em>— বসানো আর মোছা</em></div>
+      <p class="cd">Package manager-এর আসল মূল্য <b>dependency</b> সামলানোয়। তুমি একটা নাম দাও, সে যা যা লাগবে সব খুঁজে বের করে ঠিক ক্রমে বসায়।</p>
+      <table class="flags">
+        <tr><td>install <i>pkg</i></td><td>বসায়। একসাথে অনেকগুলো নাম দেওয়া যায়।</td></tr>
+        <tr><td>install <i>pkg=ver</i></td><td>নির্দিষ্ট একটা version।</td></tr>
+        <tr><td>remove <i>pkg</i></td><td>program মোছে, কিন্তু <b>config file রেখে দেয়</b> — আবার বসালে সেটিংস ফিরে পাবে।</td></tr>
+        <tr><td>purge <i>pkg</i></td><td>config সহ সব মোছে। "নতুন করে শুরু" করতে চাইলে।</td></tr>
+        <tr><td>autoremove</td><td>যেসব package শুধু dependency হিসেবে এসেছিল আর এখন কেউ চায় না, সেগুলো মোছে। মাঝে মাঝে চালালে disk পরিষ্কার থাকে।</td></tr>
+        <tr><td>--no-install-recommends</td><td>শুধু যা আবশ্যক তাই বসায়, "সুপারিশ করা" অতিরিক্ত package বাদ। Server-এ কাজের।</td></tr>
+        <tr><td>--reinstall</td><td>যা আছে তাই আবার বসায় — file নষ্ট হয়ে গেলে ঠিক করতে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo apt install nginx git curl
+<span class="p">$</span> sudo apt purge nginx &amp;&amp; sudo apt autoremove</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>apt search</code> / <code>show</code> / <code>list</code><em>— খোঁজা আর জানা</em></div>
+      <p class="cd">বসানোর আগে দেখে নেওয়া — এটা আসলে কী, কত বড়, কী কী টেনে আনবে।</p>
+      <table class="flags">
+        <tr><td>search <i>শব্দ</i></td><td>নাম আর বর্ণনায় খোঁজে। ফলাফল প্রচুর হয়, <code>| less</code> দিয়ে পড়ো।</td></tr>
+        <tr><td>show <i>pkg</i></td><td>বিস্তারিত — version, size, dependency, বর্ণনা।</td></tr>
+        <tr><td>list --installed</td><td>যা যা বসানো আছে তার তালিকা।</td></tr>
+        <tr><td>list --upgradable</td><td>কোনগুলোর নতুন version এসেছে।</td></tr>
+        <tr><td>policy <i>pkg</i></td><td>এখন কোন version আছে আর কোনগুলো পাওয়া যাচ্ছে।</td></tr>
+        <tr><td>depends <i>pkg</i></td><td>এটা কী কী দাবি করে।</td></tr>
+        <tr><td>rdepends <i>pkg</i></td><td>উল্টোটা — কারা এটার উপর নির্ভর করে। মোছার আগে দেখে নেওয়া বুদ্ধিমানের কাজ।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> apt search "http server"
+<span class="p">$</span> apt show nginx
+<span class="p">$</span> apt list --upgradable</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>dpkg</code><em>— নিচের স্তরের tool</em></div>
+      <p class="cd"><code>apt</code> ভদ্রলোক — dependency খুঁজে আনে, repository থেকে নামায়। <code>dpkg</code> শ্রমিক — একটা <code>.deb</code> file হাতে ধরিয়ে দিলে সেটা বসিয়ে দেয়, কিন্তু dependency নিজে আনতে পারে না।</p>
+      <table class="flags">
+        <tr><td>-i <i>file.deb</i></td><td>একটা .deb file বসায়। Dependency না থাকলে আটকে যাবে — তখন <code>sudo apt install -f</code> দিয়ে ঠিক করতে হয়।</td></tr>
+        <tr><td>-l</td><td>বসানো সব package-এর তালিকা।</td></tr>
+        <tr><td>-L <i>pkg</i></td><td>ঐ package ঠিক <b>কোন কোন file</b> বসিয়েছে। খুব কাজের।</td></tr>
+        <tr><td>-S <i>path</i></td><td>উল্টোটা — এই file টা <b>কোন package</b> থেকে এসেছে।</td></tr>
+        <tr><td>-r / -P</td><td>মোছা / config সহ মোছা।</td></tr>
+        <tr><td>--get-selections</td><td>সব package-এর নাম রপ্তানি করা — নতুন machine-এ একই সেট বসাতে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo dpkg -i package.deb || sudo apt install -f
+<span class="p">$</span> dpkg -L nginx | head
+<span class="p">$</span> dpkg -S /usr/bin/ls
+coreutils: /usr/bin/ls</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn">অন্য distro-র সমতুল্য<em>— dnf, pacman, apk</em></div>
+      <p class="cd">ধারণাগুলো একই, শুধু নাম বদলায়। একটা শিখলে বাকিগুলো মিলিয়ে নেওয়া যায়।</p>
+      <table class="flags">
+        <tr><td>Fedora / RHEL</td><td><code>dnf install</code>, <code>dnf remove</code>, <code>dnf search</code>, <code>dnf update</code></td></tr>
+        <tr><td>Arch</td><td><code>pacman -S</code> (বসানো), <code>-R</code> (মোছা), <code>-Ss</code> (খোঁজা), <code>-Syu</code> (সব হালনাগাদ)</td></tr>
+        <tr><td>Alpine</td><td><code>apk add</code>, <code>apk del</code>, <code>apk search</code> — Docker image-এ খুব দেখা যায়</td></tr>
+        <tr><td>openSUSE</td><td><code>zypper install</code>, <code>zypper remove</code></td></tr>
+        <tr><td>macOS</td><td><code>brew install</code> — <code>sudo</code> লাগে না, এটাই মূল পার্থক্য</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> cat /etc/os-release   <span class="c"># কোন distro-তে আছি</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn">Repository আর PPA<em>— নতুন উৎস যোগ করা</em></div>
+      <p class="cd">Package আসে "repository" নামের server থেকে। তালিকাটা <code>/etc/apt/sources.list</code> আর <code>/etc/apt/sources.list.d/</code>-তে। নতুন উৎস যোগ করা মানে সেই উৎসকে <b>তোমার system-এ software বসানোর অনুমতি দেওয়া</b> — তাই কাকে বিশ্বাস করছো ভেবে নাও।</p>
+      <table class="flags">
+        <tr><td>add-apt-repository</td><td>PPA বা repository যোগ করে। যোগ করার পর <code>apt update</code> দিতে হয়।</td></tr>
+        <tr><td>--remove</td><td>যোগ করা উৎস বাদ দেয়।</td></tr>
+        <tr><td>/etc/apt/sources.list.d/</td><td>প্রতিটা বাড়তি উৎসের নিজস্ব file। হাতে সম্পাদনা করা যায়।</td></tr>
+        <tr><td>GPG key</td><td>প্রতিটা repository তার package গুলোতে signature দেয়, তাই মাঝপথে কেউ বদলে দিলে ধরা পড়ে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo add-apt-repository ppa:name/ppa
+<span class="p">$</span> sudo apt update
+<span class="c"># curl ... | sudo bash — এটা এড়িয়ে চলো; আগে script টা পড়ে নাও</span></div>
+    </div>
+  </div>
+
   <div class="recap">
     <div class="box-t">Recap</div>
     <ul>
@@ -2018,6 +3143,119 @@ systemd (1)                    systemd (1)
     <p><b>"status বলছে active কিন্তু website খুলছে না"</b> — <code>active</code> মানে process চলছে, কিন্তু সে ঠিক কাজ করছে কি না তার নিশ্চয়তা না। Log দেখো, port দেখো (<code>ss -tlnp</code>)।</p>
     <p><b>"config বদলালাম, কিন্তু কিছু হলো না"</b> — Service config নতুন করে পড়ে না নিজে নিজে। <code>reload</code> বা <code>restart</code> দিতে হবে। আর <code>.service</code> file নিজেই বদলালে আগে <code>sudo systemctl daemon-reload</code>।</p>
     <p><b>"WSL-এ systemctl কাজ করছে না"</b> — পুরনো WSL setup-এ systemd default-এ চালু থাকে না। এটা তোমার ভুল না।</p>
+  </div>
+
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>systemd আর service</b><span>Chapter 11</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>systemctl status</code><em>— service-এর অবস্থা</em></div>
+      <p class="cd">কিছু কাজ না করলে <b>সবার আগে এটা</b>। এক নজরে বলে দেয়: চলছে কিনা, boot-এ চালু হবে কিনা, কত সময় ধরে চলছে, PID কত — আর শেষে সাম্প্রতিক কয়েকটা log line।</p>
+      <table class="flags">
+        <tr><td>-l</td><td>লম্বা line কেটে না দিয়ে পুরোটা দেখায়।</td></tr>
+        <tr><td>--no-pager</td><td><code>less</code>-এ না ঢুকিয়ে সরাসরি ছাপে। Script-এ দরকারি।</td></tr>
+        <tr><td>-n <i>N</i></td><td>শেষের N-টা log line দেখায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> systemctl status nginx
+<span class="c"># active (running)  = চলছে
+# inactive (dead)   = বন্ধ
+# failed            = চালু হতে গিয়ে ব্যর্থ  ← journalctl দেখো
+# enabled / disabled = boot-এ চালু হবে কি হবে না</span></div>
+      <div class="cd"><b>দুটো আলাদা প্রশ্ন গুলিয়ে ফেলো না:</b> <code>active</code> = <b>এখন</b> চলছে কিনা। <code>enabled</code> = <b>পরের boot</b>-এ চালু হবে কিনা। একটা service চলতে পারে অথচ disabled থাকতে পারে — reboot দিলেই সে আর ফিরবে না।</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>systemctl</code> — start / stop / restart<em>— চালানো, থামানো</em></div>
+      <p class="cd">এই কাজগুলো system বদলায়, তাই <code>sudo</code> লাগে।</p>
+      <table class="flags">
+        <tr><td>start</td><td>এখন চালু করে। Boot-এর সাথে কোনো সম্পর্ক নেই।</td></tr>
+        <tr><td>stop</td><td>এখন বন্ধ করে।</td></tr>
+        <tr><td>restart</td><td>থামিয়ে আবার চালু করে। মাঝখানে কিছু সময় service বন্ধ থাকে।</td></tr>
+        <tr><td>reload</td><td>না থামিয়ে <b>শুধু config আবার পড়ে</b>। downtime শূন্য — যেখানে সম্ভব সেখানে <code>restart</code>-এর চেয়ে এটাই ভালো।</td></tr>
+        <tr><td>reload-or-restart</td><td>reload সম্ভব হলে reload, নাহলে restart।</td></tr>
+        <tr><td>enable</td><td>boot-এ চালু হওয়ার ব্যবস্থা করে (<b>এখন চালু করে না</b>)।</td></tr>
+        <tr><td>disable</td><td>boot-এ আর চালু হবে না।</td></tr>
+        <tr><td>enable --now</td><td>enable আর start একসাথে। যা চাও সেটা সাধারণত এটাই।</td></tr>
+        <tr><td>mask</td><td>service-টাকে পুরোপুরি আটকে দেয় — হাতেও চালু করা যাবে না। <code>unmask</code> দিয়ে খোলা।</td></tr>
+        <tr><td>is-active / is-enabled</td><td>এক শব্দে উত্তর, script-এ যাচাই করতে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo systemctl restart nginx
+<span class="p">$</span> sudo systemctl reload nginx      <span class="c"># config বদলেছে শুধু</span>
+<span class="p">$</span> sudo systemctl enable --now nginx</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>systemctl list-units</code><em>— কী কী আছে দেখা</em></div>
+      <p class="cd">Machine-এ কোন কোন service আছে, কোনটা চলছে, কোনটা ভেঙে পড়ে আছে।</p>
+      <table class="flags">
+        <tr><td>--type=service</td><td>শুধু service (mount, socket, timer বাদ)।</td></tr>
+        <tr><td>--state=failed</td><td><b>শুধু ব্যর্থ গুলো।</b> নতুন server-এ ঢুকে প্রথম যেটা চালাবে।</td></tr>
+        <tr><td>--all</td><td>বন্ধ থাকা গুলোও দেখায়।</td></tr>
+        <tr><td>list-unit-files</td><td>সব service file, প্রতিটার enabled/disabled অবস্থা সহ।</td></tr>
+        <tr><td>list-timers</td><td>systemd timer গুলো — cron-এর আধুনিক বিকল্প, পরের বার কখন চলবে সহ।</td></tr>
+        <tr><td>list-dependencies <i>svc</i></td><td>এই service-এর আগে কী কী চালু হওয়া দরকার।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> systemctl --failed
+<span class="p">$</span> systemctl list-units --type=service --state=running
+<span class="p">$</span> systemctl list-timers</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>journalctl</code><em>— log পড়া</em></div>
+      <p class="cd">systemd সব service-এর output এক জায়গায় জমা করে। <code>/var/log</code>-এ ছড়িয়ে থাকা file খোঁজার বদলে এখন একটাই জায়গা — আর সেটা filter করা যায়।</p>
+      <table class="flags">
+        <tr><td>-u <i>svc</i></td><td>শুধু ঐ service-এর log। <b>সবচেয়ে জরুরি flag।</b></td></tr>
+        <tr><td>-f</td><td><b>follow</b> — নতুন log আসতে থাকলে সাথে সাথে দেখায়। <code>tail -f</code>-এর সমতুল্য।</td></tr>
+        <tr><td>-n <i>N</i></td><td>শেষের N লাইন।</td></tr>
+        <tr><td>-e</td><td>সরাসরি একদম শেষে নিয়ে যায়।</td></tr>
+        <tr><td>-r</td><td>উল্টো ক্রমে — নতুন আগে।</td></tr>
+        <tr><td>--since / --until</td><td>সময় ধরে ছাঁকা। <code>--since "10 min ago"</code>, <code>--since today</code>, <code>--since "2026-09-01 14:00"</code>।</td></tr>
+        <tr><td>-p <i>level</i></td><td>গুরুত্ব অনুযায়ী। <code>-p err</code> = শুধু error আর তার চেয়ে গুরুতর।</td></tr>
+        <tr><td>-b</td><td>চলতি boot-এর log। <code>-b -1</code> = আগের boot। <b>হঠাৎ reboot-এর কারণ খুঁজতে অপরিহার্য।</b></td></tr>
+        <tr><td>-k</td><td>শুধু kernel-এর বার্তা (<code>dmesg</code>-এর সমান)।</td></tr>
+        <tr><td>--no-pager</td><td>সরাসরি ছাপে।</td></tr>
+        <tr><td>--disk-usage</td><td>log কত জায়গা খাচ্ছে। <code>--vacuum-time=7d</code> দিয়ে পুরনো গুলো মোছা যায়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> journalctl -u nginx -n 50 --no-pager
+<span class="p">$</span> journalctl -u myapp -f
+<span class="p">$</span> journalctl -p err --since today
+<span class="p">$</span> journalctl -b -1 -p err     <span class="c"># আগের boot-এ কী ভেঙেছিল</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn">নিজের service বানানো<em>— unit file</em></div>
+      <p class="cd">Unit file গুলো <code>/etc/systemd/system/</code>-এ। File লিখে বা বদলে <b>অবশ্যই <code>daemon-reload</code> দিতে হয়</b> — নাহলে systemd পুরনো সংস্করণই মনে রাখবে। এটাই সবচেয়ে বেশি ভুলে যাওয়া ধাপ।</p>
+      <table class="flags">
+        <tr><td>daemon-reload</td><td>unit file গুলো নতুন করে পড়ে। বদলানোর পর প্রতিবার।</td></tr>
+        <tr><td>[Unit] After=</td><td>কার পরে চালু হবে। <code>network.target</code> খুব সাধারণ।</td></tr>
+        <tr><td>[Service] ExecStart=</td><td>কোন command চালাবে। <b>পুরো absolute path</b> দিতে হয়।</td></tr>
+        <tr><td>Restart=</td><td><code>always</code> বা <code>on-failure</code> — মরে গেলে নিজে থেকে আবার চালু হবে। systemd ব্যবহারের প্রধান কারণ।</td></tr>
+        <tr><td>User=</td><td>কোন user হিসেবে চলবে। root এড়ানোর জন্য।</td></tr>
+        <tr><td>WorkingDirectory=</td><td>কোন directory থেকে চলবে।</td></tr>
+        <tr><td>Environment=</td><td>Environment variable। বা <code>EnvironmentFile=</code> দিয়ে একটা file থেকে।</td></tr>
+        <tr><td>[Install] WantedBy=</td><td><code>multi-user.target</code> — <code>enable</code> কাজ করার জন্য এই অংশটা <b>থাকতেই হবে</b>।</td></tr>
+        <tr><td>cat <i>svc</i></td><td><code>systemctl cat nginx</code> — unit file-টা পড়ে দেখায়। শেখার সবচেয়ে ভালো উপায়।</td></tr>
+        <tr><td>edit <i>svc</i></td><td>মূল file না ছুঁয়ে একটা override বানায়। Package update-এও টিকে থাকে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> systemctl cat ssh
+<span class="p">$</span> sudo systemctl daemon-reload
+<span class="p">$</span> sudo systemctl enable --now myapp</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn">Boot আর power<em>— reboot, poweroff, analyze</em></div>
+      <p class="cd">Boot ধীর হলে কে দেরি করাচ্ছে তা systemd নিজেই বলে দিতে পারে।</p>
+      <table class="flags">
+        <tr><td>systemctl reboot</td><td>reboot করে।</td></tr>
+        <tr><td>systemctl poweroff</td><td>বন্ধ করে দেয়।</td></tr>
+        <tr><td>systemd-analyze</td><td>boot হতে মোট কত সময় লেগেছে।</td></tr>
+        <tr><td>systemd-analyze blame</td><td>কোন service কত সময় নিয়েছে, বেশি থেকে কম। ধীর boot-এর অপরাধী খুঁজতে।</td></tr>
+        <tr><td>systemd-analyze critical-chain</td><td>কোন শৃঙ্খলটা আসলে দেরি করাচ্ছে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> systemd-analyze
+<span class="p">$</span> systemd-analyze blame | head</div>
+    </div>
   </div>
 
   <div class="recap">
@@ -2185,6 +3423,136 @@ systemd (1)                    systemd (1)
     <p><b>"ping কাজ করছে কিন্তু website খুলছে না"</b> — স্বাভাবিক। ping শুধু machine পর্যন্ত পৌঁছানো যাচাই করে, ঐ machine-এর কোনো program port-এ শুনছে কি না তার সাথে এর সম্পর্ক নেই।</p>
   </div>
 
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>Network দেখা আর পরীক্ষা করা</b><span>Chapter 12</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>ip</code><em>— address, route, interface</em></div>
+      <p class="cd">আধুনিক Linux-এ network-এর প্রধান command। পুরনো <code>ifconfig</code>, <code>route</code>, <code>netstat</code> — তিনটার কাজই এখন <code>ip</code>-তে। গঠন: <code>ip</code> <i>বিষয়</i> <i>কাজ</i>।</p>
+      <table class="flags">
+        <tr><td>ip a</td><td><code>addr show</code>-এর সংক্ষিপ্ত রূপ। প্রতিটা interface আর তার IP। <b>সবচেয়ে বেশি ব্যবহৃত।</b></td></tr>
+        <tr><td>ip r</td><td><code>route</code>। Packet কোন পথে যাবে। <code>default via ...</code> line টাই তোমার gateway।</td></tr>
+        <tr><td>ip link</td><td>interface গুলো up না down, MAC address সহ।</td></tr>
+        <tr><td>ip -4 / -6</td><td>শুধু IPv4 বা শুধু IPv6 দেখায়। Output অর্ধেক হয়ে যায়।</td></tr>
+        <tr><td>ip -br a</td><td><b>brief</b> — সাজানো, পড়ার মতো এক-line করে। খুব পরিষ্কার।</td></tr>
+        <tr><td>ip -c a</td><td>রঙিন করে দেখায়।</td></tr>
+        <tr><td>ip neigh</td><td>ARP table — একই network-এ কারা আছে।</td></tr>
+        <tr><td>ip r get <i>IP</i></td><td>ঐ IP-তে যেতে ঠিক কোন পথ আর কোন interface ব্যবহার হবে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ip -br -c a
+<span class="p">$</span> ip r
+default via 192.168.0.1 dev wlan0
+<span class="p">$</span> ip r get 8.8.8.8</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>ping</code><em>— ওপারে কেউ আছে কিনা</em></div>
+      <p class="cd">ICMP packet পাঠিয়ে দেখে ফেরত আসে কিনা। দুটো জিনিস একসাথে যাচাই হয় — <b>নাম resolve হচ্ছে কিনা</b> আর <b>পথটা খোলা কিনা</b>। তাই নাম দিয়ে ping ব্যর্থ হলে IP দিয়ে চেষ্টা করে দেখো: কাজ করলে সমস্যা DNS-এ, network-এ না।</p>
+      <table class="flags">
+        <tr><td>-c <i>N</i></td><td>N-বার পাঠিয়ে থেমে যায়। এটা না দিলে চলতেই থাকে।</td></tr>
+        <tr><td>-i <i>N</i></td><td>N সেকেন্ড পরপর।</td></tr>
+        <tr><td>-W <i>N</i></td><td>উত্তরের জন্য কত সেকেন্ড অপেক্ষা করবে।</td></tr>
+        <tr><td>-s <i>N</i></td><td>packet-এর আকার — MTU সমস্যা খুঁজতে।</td></tr>
+        <tr><td>-4 / -6</td><td>নির্দিষ্ট IP version।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ping -c 4 google.com
+<span class="p">$</span> ping -c 4 8.8.8.8      <span class="c"># DNS নাকি network — এভাবেই আলাদা করা</span></div>
+      <div class="cd"><b>মনে রেখো:</b> অনেক server নিরাপত্তার কারণে ICMP-র উত্তর দেয় না। <code>ping</code> ব্যর্থ মানেই server ডাউন নয় — port ধরে দেখতে <code>curl</code> বা <code>nc</code> ব্যবহার করো।</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>ss</code><em>— কোন port খোলা, কে যুক্ত</em></div>
+      <p class="cd"><b>socket statistics।</b> <code>netstat</code>-এর আধুনিক আর অনেক দ্রুত উত্তরসূরি। "আমার app কি আসলেই port-এ শুনছে?" — এই প্রশ্নের উত্তর।</p>
+      <table class="flags">
+        <tr><td>-t</td><td>TCP।</td></tr>
+        <tr><td>-u</td><td>UDP।</td></tr>
+        <tr><td>-l</td><td><b>listening</b> — যেগুলো connection-এর অপেক্ষায় আছে।</td></tr>
+        <tr><td>-n</td><td>port/IP-কে নামে বদলায় না — অনেক দ্রুত।</td></tr>
+        <tr><td>-p</td><td>কোন process এটা ধরে আছে। <code>sudo</code> লাগে, নাহলে নাম দেখাবে না।</td></tr>
+        <tr><td>-a</td><td>listening আর connected দুটোই।</td></tr>
+        <tr><td>-tulpn</td><td><b>মুখস্থ করার combo।</b> খোলা সব port আর কে ধরে আছে — এক নজরে।</td></tr>
+        <tr><td>-s</td><td>সারসংক্ষেপ — কত connection কোন অবস্থায়।</td></tr>
+        <tr><td>state <i>X</i></td><td>নির্দিষ্ট অবস্থা ধরে ছাঁকা: <code>ss -t state established</code>।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo ss -tulpn
+<span class="p">$</span> ss -tn state established | head</div>
+      <div class="cd"><b>0.0.0.0:80 বনাম 127.0.0.1:80</b> — প্রথমটা মানে বাইরে থেকেও পৌঁছানো যাবে, দ্বিতীয়টা মানে শুধু এই machine থেকে। "Server চলছে কিন্তু বাইরে থেকে খুলছে না" — কারণ প্রায়ই এটাই।</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>curl</code><em>— HTTP দিয়ে কথা বলা</em></div>
+      <p class="cd">শুধু download-এর tool না — API পরীক্ষা, header দেখা, service জীবিত কিনা যাচাই — সবই এতে হয়।</p>
+      <table class="flags">
+        <tr><td>-I</td><td>শুধু <b>header</b>, body না। Server জীবিত কিনা আর status code কত — দ্রুত জানতে।</td></tr>
+        <tr><td>-i</td><td>header <b>আর</b> body দুটোই।</td></tr>
+        <tr><td>-v</td><td>পুরো কথোপকথন দেখায় — TLS handshake সহ। সমস্যা খোঁজার সেরা flag।</td></tr>
+        <tr><td>-L</td><td>redirect অনুসরণ করে। এটা ছাড়া 301 পেয়েই থেমে যায়।</td></tr>
+        <tr><td>-o <i>file</i></td><td>file-এ সংরক্ষণ করে। <code>-O</code> দিলে URL-এর নামেই রাখে।</td></tr>
+        <tr><td>-X <i>METHOD</i></td><td>POST, PUT, DELETE ইত্যাদি।</td></tr>
+        <tr><td>-d <i>data</i></td><td>body পাঠায় (দিলে এমনিতেই POST হয়ে যায়)।</td></tr>
+        <tr><td>-H <i>'K: V'</i></td><td>header যোগ করে। <code>-H 'Content-Type: application/json'</code>।</td></tr>
+        <tr><td>-s</td><td>progress bar লুকায়। Script-এ <code>-sS</code> ভালো — চুপ থাকে, কিন্তু error দেখায়।</td></tr>
+        <tr><td>-f</td><td>HTTP error-এ ব্যর্থ exit code দেয়। Script-এ জরুরি।</td></tr>
+        <tr><td>-k</td><td>TLS certificate যাচাই করে না। <b>শুধু নিজের পরীক্ষায়</b>, production-এ কখনো না।</td></tr>
+        <tr><td>--max-time <i>N</i></td><td>সর্বোচ্চ N সেকেন্ড। ঝুলে থাকা এড়াতে।</td></tr>
+        <tr><td>-w</td><td>নিজের format-এ তথ্য ছাপে। <code>-w '%{http_code} %{time_total}\n'</code>।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> curl -I https://example.com
+<span class="p">$</span> curl -sS -X POST -H 'Content-Type: application/json' \
+       -d '{"name":"x"}' http://localhost:3000/api
+<span class="p">$</span> curl -s -o /dev/null -w '%{http_code}\n' https://example.com</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>dig</code> / <code>nslookup</code><em>— DNS জিজ্ঞাসা</em></div>
+      <p class="cd">নাম থেকে IP বের করার কাজটা ঠিক কীভাবে হচ্ছে দেখা। <code>dig</code> বেশি বিস্তারিত আর নির্ভরযোগ্য।</p>
+      <table class="flags">
+        <tr><td>+short</td><td>শুধু উত্তরটা, আর কিছু না। দৈনন্দিন ব্যবহারে এটাই।</td></tr>
+        <tr><td>A / AAAA</td><td>IPv4 / IPv6 record।</td></tr>
+        <tr><td>MX / NS / TXT</td><td>mail server / nameserver / text record।</td></tr>
+        <tr><td>@<i>server</i></td><td>নির্দিষ্ট একটা DNS server-কে জিজ্ঞেস করে। <code>dig @8.8.8.8 example.com</code> — তোমার ISP-র DNS-এ সমস্যা কিনা ধরতে।</td></tr>
+        <tr><td>+trace</td><td>root থেকে শুরু করে পুরো পথটা ধাপে ধাপে দেখায়।</td></tr>
+        <tr><td>-x <i>IP</i></td><td>উল্টো খোঁজ — IP থেকে নাম।</td></tr>
+        <tr><td>host <i>নাম</i></td><td>সবচেয়ে সহজ সংস্করণ, এক line-এ উত্তর।</td></tr>
+        <tr><td>/etc/hosts</td><td>command না — DNS-এর <b>আগে</b> এই file দেখা হয়। তাই এখানে কিছু লিখে রাখলে সেটাই জেতে; local development-এ খুব কাজের।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> dig +short example.com
+<span class="p">$</span> dig @8.8.8.8 example.com
+<span class="p">$</span> dig -x 8.8.8.8</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>traceroute</code> / <code>mtr</code><em>— packet কোন পথে যাচ্ছে</em></div>
+      <p class="cd">তোমার machine থেকে গন্তব্য পর্যন্ত প্রতিটা router দেখায়। কোথায় গিয়ে আটকে যাচ্ছে তা ধরতে। <code>mtr</code> এটাকেই চলমান করে দেখায় — <code>traceroute</code> আর <code>ping</code>-এর মিশ্রণ।</p>
+      <table class="flags">
+        <tr><td>-n</td><td>নাম resolve করে না — অনেক দ্রুত।</td></tr>
+        <tr><td>-T</td><td>ICMP না, TCP ব্যবহার করে। ICMP আটকানো থাকলে এটা কাজ করে।</td></tr>
+        <tr><td>-p <i>port</i></td><td>নির্দিষ্ট port ধরে।</td></tr>
+        <tr><td>-m <i>N</i></td><td>সর্বোচ্চ কত ধাপ।</td></tr>
+        <tr><td>mtr -r -c 10</td><td>একটা report বানিয়ে বেরিয়ে যায়। Bug report-এ জুড়ে দেওয়ার জন্য।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> traceroute -n google.com
+<span class="p">$</span> mtr -r -c 10 google.com</div>
+      <div class="cd">মাঝের কোনো ধাপে <code>* * *</code> দেখা স্বাভাবিক — অনেক router ইচ্ছে করেই উত্তর দেয় না। চিন্তার বিষয় তখনই, যখন একটা নির্দিষ্ট ধাপ থেকে <b>শেষ পর্যন্ত</b> সব <code>*</code>।</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>nc</code> (netcat)<em>— port খোলা কিনা দেখা</em></div>
+      <p class="cd">Network-এর ছুরি। সবচেয়ে বেশি কাজে লাগে এক জায়গায় — "ঐ host-এর ঐ port-এ কি সত্যিই পৌঁছানো যায়?" Firewall-এর সমস্যা খোঁজার সবচেয়ে সরাসরি উপায়।</p>
+      <table class="flags">
+        <tr><td>-z</td><td>data পাঠায় না, শুধু port খোলা কিনা দেখে (scan)।</td></tr>
+        <tr><td>-v</td><td>কী হচ্ছে বলে দেয়। <code>-zv</code> একসাথে ব্যবহার হয়।</td></tr>
+        <tr><td>-w <i>N</i></td><td>N সেকেন্ড পর হাল ছেড়ে দেয়। এটা না দিলে ঝুলে থাকতে পারে।</td></tr>
+        <tr><td>-l</td><td>নিজেই একটা port-এ শুনতে থাকে — পরীক্ষার জন্য নকল server।</td></tr>
+        <tr><td>-u</td><td>TCP না, UDP।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> nc -zv db.internal 5432
+<span class="p">$</span> nc -zv -w 3 localhost 8080
+<span class="p">$</span> nc -l 9000       <span class="c"># পরীক্ষার জন্য শোনা</span></div>
+    </div>
+  </div>
+
   <div class="recap">
     <div class="box-t">Recap</div>
     <ul>
@@ -2316,6 +3684,143 @@ systemd (1)                    systemd (1)
     <p><b>"Permission denied (publickey)"</b> — server password গ্রহণ করছে না, আর তোমার key-ও সে চেনে না। Key টা ঠিকমতো <code>ssh-copy-id</code> করা হয়েছে কি না দেখো।</p>
     <p><b>"REMOTE HOST IDENTIFICATION HAS CHANGED"</b> — server-এর fingerprint বদলে গেছে। Server নতুন করে বানানো হলে এটা স্বাভাবিক, কিন্তু না হলে এটা সত্যিকারের সতর্কবার্তা। কারণ না জেনে <code>known_hosts</code>-এর লাইন মুছে দিও না।</p>
     <p><b>"Connection refused" আর "Connection timed out" এক না"</b> — refused মানে পৌঁছেছে কিন্তু ঐ port-এ কেউ শুনছে না। timeout মানে পৌঁছাতেই পারেনি — সাধারণত firewall বা ভুল ঠিকানা।</p>
+  </div>
+
+  <h3>এই chapter-এর জরুরি command গুলো</h3>
+  <div class="cmdref">
+    <div class="cr-head"><b>SSH আর remote কাজ</b><span>Chapter 13</span></div>
+
+    <div class="cmd">
+      <div class="cn"><code>ssh</code><em>— দূরের machine-এ ঢোকা</em></div>
+      <p class="cd">গঠন: <code>ssh</code> <i>user</i><code>@</code><i>host</i>। User না দিলে তোমার এখনকার নামটাই ব্যবহার করে — যা প্রায়ই ভুল হয়।</p>
+      <table class="flags">
+        <tr><td>-p <i>port</i></td><td>22 ছাড়া অন্য port। <b>ছোট হাতের p</b> — <code>scp</code>-তে এটা বড় হাতের <code>-P</code>, এই অমিলটা ভোগায়।</td></tr>
+        <tr><td>-i <i>keyfile</i></td><td>কোন private key ব্যবহার করবে। একাধিক key থাকলে দরকার।</td></tr>
+        <tr><td>-v</td><td>কী ঘটছে দেখায়। <code>-vvv</code> দিলে আরও বিস্তারিত — "Permission denied (publickey)" এর আসল কারণ এভাবেই বেরোয়।</td></tr>
+        <tr><td>-N</td><td>কোনো command চালায় না। শুধু tunnel বানানোর জন্য।</td></tr>
+        <tr><td>-f</td><td>background-এ চলে যায়।</td></tr>
+        <tr><td>-L <i>l:h:r</i></td><td><b>local forward।</b> তোমার machine-এর একটা port-কে দূরের একটা port-এর সাথে জুড়ে দেয়। Firewall-এর পেছনের database-এ পৌঁছানোর প্রধান উপায়।</td></tr>
+        <tr><td>-R</td><td>উল্টোটা — <b>remote forward।</b> দূরের machine তোমার এখানকার কিছুতে পৌঁছাতে পারে।</td></tr>
+        <tr><td>-D <i>port</i></td><td>SOCKS proxy বানায় — সব traffic ঐ server দিয়ে পাঠাতে।</td></tr>
+        <tr><td>-J <i>host</i></td><td><b>jump host</b> — মাঝের একটা server পেরিয়ে গন্তব্যে। Bastion server-এর জন্য।</td></tr>
+        <tr><td>-t</td><td>জোর করে terminal দেয়। দূরে interactive কিছু চালাতে।</td></tr>
+        <tr><td>-o <i>Opt=মান</i></td><td>যেকোনো config option সরাসরি। <code>-o StrictHostKeyChecking=no</code>।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ssh -p 2222 mostofa@example.com
+<span class="p">$</span> ssh user@host "df -h"          <span class="c"># একটা command চালিয়েই ফিরে আসা</span>
+<span class="p">$</span> ssh -L 5432:localhost:5432 user@server   <span class="c"># দূরের DB এখন localhost:5432</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>ssh-keygen</code><em>— key জোড়া বানানো</em></div>
+      <p class="cd">দুটো file তৈরি হয়: <b>private key</b> (কোনোদিন কাউকে দেবে না) আর <code>.pub</code> — <b>public key</b> (সবাইকে দেওয়ার জন্যই বানানো)। গণিতটা এমন যে public দিয়ে তালা লাগানো যায়, খোলা যায় শুধু private দিয়ে।</p>
+      <table class="flags">
+        <tr><td>-t ed25519</td><td>key-এর ধরন। <b>আজকের দিনে এটাই ব্যবহার করো</b> — ছোট, দ্রুত, নিরাপদ। পুরনো system-এ <code>-t rsa -b 4096</code>।</td></tr>
+        <tr><td>-C <i>"মন্তব্য"</i></td><td>একটা লেবেল, সাধারণত email। কোন key কোন machine-এর মনে রাখতে।</td></tr>
+        <tr><td>-f <i>path</i></td><td>কোথায় সংরক্ষণ করবে। একাধিক key রাখতে।</td></tr>
+        <tr><td>-N <i>''</i></td><td>passphrase ছাড়া। <b>Passphrase দেওয়াই ভালো</b> — laptop চুরি গেলে key তবু নিরাপদ থাকে।</td></tr>
+        <tr><td>-p</td><td>বিদ্যমান key-র passphrase বদলায়।</td></tr>
+        <tr><td>-l -f <i>key</i></td><td>key-র fingerprint দেখায়।</td></tr>
+        <tr><td>-y -f <i>key</i></td><td>private key থেকে public key আবার বানিয়ে দেয় — <code>.pub</code> হারিয়ে গেলে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ssh-keygen -t ed25519 -C "mostofa@laptop"
+<span class="p">$</span> cat ~/.ssh/id_ed25519.pub    <span class="c"># এটাই শেয়ার করার জিনিস</span></div>
+      <div class="cd"><b>Permission-এ কড়াকড়ি:</b> <code>~/.ssh</code> হতে হবে <code>700</code>, private key <code>600</code>। বেশি খোলা থাকলে SSH নিজেই key টা ব্যবহার করতে অস্বীকার করবে — এটা bug না, ইচ্ছাকৃত নিরাপত্তা।</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>ssh-copy-id</code><em>— public key server-এ পাঠানো</em></div>
+      <p class="cd">Public key টা দূরের machine-এর <code>~/.ssh/authorized_keys</code>-এ যোগ করে দেয় — আর permission গুলোও ঠিক করে দেয়। হাতে করতে গেলে permission-এই বেশিরভাগ মানুষ আটকায়। একবার করলে আর password লাগে না।</p>
+      <table class="flags">
+        <tr><td>-i <i>keyfile</i></td><td>কোন public key পাঠাবে।</td></tr>
+        <tr><td>-p <i>port</i></td><td>অন্য port হলে।</td></tr>
+        <tr><td>-f</td><td>ইতিমধ্যে আছে কিনা না দেখেই জোর করে যোগ করে।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ssh-copy-id -i ~/.ssh/id_ed25519.pub user@server
+<span class="p">$</span> ssh user@server        <span class="c"># এখন আর password চাইবে না</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>scp</code> / <code>rsync</code><em>— file আদান-প্রদান</em></div>
+      <p class="cd">দুটোই SSH-এর উপর দিয়েই চলে, তাই একই key কাজ করে। <code>scp</code> সহজ কিন্তু বোকা — প্রতিবার পুরোটা আবার পাঠায়। <code>rsync</code> বুদ্ধিমান — <b>শুধু যেটুকু বদলেছে</b> সেটুকু পাঠায়। বড় কিছুতে <code>rsync</code>-ই ব্যবহার করো।</p>
+      <table class="flags">
+        <tr><td>scp -P <i>port</i></td><td>port। <b>বড় হাতের P</b> — <code>ssh</code>-এ ছোট হাতের, এখানে বড়।</td></tr>
+        <tr><td>scp -r</td><td>directory পাঠাতে।</td></tr>
+        <tr><td>scp -C</td><td>পাঠানোর সময় compress করে।</td></tr>
+        <tr><td>rsync -a</td><td><b>archive</b> — recursive, permission আর timestamp অক্ষত। প্রায় সবসময় এটা দিয়েই শুরু।</td></tr>
+        <tr><td>rsync -v</td><td>কী কী যাচ্ছে দেখায়।</td></tr>
+        <tr><td>rsync -z</td><td>compress করে পাঠায়। ধীর connection-এ কাজের।</td></tr>
+        <tr><td>rsync -P</td><td>progress দেখায় আর ভাঙা transfer আবার শুরু করতে পারে।</td></tr>
+        <tr><td>rsync -n</td><td><b>dry run</b> — কী হতো দেখায়, করে না। <code>--delete</code> ব্যবহারের আগে <b>অবশ্যই</b> এটা।</td></tr>
+        <tr><td>rsync --delete</td><td>উৎসে যা নেই গন্তব্যে তা মুছে দেয় — হুবহু মিল বানায়। <b>শক্তিশালী এবং বিপজ্জনক।</b></td></tr>
+        <tr><td>rsync -e <i>'ssh -p N'</i></td><td>অন্য port ব্যবহার করতে।</td></tr>
+        <tr><td>শেষে <code>/</code></td><td><code>rsync</code>-এর সবচেয়ে বড় ফাঁদ। <code>src/</code> = ভেতরের জিনিসগুলো পাঠাও। <code>src</code> = directory-টাসহ পাঠাও।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> scp -P 2222 app.tar.gz user@server:/tmp/
+<span class="p">$</span> rsync -avzP ./build/ user@server:/var/www/
+<span class="p">$</span> rsync -avn --delete ./site/ user@server:/var/www/   <span class="c"># আগে dry run</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>~/.ssh/config</code><em>— লম্বা command-এর বদলে ছোট নাম</em></div>
+      <p class="cd">Command না, একটা file — কিন্তু SSH-এর সবচেয়ে কাজের জিনিস। একবার লিখে রাখলে <code>ssh -i ~/.ssh/k -p 2222 ubuntu@1.2.3.4</code>-এর বদলে শুধু <code>ssh prod</code>। <code>scp</code> আর <code>rsync</code>-ও এই নাম চিনবে।</p>
+      <table class="flags">
+        <tr><td>Host <i>নাম</i></td><td>তুমি যে ডাকনামে ডাকবে।</td></tr>
+        <tr><td>HostName</td><td>আসল address বা IP।</td></tr>
+        <tr><td>User</td><td>কোন user।</td></tr>
+        <tr><td>Port</td><td>port number।</td></tr>
+        <tr><td>IdentityFile</td><td>কোন private key।</td></tr>
+        <tr><td>ProxyJump</td><td>মাঝের bastion server।</td></tr>
+        <tr><td>ServerAliveInterval 60</td><td>প্রতি ৬০ সেকেন্ডে একটা সংকেত পাঠায় — চুপ করে থাকলে connection কেটে যাওয়া ঠেকায়।</td></tr>
+        <tr><td>ForwardAgent yes</td><td>তোমার key দূরের machine থেকেও ব্যবহার করা যায়। সুবিধাজনক, তবে সেই server-কে বিশ্বাস করতে হবে।</td></tr>
+      </table>
+      <div class="ex"><span class="c"># ~/.ssh/config</span>
+Host prod
+  HostName 203.0.113.10
+  User ubuntu
+  Port 2222
+  IdentityFile ~/.ssh/id_ed25519
+  ServerAliveInterval 60
+
+<span class="p">$</span> ssh prod
+<span class="p">$</span> rsync -avz ./build/ prod:/var/www/</div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn"><code>tmux</code><em>— connection কেটে গেলেও কাজ বেঁচে থাকে</em></div>
+      <p class="cd">SSH connection কাটলে তোমার চলমান কাজ SIGHUP পেয়ে মরে যায়। <code>tmux</code> সেটা ঠেকায় — session টা server-এ চলতেই থাকে, তুমি পরে আবার যুক্ত হও। <b>দীর্ঘ কাজ চালানোর আগে সবসময় tmux-এ ঢুকে নাও।</b></p>
+      <table class="flags">
+        <tr><td>tmux new -s <i>নাম</i></td><td>নাম দিয়ে নতুন session।</td></tr>
+        <tr><td>tmux ls</td><td>কী কী session আছে।</td></tr>
+        <tr><td>tmux a -t <i>নাম</i></td><td>আবার যুক্ত হওয়া। <code>tmux a</code> দিলে শেষেরটায়।</td></tr>
+        <tr><td>Ctrl+b তারপর d</td><td><b>detach</b> — কাজ চলতে রেখে বেরিয়ে আসা।</td></tr>
+        <tr><td>Ctrl+b তারপর c</td><td>নতুন window।</td></tr>
+        <tr><td>Ctrl+b তারপর "</td><td>পর্দা আড়াআড়ি ভাগ করা। <code>%</code> দিলে লম্বালম্বি।</td></tr>
+        <tr><td>Ctrl+b তারপর তীর</td><td>ভাগগুলোর মধ্যে চলাচল।</td></tr>
+        <tr><td>Ctrl+b তারপর [</td><td>scroll mode — উপরে গিয়ে পুরনো output পড়া। <code>q</code> দিয়ে বেরোনো।</td></tr>
+        <tr><td>tmux kill-session -t</td><td>session শেষ করা।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> ssh prod
+<span class="p">$</span> tmux new -s deploy
+<span class="p">$</span> ./long-migration.sh
+<span class="c"># Ctrl+b d — বেরিয়ে গেলাম, কাজ চলছে</span>
+<span class="p">$</span> tmux a -t deploy    <span class="c"># পরে ফিরে এসে</span></div>
+    </div>
+
+    <div class="cmd">
+      <div class="cn">SSH নিরাপদ রাখা<em>— sshd_config</em></div>
+      <p class="cd">Server-এর সেটিংস <code>/etc/ssh/sshd_config</code>-এ। বদলানোর পর <code>sudo systemctl reload ssh</code>। <b>সোনালি নিয়ম:</b> বদল করার পর <b>বর্তমান session টা খোলা রেখে</b> নতুন একটা terminal-এ ঢুকে দেখো — ভুল হলে ফিরে যাওয়ার পথ খোলা থাকে।</p>
+      <table class="flags">
+        <tr><td>PasswordAuthentication no</td><td>শুধু key দিয়ে ঢোকা যাবে। <b>সবচেয়ে কার্যকর একটি বদল</b> — brute force আক্রমণ অর্থহীন হয়ে যায়। আগে নিশ্চিত হও key কাজ করছে।</td></tr>
+        <tr><td>PermitRootLogin no</td><td>root হিসেবে সরাসরি ঢোকা বন্ধ। সাধারণ user-এ ঢুকে <code>sudo</code> করো।</td></tr>
+        <tr><td>Port <i>N</i></td><td>22 বদলানো। আসল নিরাপত্তা দেয় না, তবে log-এ শব্দ অনেক কমে।</td></tr>
+        <tr><td>AllowUsers</td><td>শুধু নির্দিষ্ট user-রা ঢুকতে পারবে।</td></tr>
+        <tr><td>sshd -t</td><td>config-এ ভুল আছে কিনা যাচাই করে। <b>reload-এর আগে সবসময় চালাও।</b></td></tr>
+        <tr><td>fail2ban</td><td>আলাদা tool — বারবার ভুল চেষ্টা করা IP নিজে থেকে ব্লক করে দেয়।</td></tr>
+      </table>
+      <div class="ex"><span class="p">$</span> sudo sshd -t &amp;&amp; sudo systemctl reload ssh
+<span class="p">$</span> sudo journalctl -u ssh -f    <span class="c"># কে ঢোকার চেষ্টা করছে</span></div>
+    </div>
   </div>
 
   <div class="recap">
