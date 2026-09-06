@@ -1,0 +1,319 @@
+<!-- ============================================================
+     lab-01-filesystem-navigation.html
+     ------------------------------------------------------------
+     এটা একটা lab-এর content। labs.html এটাকে fetch করে দেখায়।
+     Title / tag / সময় / বিবরণ আসে labs/manifest.js থেকে —
+     এখানে আর লিখতে হয় না।
+     ============================================================ -->
+<section class="lab">
+  <div class="ch-head">
+    <div class="ch-meta">
+      <span class="ch-num">Lab 01</span>
+      <span class="layer-tag">chapter 03-04</span>
+      <span class="layer-tag time">≈ 45 মিনিট</span>
+    </div>
+    <h2>Mastering Linux File System Navigation</h2>
+    <p class="ch-lede">Linux-এ file system-এ চলাফেরা করতে পারাটা সবচেয়ে গোড়ার দক্ষতা। এই lab-এ তুমি একটা practice directory বানাবে, তার ভেতরে ঘুরবে, file খুঁজবে, আর file-এর ভেতরের লেখা খুঁজবে — <code>pwd</code>, <code>cd</code>, <code>ls</code>, <code>find</code> আর <code>grep</code> দিয়ে।</p>
+  </div>
+
+  <h3>এই lab শেষে যা পারবে</h3>
+  <ul>
+    <li><code>pwd</code> দিয়ে বুঝবে তুমি এখন কোথায় দাঁড়িয়ে আছো।</li>
+    <li><code>cd</code> দিয়ে absolute আর relative — দুই রকম path ধরেই চলাচল করবে।</li>
+    <li><code>ls</code> দিয়ে কোনো directory-র ভেতরে কী আছে দেখবে, hidden file সহ।</li>
+    <li><code>find</code> দিয়ে নাম ধরে file খুঁজবে।</li>
+    <li><code>grep</code> দিয়ে file-এর <b>ভেতরের</b> লেখা খুঁজবে।</li>
+  </ul>
+
+  <div class="box note">
+    <div class="box-t">দরকারি</div>
+    <p>একটা Linux terminal বা WSL, আর terminal-এ টাইপ করার সামান্য অভ্যাস। এই lab-এ কোনো <code>sudo</code> লাগবে না — সব কাজ তোমার নিজের home directory-র ভেতরে।</p>
+  </div>
+
+  <h3>Lab Setup</h3>
+  <p>প্রথমে practice করার জন্য একটা directory structure বানিয়ে নিই। নিচের command গুলো একসাথে terminal-এ চালাও:</p>
+
+  <div class="code">
+    <div class="code-bar"><span>bash — setup</span><button class="copy">copy</button></div>
+<pre><span class="c"># মূল directory গুলো বানাও</span>
+mkdir -p ~/code/lab/projects/website
+mkdir -p ~/code/lab/documents/reports
+mkdir -p ~/code/lab/documents/notes
+
+<span class="c"># কিছু নমুনা file বানাও</span>
+echo "Hello World"   &gt; ~/code/lab/projects/website/index.html
+echo "Project Plan"  &gt; ~/code/lab/documents/reports/plan.txt
+echo "Meeting Notes" &gt; ~/code/lab/documents/notes/meeting.txt
+echo "Todo List"     &gt; ~/code/lab/documents/notes/todo.txt</pre>
+  </div>
+
+  <p><code>mkdir -p</code>-এর <code>-p</code> মানে — মাঝের directory গুলো না থাকলে সেগুলোও বানিয়ে নাও। আর <code>echo "..." &gt; file</code> মানে — লেখাটা screen-এ না দেখিয়ে file-এ লিখে দাও।</p>
+
+  <p>এখন যে structure টা তৈরি হলো, সেটা দেখতে এমন:</p>
+  <div class="out">
+    <div class="out-bar">তৈরি হওয়া structure</div>
+<pre>~/code/lab/
+├── projects/
+│   └── website/
+│       └── index.html      <span class="o">← "Hello World"</span>
+└── documents/
+    ├── reports/
+    │   └── plan.txt        <span class="o">← "Project Plan"</span>
+    └── notes/
+        ├── meeting.txt     <span class="o">← "Meeting Notes"</span>
+        └── todo.txt        <span class="o">← "Todo List"</span></pre>
+  </div>
+
+  <h3>অনুশীলন</h3>
+
+  <!-- STEP 1 -->
+  <div class="step" data-n="1">
+    <h4>pwd — আমি এখন কোথায়?</h4>
+    <p class="obj">লক্ষ্য: file system-এ নিজের বর্তমান অবস্থান জানা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ pwd</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>/root</pre>
+      <div class="note-line">তোমার নিজের output আলাদা হতে পারে — যেমন <code>/home/mostofa</code>। এটাই তোমার home directory।</div>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> <code>pwd</code> মানে <b>P</b>rint <b>W</b>orking <b>D</b>irectory। Shell সবসময় কোনো না কোনো directory-তে "দাঁড়িয়ে" থাকে — সেটাই তোমার current working directory। কোনো command relative path দিলে সেটা এই জায়গা থেকেই হিসেব হয়।</p>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" data-n="2">
+    <h4>cd — এক জায়গা থেকে আরেক জায়গায়</h4>
+    <p class="obj">লক্ষ্য: absolute আর relative — দুই রকম path দিয়েই চলাচল করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ cd ~/code/lab</pre>
+    </div>
+
+    <p><code>~</code> চিহ্নটা তোমার home directory-র শর্টকাট। তাই <code>~/code/lab</code> মানে <code>/home/তোমার-নাম/code/lab</code>।</p>
+
+    <p>এবার ভেতরে ঘুরে দেখো:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># projects-এ ঢোকো</span>
+$ cd projects
+$ pwd                             <span class="c"># কোথায় আছি মিলিয়ে নাও</span>
+
+<span class="c"># এক ধাপ উপরে ফিরে যাও</span>
+$ cd ..
+$ pwd                             <span class="c"># এখন ~/code/lab-এ থাকার কথা</span>
+
+<span class="c"># absolute path দিয়ে সরাসরি notes-এ</span>
+$ cd ~/code/lab/documents/notes
+$ pwd</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — ধাপে ধাপে</div>
+<pre>/root/code/lab/projects
+/root/code/lab
+/root/code/lab/documents/notes</pre>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">দুই রকম path</div>
+      <p><b>Absolute path</b> শুরু হয় <code>/</code> দিয়ে — যেমন <code>/root/code/lab</code>। তুমি যেখানেই থাকো, এই path সবসময় একই জায়গা বোঝায়।</p>
+      <p><b>Relative path</b> শুরু হয় তোমার বর্তমান অবস্থান থেকে — যেমন <code>projects</code> বা <code>..</code>। <code>.</code> মানে "এখানেই", <code>..</code> মানে "এক ধাপ উপরে"।</p>
+      <p>খালি <code>cd</code> লিখে Enter দিলে সরাসরি home-এ ফিরে যাবে। আর <code>cd -</code> দিলে ঠিক আগে যেখানে ছিলে সেখানে ফিরবে।</p>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" data-n="3">
+    <h4>ls — ভেতরে কী আছে?</h4>
+    <p class="obj">লক্ষ্য: directory-র ভেতরের জিনিস দেখা, hidden file সহ।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># সাধারণ তালিকা</span>
+$ ls
+
+<span class="c"># বিস্তারিত + hidden file সহ</span>
+$ ls -la
+
+<span class="c"># অন্য directory-তে না গিয়েই সেটার ভেতর দেখা</span>
+$ ls ~/code/lab/projects</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — ls -la (notes directory-তে)</div>
+<pre>total 16
+drwxr-xr-x 2 root root 4096 Sep  6 11:20 <b>.</b>
+drwxr-xr-x 4 root root 4096 Sep  6 11:20 <b>..</b>
+-rw-r--r-- 1 root root   14 Sep  6 11:20 meeting.txt
+-rw-r--r-- 1 root root   10 Sep  6 11:20 todo.txt</pre>
+      <div class="note-line">প্রথম দুটো লাইন <code>.</code> আর <code>..</code> — নিজে আর তার parent। এগুলো সবসময় থাকে।</div>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> <code>-l</code> মানে long format — permission, owner, size, তারিখ সব দেখায়। <code>-a</code> মানে all — <code>.</code> দিয়ে শুরু হওয়া hidden file গুলোও দেখায়। দুটো একসাথে <code>-la</code>।</p>
+
+    <table>
+      <tr><th>যা দেখছো</th><th>মানে</th></tr>
+      <tr><td><code>d</code> দিয়ে শুরু</td><td>এটা একটা directory</td></tr>
+      <tr><td><code>-</code> দিয়ে শুরু</td><td>এটা একটা সাধারণ file</td></tr>
+      <tr><td><code>rw-r--r--</code></td><td>কে পড়তে/লিখতে/চালাতে পারবে — permission</td></tr>
+      <tr><td><code>root root</code></td><td>file-এর owner আর group</td></tr>
+    </table>
+
+    <div class="box tip">
+      <div class="box-t">সাথে সিমুলেটর</div>
+      <p>Permission-এর <code>rwxr-xr-x</code> অংশটা এখনই পুরো বুঝতে হবে না। কৌতূহল হলে <a href="simulators.html#s1">Permission Calculator সিমুলেটর</a> খুলে switch গুলো নেড়ে দেখতে পারো।</p>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step" data-n="4">
+    <h4>find — নাম ধরে file খোঁজা</h4>
+    <p class="obj">লক্ষ্য: directory-র গভীরে লুকিয়ে থাকা file খুঁজে বের করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ cd ~/code/lab
+
+<span class="c"># সব .txt file খুঁজে বের করো</span>
+$ find . -name "*.txt"
+
+<span class="c"># notes directory-র ভেতরের শুধু file গুলো</span>
+$ find ./documents/notes -type f</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ find . -name "*.txt"</span>
+./documents/reports/plan.txt
+./documents/notes/meeting.txt
+./documents/notes/todo.txt
+
+<span class="o">$ find ./documents/notes -type f</span>
+./documents/notes/meeting.txt
+./documents/notes/todo.txt</pre>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> <code>find</code>-এর গঠনটা হলো — <code>find &lt;কোথায় খুঁজব&gt; &lt;কী শর্তে&gt;</code>। এখানে <code>.</code> মানে "এখান থেকে শুরু করে নিচের সব", <code>-name</code> দিয়ে নামের প্যাটার্ন, আর <code>-type f</code> দিয়ে শুধু file (directory বাদ)।</p>
+
+    <table>
+      <tr><th>শর্ত</th><th>কী করে</th></tr>
+      <tr><td><code>-name "*.txt"</code></td><td>নাম <code>.txt</code> দিয়ে শেষ হয় এমন সব</td></tr>
+      <tr><td><code>-type f</code></td><td>শুধু file</td></tr>
+      <tr><td><code>-type d</code></td><td>শুধু directory</td></tr>
+      <tr><td><code>-iname "*.TXT"</code></td><td>নামের ছোট-বড় হাতের অক্ষর ধরবে না</td></tr>
+    </table>
+
+    <div class="box warn">
+      <div class="box-t">Quote দিতে ভুলো না</div>
+      <p><code>find . -name *.txt</code> — quote ছাড়া লিখলে shell নিজেই <code>*.txt</code> টা আগে বদলে ফেলে, তখন <code>find</code> ভুল জিনিস পায়। তাই সবসময় <code>"*.txt"</code> quote-এর ভেতরে লেখো।</p>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step" data-n="5">
+    <h4>grep — file-এর ভেতরের লেখা খোঁজা</h4>
+    <p class="obj">লক্ষ্য: কোন file-এ কোন কথাটা লেখা আছে সেটা বের করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># documents-এর ভেতরের সব file-এ "Meeting" খোঁজো</span>
+$ grep -r "Meeting" ~/code/lab/documents
+
+<span class="c"># শুধু .txt file গুলোর ভেতরে "Plan" খোঁজো</span>
+$ grep "Plan" ~/code/lab/documents/*/*.txt</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ grep -r "Meeting" ~/code/lab/documents</span>
+/root/code/lab/documents/notes/meeting.txt:<b>Meeting</b> Notes
+
+<span class="o">$ grep "Plan" ~/code/lab/documents/*/*.txt</span>
+/root/code/lab/documents/reports/plan.txt:Project <b>Plan</b></pre>
+      <div class="note-line">Output-এর গঠন: <code>file-এর path : যে লাইনে পাওয়া গেছে</code></div>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> <code>grep</code> মানে <b>G</b>lobal <b>R</b>egular <b>E</b>xpression <b>P</b>rint। <code>find</code> খোঁজে <b>নাম</b> ধরে, আর <code>grep</code> খোঁজে <b>ভেতরের লেখা</b> ধরে — এই পার্থক্যটা মনে রাখা জরুরি।</p>
+
+    <table>
+      <tr><th>Flag</th><th>কী করে</th></tr>
+      <tr><td><code>-r</code></td><td>directory-র ভেতরে ঢুকে ঢুকে খোঁজে</td></tr>
+      <tr><td><code>-i</code></td><td>ছোট-বড় হাতের অক্ষর ধরে না</td></tr>
+      <tr><td><code>-n</code></td><td>কত নম্বর লাইনে পাওয়া গেছে দেখায়</td></tr>
+      <tr><td><code>-l</code></td><td>শুধু file-এর নাম দেখায়, লাইন না</td></tr>
+    </table>
+  </div>
+
+  <h3>নিজে করো — Search Challenge</h3>
+  <p>নিচের তিনটে কাজ নিজে চেষ্টা করো। উত্তর দেখার <b>আগে</b> নিজে লিখে চালিয়ে দেখো:</p>
+  <ol>
+    <li>যেসব file-এর ভেতরে "List" কথাটা আছে, সেগুলো খুঁজে বের করো।</li>
+    <li><code>lab</code> directory আর তার ভেতরের সব জায়গা থেকে <code>.txt</code> file গুলো বের করো।</li>
+    <li><code>lab</code>-এর ভেতরের শুধু directory গুলোর তালিকা করো (file বাদ দিয়ে)।</li>
+  </ol>
+
+  <details class="solve">
+    <summary>সমাধান দেখো</summary>
+    <div class="sbody">
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — ভেতরের লেখা ধরে খোঁজা</span>
+$ grep -r "List" ~/code/lab
+
+<span class="c"># ২ — নাম ধরে খোঁজা</span>
+$ find ~/code/lab -name "*.txt"
+
+<span class="c"># ৩ — শুধু directory</span>
+$ find ~/code/lab -type d</pre>
+      </div>
+
+      <div class="out">
+        <div class="out-bar">output</div>
+<pre><span class="o">১ →</span> /root/code/lab/documents/notes/todo.txt:Todo <b>List</b>
+
+<span class="o">২ →</span> /root/code/lab/documents/reports/plan.txt
+       /root/code/lab/documents/notes/meeting.txt
+       /root/code/lab/documents/notes/todo.txt
+
+<span class="o">৩ →</span> /root/code/lab
+       /root/code/lab/projects
+       /root/code/lab/projects/website
+       /root/code/lab/documents
+       /root/code/lab/documents/reports
+       /root/code/lab/documents/notes</pre>
+      </div>
+      <p>খেয়াল করো — ৩ নম্বরের output-এ <code>~/code/lab</code> নিজেও আছে। কারণ যেখান থেকে খোঁজা শুরু, সেটাও একটা directory।</p>
+    </div>
+  </details>
+
+  <h3>আটকে গেলে</h3>
+  <table>
+    <tr><th>Error</th><th>কী হয়েছে / কী করবে</th></tr>
+    <tr><td><code>Permission denied</code></td><td><code>ls -la</code> দিয়ে permission দেখো। দরকার হলে <code>chmod</code> দিয়ে বদলাও, অথবা নিজের home directory-তে কাজ করো।</td></tr>
+    <tr><td><code>No such file or directory</code></td><td>Path-এ টাইপো হয়েছে। <code>Tab</code> চেপে auto-complete ব্যবহার করো — তাহলে টাইপো হবেই না।</td></tr>
+    <tr><td><code>command not found</code></td><td>Command-এর বানান ভুল, নাহলে জিনিসটা install করা নেই।</td></tr>
+    <tr><td><code>find</code> কিছুই দিচ্ছে না</td><td>ঠিক জায়গা থেকে খুঁজছো কিনা দেখো — <code>pwd</code> দিয়ে মিলিয়ে নাও।</td></tr>
+  </table>
+
+  <div class="check" data-lab="l1">
+    <div class="ct">Lab 1 — চেকলিস্ট</div>
+    <label><input type="checkbox"><span>Setup command চালিয়ে directory structure বানিয়েছি</span></label>
+    <label><input type="checkbox"><span><code>pwd</code> দিয়ে নিজের অবস্থান দেখেছি</span></label>
+    <label><input type="checkbox"><span>Absolute আর relative — দুই রকম path দিয়েই <code>cd</code> করেছি</span></label>
+    <label><input type="checkbox"><span><code>ls -la</code> চালিয়ে hidden file দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>find</code> দিয়ে নাম ধরে file খুঁজেছি</span></label>
+    <label><input type="checkbox"><span><code>grep</code> দিয়ে ভেতরের লেখা খুঁজেছি</span></label>
+    <label><input type="checkbox"><span>তিনটে challenge নিজে করেছি</span></label>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">মূল কথা</div>
+    <p><code>pwd</code> বলে <b>কোথায় আছি</b>, <code>cd</code> দিয়ে <b>জায়গা বদলাই</b>, <code>ls</code> দিয়ে <b>কী আছে দেখি</b>, <code>find</code> দিয়ে <b>নাম ধরে খুঁজি</b>, আর <code>grep</code> দিয়ে <b>ভেতরের লেখা খুঁজি</b>। এই পাঁচটা মিলেই Linux-এ চলাফেরার পুরো ভিত্তি।</p>
+  </div>
+</section>

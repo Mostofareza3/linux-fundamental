@@ -1,0 +1,437 @@
+<!-- ============================================================
+     lab-02-user-group-management.html
+     ------------------------------------------------------------
+     এটা একটা lab-এর content। labs.html এটাকে fetch করে দেখায়।
+     Title / tag / সময় / বিবরণ আসে labs/manifest.js থেকে —
+     এখানে আর লিখতে হয় না।
+     ============================================================ -->
+<section class="lab">
+  <div class="ch-head">
+    <div class="ch-meta">
+      <span class="ch-num">Lab 02</span>
+      <span class="layer-tag">chapter 06</span>
+      <span class="layer-tag time">≈ 59 মিনিট</span>
+    </div>
+    <h2>Linux User and Group Management</h2>
+    <p class="ch-lede">একটা Linux system-এ কে কী করতে পারবে — পুরোটাই ঠিক হয় user আর group দিয়ে। এই lab-এ তুমি user বানাবে, group বানাবে, primary আর supplementary group-এ user বসাবে, আর দরকার হলে কোনো account সাময়িকভাবে বন্ধ (lock) করে আবার খুলবে।</p>
+  </div>
+
+  <h3>এই lab শেষে যা পারবে</h3>
+  <ul>
+    <li>নতুন user account বানাবে।</li>
+    <li>Group বানাবে আর সেটার সদস্য দেখবে।</li>
+    <li>Primary আর supplementary group — দুটোর পার্থক্য বুঝে user বসাবে।</li>
+    <li>Account lock করে সেটা verify করবে, আবার unlock করবে।</li>
+    <li>System-এর সব user-এর তালিকা দেখবে।</li>
+  </ul>
+
+  <div class="box warn">
+    <div class="box-t">সাবধানতা</div>
+    <p>এই lab-এর সব command <code>sudo</code> দিয়ে চলে, অর্থাৎ system-এ আসল পরিবর্তন হয়। তাই কাজটা <b>নিজের practice VM, WSL, বা ফেলে দেওয়া যায় এমন একটা VPS-এ</b> করো — কোনো production server-এ নয়। শেষে পরিষ্কার করার command গুলোও দেওয়া আছে।</p>
+  </div>
+
+  <h3>আগে দুটো ধারণা পরিষ্কার করে নাও</h3>
+
+  <h4>Primary group</h4>
+  <p>প্রতিটা user-এর ঠিক <b>একটা</b> primary group থাকে — বাধ্যতামূলক। তুমি যখন কোনো file বানাও, সেই file-এর group হয় তোমার primary group। User বানানোর সময় Linux সাধারণত username-এর নামেই একটা group বানিয়ে সেটাকে primary group করে দেয়।</p>
+
+  <h4>Supplementary group</h4>
+  <p>এগুলো <b>অতিরিক্ত</b> group — primary-র বাইরে বাড়তি access পাওয়ার জন্য। একজন user একসাথে অনেকগুলো supplementary group-এ থাকতে পারে। এই তালিকাটা <code>/etc/group</code> file-এ রাখা থাকে।</p>
+
+  <div class="box note">
+    <div class="box-t">বাস্তব উদাহরণ</div>
+    <p>একটা কোম্পানিতে নতুন software developer এলো। তার primary group হলো <code>developers</code> — সে যা যা বানাবে সব ঐ group-এর হবে। কিন্তু তার project documentation-এও ঢোকা দরকার, তাই তাকে <code>docs</code> group-এ <b>supplementary</b> হিসেবে যোগ করা হলো। এতে সে নিজের department-এ থেকেও অন্য জায়গার access পেল।</p>
+  </div>
+
+  <h4>Account lock করা মানে কী</h4>
+  <p>Lock করলে user আর password দিয়ে login করতে পারে না — কিন্তু তার account, file, কোনো কিছুই মুছে যায় না। কেউ লম্বা ছুটিতে গেলে বা সাময়িকভাবে access বন্ধ করতে হলে account মুছে না ফেলে lock করাই ঠিক কাজ।</p>
+
+  <h3>যে দৃশ্যটা আমরা বানাবো</h3>
+  <p>ধরো Poridhi নামের একটা টিম। আমরা চারজন user বানাবো — <b>nabil</b>, <b>minhaz</b>, <b>yasin</b>, <b>fazlul</b> — আর একটা group বানাবো <b>poridhi-minions</b>। তারপর nabil-কে ঐ group-এ primary হিসেবে বসাবো, আর বাকি তিনজনকে supplementary হিসেবে।</p>
+
+  <div class="out">
+    <div class="out-bar">যা বানাতে যাচ্ছি</div>
+<pre>group: poridhi-minions
+│
+├── nabil     ← <b>primary</b> group এটাই
+├── minhaz    ← supplementary (primary: minhaz)
+├── yasin     ← supplementary (primary: yasin)
+└── fazlul    ← supplementary (primary: fazlul) → পরে lock/unlock</pre>
+  </div>
+
+  <h3>অনুশীলন</h3>
+
+  <!-- STEP 1 -->
+  <div class="step" data-n="1">
+    <h4>User বানানো</h4>
+    <p class="obj">লক্ষ্য: Poridhi-র চারজন কর্মীর জন্য account বানানো।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo useradd nabil
+$ sudo useradd minhaz
+$ sudo useradd yasin
+$ sudo useradd fazlul</pre>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> <code>useradd</code> নতুন user বানায়। কিছু না বললে system নিজেই একটা UID দেয় (সাধারণত 1000 থেকে শুরু), আর username-এর নামেই একটা group বানিয়ে সেটাকে primary group করে দেয়।</p>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ id nabil</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>uid=1000(nabil) gid=1000(nabil) groups=1000(nabil)</pre>
+      <div class="note-line">তোমার সংখ্যাগুলো আলাদা হতে পারে — system-এ আগে থেকে কতজন user আছে তার উপর নির্ভর করে।</div>
+    </div>
+
+    <p>এই output তিনটে কথা বলছে:</p>
+    <ul>
+      <li><code>uid=1000</code> — nabil-এর নিজস্ব User ID।</li>
+      <li><code>gid=1000(nabil)</code> — তার primary group, নাম <code>nabil</code>।</li>
+      <li><code>groups=1000(nabil)</code> — সে আর কোনো group-এ নেই। কোনো supplementary group নেই।</li>
+    </ul>
+
+    <div class="box confuse">
+      <div class="box-t">useradd না adduser?</div>
+      <p>Debian/Ubuntu-তে <code>adduser</code> নামে আরেকটা command আছে — সেটা প্রশ্ন করে করে home directory, password সব সেট করিয়ে নেয়। আর <code>useradd</code> হলো নিচের স্তরের, চুপচাপ কাজ সেরে ফেলে। এই lab-এ <code>useradd</code> ব্যবহার করছি কারণ প্রতিটা ধাপ আলাদা করে দেখা যায়।</p>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" data-n="2">
+    <h4>Group বানানো</h4>
+    <p class="obj">লক্ষ্য: টিমের জন্য <code>poridhi-minions</code> group তৈরি করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo groupadd poridhi-minions</pre>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> Group থাকার কারণেই একই permission বারবার প্রত্যেক user-কে আলাদা করে দিতে হয় না — group-কে একবার দিলেই সবার হয়ে যায়।</p>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ getent group poridhi-minions</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>poridhi-minions:x:1004:</pre>
+      <div class="note-line">গঠন: <code>group-নাম : x : GID : সদস্যরা</code> — শেষের ঘরটা এখন খালি, কারণ এখনো কেউ যোগ হয়নি।</div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" data-n="3">
+    <h4>Primary group বদলানো</h4>
+    <p class="obj">লক্ষ্য: nabil-এর primary group করে দেওয়া <code>poridhi-minions</code>।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -g poridhi-minions nabil</pre>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> <code>usermod</code> দিয়ে বিদ্যমান user-এর সেটিং বদলানো যায়। ছোট হাতের <code>-g</code> মানে — primary group টা <b>বদলে</b> দাও।</p>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ id nabil
+$ groups nabil</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ id nabil</span>
+uid=1000(nabil) gid=1004(<b>poridhi-minions</b>) groups=1004(poridhi-minions)
+
+<span class="o">$ groups nabil</span>
+nabil : poridhi-minions</pre>
+      <div class="note-line">আগে <code>gid</code> ছিল 1000(nabil), এখন হয়ে গেছে 1004(poridhi-minions)।</div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step" data-n="4">
+    <h4>Supplementary group-এ user যোগ করা</h4>
+    <p class="obj">লক্ষ্য: minhaz, yasin, fazlul-কে <code>poridhi-minions</code>-এ বাড়তি সদস্য হিসেবে যোগ করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -aG poridhi-minions minhaz
+$ sudo usermod -aG poridhi-minions yasin
+$ sudo usermod -aG poridhi-minions fazlul</pre>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> <code>-aG</code>-তে দুটো জিনিস — <code>-G</code> মানে supplementary group ঠিক করা, আর <code>-a</code> মানে <b>append</b>, অর্থাৎ আগের group গুলো রেখে নতুনটা যোগ করা।</p>
+
+    <div class="box danger">
+      <div class="box-t">-a বাদ দিলে সর্বনাশ</div>
+      <p><code>-a</code> ছাড়া শুধু <code>-G</code> লিখলে user-এর <b>আগের সব supplementary group মুছে গিয়ে</b> শুধু নতুনটা থাকবে। কেউ <code>sudo</code> group-এ ছিল আর তুমি <code>-a</code> ভুলে গেলে — সে sudo access হারাবে। তাই <code>-aG</code> একসাথেই টাইপ করার অভ্যাস করো।</p>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ id minhaz
+$ groups minhaz
+$ getent group poridhi-minions</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ id minhaz</span>
+uid=1001(minhaz) gid=1001(minhaz) groups=1001(minhaz),1004(<b>poridhi-minions</b>)
+
+<span class="o">$ groups minhaz</span>
+minhaz : minhaz poridhi-minions
+
+<span class="o">$ getent group poridhi-minions</span>
+poridhi-minions:x:1004:<b>minhaz,yasin,fazlul</b></pre>
+    </div>
+
+    <p>minhaz-এর primary group এখনো <code>minhaz</code> (gid=1001) — সেটা বদলায়নি। শুধু <code>poridhi-minions</code> তার তালিকায় যোগ হয়েছে।</p>
+
+    <div class="box confuse">
+      <div class="box-t">nabil কোথায় গেল?</div>
+      <p>খেয়াল করো, <code>getent group poridhi-minions</code>-এর সদস্য তালিকায় <b>nabil নেই</b> — অথচ nabil তো এই group-এই আছে!</p>
+      <p>কারণটা হলো, <code>/etc/group</code>-এর ঐ শেষ ঘরটায় শুধু <b>supplementary</b> সদস্যদের নাম লেখা হয়। nabil-এর ক্ষেত্রে <code>poridhi-minions</code> হলো primary group, আর সেই তথ্যটা রাখা আছে <code>/etc/passwd</code> file-এ তার GID হিসেবে। দুই জায়গায় দুই রকম তথ্য — তাই <code>id nabil</code> দিলে ঠিকই দেখা যায়।</p>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step" data-n="5">
+    <h4>Account lock করা</h4>
+    <p class="obj">লক্ষ্য: fazlul লম্বা ছুটিতে — তার login সাময়িকভাবে বন্ধ করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -L fazlul</pre>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> বড় হাতের <code>-L</code> মানে <b>L</b>ock। ভেতরে যা ঘটে — <code>/etc/shadow</code>-এ রাখা password hash-টার সামনে একটা <code>!</code> বসিয়ে দেওয়া হয়। ফলে কোনো password-ই আর মেলে না, তাই login হয় না। কিন্তু user-এর file, home directory সব অক্ষত থাকে।</p>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo passwd -S fazlul</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>fazlul <b>L</b> 02/10/2025 0 99999 7 -1</pre>
+    </div>
+
+    <p>ঘরগুলোর মানে:</p>
+    <table>
+      <tr><th>যা দেখছো</th><th>মানে</th></tr>
+      <tr><td><code>L</code></td><td>Account <b>locked</b> — login করা যাবে না</td></tr>
+      <tr><td><code>02/10/2025</code></td><td>শেষবার password বদলানোর তারিখ</td></tr>
+      <tr><td><code>0</code></td><td>password বদলাতে কমপক্ষে কত দিন অপেক্ষা (0 = কোনো বাধা নেই)</td></tr>
+      <tr><td><code>99999</code></td><td>কত দিন পরে password-এর মেয়াদ শেষ (কার্যত কখনো না)</td></tr>
+      <tr><td><code>7</code></td><td>মেয়াদ শেষের কত দিন আগে সতর্ক করবে</td></tr>
+      <tr><td><code>-1</code></td><td>নিষ্ক্রিয়তার কারণে account বন্ধ হবে না</td></tr>
+    </table>
+
+    <div class="box note">
+      <div class="box-t">অন্য অক্ষর দেখলে</div>
+      <p><code>P</code> মানে ব্যবহারযোগ্য password আছে (unlocked)। <code>NP</code> মানে কোনো password-ই সেট করা নেই। <code>L</code> মানে locked।</p>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step" data-n="6">
+    <h4>Account unlock করা</h4>
+    <p class="obj">লক্ষ্য: ছুটি শেষ — fazlul-এর login আবার চালু করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -U fazlul</pre>
+    </div>
+
+    <p>এখানে সম্ভবত একটা error পাবে:</p>
+
+    <div class="out">
+      <div class="out-bar">output — error</div>
+<pre>usermod: unlocking the user's password would result in a
+         passwordless account.
+You should set a password with usermod -p to unlock this
+user's password.</pre>
+    </div>
+
+    <p><b>কেন এই error:</b> আমরা <code>useradd</code> দিয়ে user বানিয়েছিলাম কিন্তু কোনো password দিইনি। এখন unlock করলে account টা <b>password ছাড়াই</b> খুলে যেত — সেটা নিরাপত্তার দিক থেকে বিপজ্জনক। তাই Linux আগে password চাইছে।</p>
+
+    <p><b>সমাধান — আগে password দাও, তারপর unlock করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># আগে একটা password সেট করো</span>
+$ sudo passwd fazlul
+
+<span class="c"># তারপর unlock করো</span>
+$ sudo usermod -U fazlul</pre>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo passwd -S fazlul</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>fazlul <b>P</b> 02/10/2025 0 99999 7 -1</pre>
+      <div class="note-line"><code>L</code> থেকে <code>P</code> হয়ে গেছে — account এখন সচল, password সেট করা আছে।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">এই error টাই আসলে শেখার জায়গা</div>
+      <p>Error টা বাধা নয়, বরং Linux-এর নিরাপত্তার নীতিটা দেখিয়ে দিচ্ছে — <b>password ছাড়া কোনো account খোলা থাকবে না</b>। Error message পড়লে সে নিজেই বলে দিচ্ছে কী করতে হবে। Linux-এ বেশিরভাগ error এমনই।</p>
+    </div>
+  </div>
+
+  <!-- STEP 7 -->
+  <div class="step" data-n="7">
+    <h4>সব user-এর তালিকা দেখা</h4>
+    <p class="obj">লক্ষ্য: system-এ কারা কারা আছে জানা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ cat /etc/passwd</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — শেষের কয়েক লাইন</div>
+<pre>root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+...
+<b>nabil</b>:x:1000:1004::/home/nabil:/bin/sh
+<b>minhaz</b>:x:1001:1001::/home/minhaz:/bin/sh
+<b>yasin</b>:x:1002:1002::/home/yasin:/bin/sh
+<b>fazlul</b>:x:1003:1003::/home/fazlul:/bin/sh</pre>
+    </div>
+
+    <p>প্রতিটা লাইনের গঠন — <code>:</code> দিয়ে আলাদা করা সাতটা ঘর:</p>
+    <div class="out">
+      <div class="out-bar">লাইনের গঠন</div>
+<pre>nabil : x : 1000 : 1004 :  : /home/nabil : /bin/sh
+  │     │     │      │    │       │           │
+  │     │     │      │    │       │           └─ login shell
+  │     │     │      │    │       └───────────── home directory
+  │     │     │      │    └───────────────────── পুরো নাম (খালি)
+  │     │     │      └────────────────────────── primary GID
+  │     │     └───────────────────────────────── UID
+  │     └─────────────────────────────────────── password (shadow-এ আছে)
+  └───────────────────────────────────────────── username</pre>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">শুধু আসল মানুষদের দেখতে চাইলে</div>
+      <p><code>/etc/passwd</code>-এ system-এর নিজের অনেক account-ও থাকে (daemon, www-data ইত্যাদি)। সাধারণ user-দের UID সাধারণত 1000 বা তার বেশি:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ awk -F: '$3 &gt;= 1000 {print $1}' /etc/passwd</pre>
+      </div>
+      <p>Lab 1-এর <code>grep</code>-এর মতোই — এখানে <code>awk</code> দিয়ে তৃতীয় ঘরটা (UID) দেখে বাছাই করা হচ্ছে।</p>
+    </div>
+  </div>
+
+  <h3>নিজে করো — Challenge</h3>
+  <ol>
+    <li><code>yasin</code>-এর primary group বদলে <code>poridhi-minions</code> করো, তারপর <code>getent</code> দিয়ে দেখো group-এর সদস্য তালিকা থেকে তার নাম উধাও হয়ে গেল কিনা।</li>
+    <li><code>interns</code> নামে একটা নতুন group বানিয়ে <code>minhaz</code>-কে সেখানে supplementary হিসেবে যোগ করো — তার আগের group গুলো যেন ঠিক থাকে।</li>
+    <li>System-এ কতজন সাধারণ user (UID ≥ 1000) আছে সেটা গুনে বের করো।</li>
+  </ol>
+
+  <details class="solve">
+    <summary>সমাধান দেখো</summary>
+    <div class="sbody">
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — primary group বদলানো</span>
+$ sudo usermod -g poridhi-minions yasin
+$ getent group poridhi-minions
+<span class="o">poridhi-minions:x:1004:minhaz,fazlul</span>   <span class="c"># yasin আর তালিকায় নেই</span>
+$ id yasin
+<span class="o">uid=1002(yasin) gid=1004(poridhi-minions) groups=1004(poridhi-minions)</span>
+
+<span class="c"># ২ — নতুন group + append</span>
+$ sudo groupadd interns
+$ sudo usermod -aG interns minhaz
+$ groups minhaz
+<span class="o">minhaz : minhaz poridhi-minions interns</span>
+
+<span class="c"># ৩ — সাধারণ user গোনা</span>
+$ awk -F: '$3 &gt;= 1000 {print $1}' /etc/passwd | wc -l</pre>
+      </div>
+      <p>১ নম্বরটা Step 4-এর সেই confusion-টাই আবার প্রমাণ করছে — primary group হিসেবে থাকলে নাম <code>/etc/group</code>-এর সদস্য তালিকায় লেখা হয় না, কিন্তু user ঠিকই ঐ group-এ আছে।</p>
+    </div>
+  </details>
+
+  <h3>Command গুলো এক নজরে</h3>
+  <table>
+    <tr><th>Command</th><th>কাজ</th></tr>
+    <tr><td><code>useradd &lt;user&gt;</code></td><td>নতুন user বানায়</td></tr>
+    <tr><td><code>groupadd &lt;group&gt;</code></td><td>নতুন group বানায়</td></tr>
+    <tr><td><code>usermod -g &lt;group&gt; &lt;user&gt;</code></td><td>primary group <b>বদলায়</b></td></tr>
+    <tr><td><code>usermod -aG &lt;group&gt; &lt;user&gt;</code></td><td>supplementary group-এ <b>যোগ করে</b></td></tr>
+    <tr><td><code>usermod -L &lt;user&gt;</code></td><td>account lock করে</td></tr>
+    <tr><td><code>usermod -U &lt;user&gt;</code></td><td>account unlock করে</td></tr>
+    <tr><td><code>passwd &lt;user&gt;</code></td><td>password সেট বা বদলায়</td></tr>
+    <tr><td><code>passwd -S &lt;user&gt;</code></td><td>account-এর অবস্থা দেখায় (L / P / NP)</td></tr>
+    <tr><td><code>id &lt;user&gt;</code></td><td>UID, GID আর সব group দেখায়</td></tr>
+    <tr><td><code>groups &lt;user&gt;</code></td><td>user কোন কোন group-এ আছে</td></tr>
+    <tr><td><code>getent group &lt;group&gt;</code></td><td>group-এর supplementary সদস্যদের দেখায়</td></tr>
+    <tr><td><code>cat /etc/passwd</code></td><td>সব user-এর তালিকা</td></tr>
+  </table>
+
+  <h3>আটকে গেলে</h3>
+  <table>
+    <tr><th>Error</th><th>কী হয়েছে / কী করবে</th></tr>
+    <tr><td><code>useradd: user 'nabil' already exists</code></td><td>User টা আগে থেকেই আছে। <code>id nabil</code> দিয়ে দেখে নাও, নাহলে অন্য নাম নাও।</td></tr>
+    <tr><td><code>usermod: group 'x' does not exist</code></td><td>Group টা আগে বানাতে হবে — <code>sudo groupadd x</code>।</td></tr>
+    <tr><td><code>Permission denied</code> / <code>command not found</code></td><td><code>sudo</code> দিতে ভুলে গেছো। এগুলো <code>/usr/sbin</code>-এ থাকে, সাধারণ user-এর <code>PATH</code>-এ নাও থাকতে পারে।</td></tr>
+    <tr><td><code>passwordless account</code> error</td><td>Step 6-এর জিনিস — আগে <code>sudo passwd &lt;user&gt;</code> দিয়ে password সেট করো।</td></tr>
+  </table>
+
+  <h3>পরিষ্কার করে ফেলা (ঐচ্ছিক)</h3>
+  <p>Practice শেষে বানানো user আর group মুছে ফেলতে চাইলে:</p>
+  <div class="code">
+    <div class="code-bar"><span>bash — cleanup</span><button class="copy">copy</button></div>
+<pre><span class="c"># -r দিলে home directory সহ মুছে যাবে</span>
+$ sudo userdel -r nabil
+$ sudo userdel -r minhaz
+$ sudo userdel -r yasin
+$ sudo userdel -r fazlul
+
+$ sudo groupdel poridhi-minions
+$ sudo groupdel interns</pre>
+  </div>
+
+  <div class="box danger">
+    <div class="box-t">শুধু নিজের practice machine-এ</div>
+    <p><code>userdel -r</code> ঐ user-এর home directory আর তার ভেতরের সব file স্থায়ীভাবে মুছে দেয় — ফেরানোর উপায় নেই। নাম দুবার পড়ে তারপর Enter চাপো।</p>
+  </div>
+
+  <div class="check" data-lab="l2">
+    <div class="ct">Lab 2 — চেকলিস্ট</div>
+    <label><input type="checkbox"><span>চারজন user বানিয়ে <code>id</code> দিয়ে যাচাই করেছি</span></label>
+    <label><input type="checkbox"><span><code>poridhi-minions</code> group বানিয়েছি</span></label>
+    <label><input type="checkbox"><span>nabil-এর primary group বদলেছি</span></label>
+    <label><input type="checkbox"><span>বাকি তিনজনকে <code>-aG</code> দিয়ে supplementary হিসেবে যোগ করেছি</span></label>
+    <label><input type="checkbox"><span>primary বনাম supplementary-র পার্থক্যটা <code>getent</code>-এ দেখেছি</span></label>
+    <label><input type="checkbox"><span>fazlul-এর account lock করে <code>passwd -S</code> দিয়ে <code>L</code> দেখেছি</span></label>
+    <label><input type="checkbox"><span>password সেট করে unlock করেছি, <code>P</code> দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>/etc/passwd</code> পড়েছি</span></label>
+    <label><input type="checkbox"><span>Challenge গুলো নিজে করেছি</span></label>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">মূল কথা</div>
+    <p>Primary group একটাই, আর সেটা <code>/etc/passwd</code>-এ GID হিসেবে লেখা থাকে। Supplementary group যতগুলো খুশি, সেগুলো <code>/etc/group</code>-এ নাম হিসেবে লেখা থাকে। <code>-g</code> বদলায়, <code>-aG</code> যোগ করে — এই একটা অক্ষরের পার্থক্যই সবচেয়ে বেশি ভুল করায়।</p>
+  </div>
+</section>

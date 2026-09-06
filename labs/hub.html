@@ -1,0 +1,42 @@
+<!-- ============================================================
+     hub.html — Labs পাতার প্রথম স্ক্রিন
+     ------------------------------------------------------------
+     Lab-এর card গুলো এখানে লেখা নেই — labs/manifest.js থেকে
+     JS নিজে বানিয়ে #hubGrid-এ বসায়।
+     ============================================================ -->
+<section class="lab">
+  <div class="ch-head">
+    <div class="ch-meta"><span class="ch-num">শুরু</span><span class="layer-tag">hands-on</span></div>
+    <h2>Linux Labs</h2>
+    <p class="ch-lede">বই পড়ে concept বোঝা হয়, আর lab করে হাত তৈরি হয়। এখানে প্রতিটা lab-এ একটা করে সম্পূর্ণ কাজ আছে — environment বানানো থেকে শুরু করে verify করা পর্যন্ত। প্রতিটা command নিজের terminal-এ চালাও, output মিলিয়ে দেখো, তারপর পরের ধাপে যাও।</p>
+  </div>
+
+  <h3>কীভাবে lab করবে</h3>
+  <p>Lab পড়ার জিনিস না — করার জিনিস। একটা terminal খুলে পাশে রাখো, আর প্রতিটা command <b>copy করে নয়, নিজে টাইপ করে</b> চালাও। টাইপ করলে ভুল হয়, ভুল হলে error আসে, আর error পড়তে শেখাটাই আসল Linux শেখা।</p>
+  <p>প্রতিটা ধাপের পরে <b>expected output</b> দেওয়া আছে। তোমার output হুবহু না মিললেও চিন্তা নেই — UID/GID সংখ্যা বা তারিখ আলাদা হবেই। গঠনটা মিললেই হলো।</p>
+
+  <div class="progress-line">
+    <span id="hubCount">— শেষ</span>
+    <span class="bar"><i id="hubBar"></i></span>
+    <button class="copy" id="resetBtn" style="background:var(--surface-2);color:var(--muted)">reset</button>
+  </div>
+
+  <div class="hub-grid" id="hubGrid"></div>
+
+  <div class="box tip">
+    <div class="box-t">চেকলিস্ট কাজ করে</div>
+    <p>প্রতিটা lab-এর শেষে একটা checklist আছে। ঘরগুলোতে টিক দিলে সেটা তোমার browser-এ save থাকবে — পরে ফিরে এলে কোন lab কতদূর করেছিলে সেটা এই পাতাতেই দেখতে পাবে।</p>
+  </div>
+
+  <h3>শুরুর আগে যা লাগবে</h3>
+  <ul>
+    <li>একটা Linux terminal — Ubuntu, WSL, অথবা যেকোনো VPS। macOS-এও বেশিরভাগ চলবে, তবে user/group সংক্রান্ত কিছু command শুধু Linux-এ চলে।</li>
+    <li><code>sudo</code> চালানোর permission — কিছু lab-এ দরকার হবে।</li>
+    <li>Terminal-এ basic চলাফেরার অভ্যাস — <code>Tab</code> দিয়ে auto-complete, <code>↑</code> দিয়ে আগের command।</li>
+  </ul>
+
+  <div class="box note">
+    <div class="box-t">Keyboard</div>
+    <p><code>←</code> <code>→</code> দিয়ে lab বদলাবে। প্রতিটা code block-এর <b>copy</b> বোতামে চাপলে prompt চিহ্ন (<code>$</code>) বাদ দিয়ে শুধু command টা copy হবে।</p>
+  </div>
+</section>
