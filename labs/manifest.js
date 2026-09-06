@@ -29,12 +29,20 @@ window.LAB_MANIFEST = [
     tag:   "chapter 06",
     time:  "59 মিনিট",
     desc:  "useradd, groupadd, usermod — user বানানো, group-এ ঢোকানো, account lock করা।"
+  },
+  {
+    id:    "l3",
+    file:  "labs/lab-03-sudo-access-management.html",
+    title: "Sudo Access Management",
+    tag:   "chapter 06",
+    time:  "60 মিনিট",
+    desc:  "sudoers, visudo, Cmnd_Alias — কাকে কতটুকু ক্ষমতা দেবে, ঠিক ততটুকুই।"
   }
 
   /* পরের lab এখানে যোগ করো:
   ,{
-    id:    "l3",
-    file:  "labs/lab-03-file-permissions.html",
+    id:    "l4",
+    file:  "labs/lab-04-file-permissions.html",
     title: "File Permissions",
     tag:   "chapter 06",
     time:  "50 মিনিট",

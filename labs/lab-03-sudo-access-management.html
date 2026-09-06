@@ -1,0 +1,570 @@
+<!-- ============================================================
+     lab-03-sudo-access-management.html
+     ------------------------------------------------------------
+     এটা একটা lab-এর content। labs.html এটাকে fetch করে দেখায়।
+     Title / tag / সময় / বিবরণ আসে labs/manifest.js থেকে —
+     এখানে আর লিখতে হয় না।
+     ============================================================ -->
+<section class="lab">
+  <div class="ch-head">
+    <div class="ch-meta">
+      <span class="ch-num">Lab 03</span>
+      <span class="layer-tag">chapter 06</span>
+      <span class="layer-tag time">≈ 60 মিনিট</span>
+    </div>
+    <h2>Managing Sudo Access for System Administration</h2>
+    <p class="ch-lede">Production server-এ সবাইকে root-এর password দিয়ে দেওয়া মানে বিপদ ডেকে আনা। বদলে যার যতটুকু দরকার, ঠিক ততটুকু ক্ষমতা দেওয়া হয় <code>sudo</code> দিয়ে। এই lab-এ তুমি একজন পূর্ণ ক্ষমতার admin বানাবে, আর একজনকে দেবে শুধু একটা service restart করার অনুমতি — তার বেশি কিছু না।</p>
+  </div>
+
+  <h3>এই lab শেষে যা পারবে</h3>
+  <ul>
+    <li>একটা group-কে পুরো sudo access দেবে।</li>
+    <li>কোনো user-কে শুধু <b>নির্দিষ্ট কয়েকটা command</b> চালানোর অনুমতি দেবে।</li>
+    <li><code>visudo</code> দিয়ে নিরাপদে sudo-র নিয়ম লিখবে।</li>
+    <li>যাচাই করবে কে কী পারছে আর কী পারছে না।</li>
+    <li>একটা service সত্যিই restart হয়েছে কিনা দুই উপায়ে প্রমাণ করবে।</li>
+  </ul>
+
+  <div class="box warn">
+    <div class="box-t">সাবধানতা</div>
+    <p>এই lab <code>/etc/sudoers</code> ছোঁয় — এখানে ভুল করলে <b>পুরো system-এ sudo নষ্ট হয়ে যেতে পারে</b>, কেউ আর root হতে পারবে না। তাই কাজটা <b>নিজের practice VM, WSL, বা ফেলে দেওয়া যায় এমন VPS-এ</b> করো। আর file সবসময় <code>visudo</code> দিয়ে খুলবে — কেন, সেটা Step 2-এ বলা আছে।</p>
+  </div>
+
+  <div class="box note">
+    <div class="box-t">আগে যা জানা থাকলে সুবিধা</div>
+    <p><a href="#l2">Lab 02 — User &amp; Group Management</a>। এখানে user আর group বানানোর কাজটা ঐ lab-এর উপর দাঁড়িয়ে আছে, তাই ওটা আগে করে নিলে সবচেয়ে ভালো।</p>
+  </div>
+
+  <h3>যে দৃশ্যটা আমরা বানাবো</h3>
+  <p>ধরো তুমি একটা কোম্পানির system administrator। কোম্পানির নিয়ম — <b>root-এর password কাউকে দেওয়া যাবে না</b>, বরং যার যে কাজ, তাকে ঠিক সেই কাজের অনুমতি দিতে হবে। দুজন লোক আছে:</p>
+
+  <div class="out">
+    <div class="out-bar">যা বানাতে যাচ্ছি</div>
+<pre>group: superadmin  →  %superadmin ALL=(ALL) ALL
+│                     <span class="o">যা খুশি, সব করতে পারবে</span>
+└── <b>rootuser</b>          (এই group-এর সদস্য)
+
+<b>serviceop</b>              →  serviceop ALL=SERVICE
+                          <span class="o">শুধু sshd restart / reload — আর কিছু না</span></pre>
+  </div>
+
+  <h3>sudo আসলে কী করে</h3>
+  <p>কোনো command-এর আগে <code>sudo</code> লিখলে সেটা root-এর ক্ষমতা নিয়ে চলে। কিন্তু ভেতরে ঠিক কী ঘটে, সেটা জানা থাকলে এই lab-এর প্রতিটা ধাপ পরিষ্কার লাগবে:</p>
+  <ol>
+    <li><code>/etc/sudoers</code> আর <code>/etc/sudoers.d/</code>-এর সব file পড়ে দেখে — এই user-এর এই command চালানোর অনুমতি আছে কিনা।</li>
+    <li>অনুমতি না থাকলে ওখানেই থেমে যায়, আর log-এ লিখে রাখে।</li>
+    <li>দরকার হলে password চায় — খেয়াল করো, <b>root-এর password না, user-এর নিজের password</b>।</li>
+    <li>একটা নতুন child process বানায়।</li>
+    <li>সেই child process-এ command টা root-এর ক্ষমতা নিয়ে চলে।</li>
+    <li>কাজ শেষে ক্ষমতাটা ফিরিয়ে নেয় — user আবার সাধারণ user।</li>
+  </ol>
+
+  <div class="box confuse">
+    <div class="box-t">sudo মানে "root-এর password জানা" নয়</div>
+    <p>এখানেই <code>sudo</code>-র আসল সৌন্দর্য। <code>su</code> দিয়ে root হতে গেলে <b>root-এর password</b> লাগে — অর্থাৎ সেটা যাকে দেবে, সে সবকিছুই পারবে, আর password টা ছড়িয়ে পড়বে।</p>
+    <p>আর <code>sudo</code>-তে user নিজের password দেয়। কে কী পারবে সেটা ঠিক করা থাকে <code>/etc/sudoers</code>-এ। কেউ কোম্পানি ছেড়ে দিলে শুধু তার account বন্ধ করলেই হলো — root-এর password বদলাতে হয় না।</p>
+  </div>
+
+  <h3>নিয়মের লাইনটা কীভাবে পড়তে হয়</h3>
+  <p>Sudoers file-এর প্রতিটা নিয়ম একই ছাঁচে লেখা। একবার ছাঁচটা বুঝলে বাকি সব সহজ:</p>
+
+  <div class="out">
+    <div class="out-bar">নিয়মের গঠন</div>
+<pre>%superadmin   ALL   =   (ALL)      ALL
+     │         │         │          │
+     │         │         │          └─ কোন command চালাতে পারবে
+     │         │         └──────────── কার হয়ে চালাতে পারবে
+     │         └────────────────────── কোন machine থেকে
+     └──────────────────────────────── কার জন্য এই নিয়ম
+                                       (% থাকলে group, নাহলে user)</pre>
+  </div>
+
+  <table>
+    <tr><th>লাইন</th><th>মানে</th></tr>
+    <tr><td><code>%superadmin ALL=(ALL) ALL</code></td><td><code>superadmin</code> <b>group</b>-এর সবাই, যেকোনো machine থেকে, যেকোনো user হয়ে, যেকোনো command</td></tr>
+    <tr><td><code>serviceop ALL=SERVICE</code></td><td><code>serviceop</code> <b>user</b> শুধু <code>SERVICE</code> তালিকার command গুলো চালাতে পারবে</td></tr>
+  </table>
+
+  <h3>অনুশীলন</h3>
+
+  <!-- STEP 1 -->
+  <div class="step" data-n="1">
+    <h4>Group আর user বানানো</h4>
+    <p class="obj">লক্ষ্য: <code>superadmin</code> group, আর দুজন user — <code>rootuser</code> ও <code>serviceop</code>।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo groupadd superadmin</pre>
+    </div>
+
+    <p>এবার দুজন user:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo useradd -m serviceop
+$ sudo useradd -G superadmin -m rootuser</pre>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b></p>
+    <table>
+      <tr><th>Flag</th><th>কী করে</th></tr>
+      <tr><td><code>-m</code></td><td>user-এর home directory বানিয়ে দেয় (<code>/home/serviceop</code>)</td></tr>
+      <tr><td><code>-G superadmin</code></td><td><code>rootuser</code>-কে <code>superadmin</code> group-এ <b>supplementary</b> সদস্য করে</td></tr>
+    </table>
+
+    <div class="box tip">
+      <div class="box-t">Lab 2-এর সাথে মিলিয়ে নাও</div>
+      <p>Lab 2-এ বিদ্যমান user-কে group-এ ঢোকাতে <code>usermod -aG</code> লেগেছিল। এখানে user <b>বানানোর সময়েই</b> group ঠিক করে দিচ্ছি, তাই <code>useradd -G</code>। কাজ একই — দুটোই supplementary group।</p>
+    </div>
+
+    <p><b>এবার দুজনের password দাও:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo passwd serviceop
+$ sudo passwd rootuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>New password:
+Retype new password:
+passwd: password updated successfully</pre>
+      <div class="note-line">টাইপ করার সময় screen-এ কিছুই দেখা যাবে না — কোনো তারা চিহ্নও না। এটা স্বাভাবিক, ভয় পেয়ো না।</div>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">Password কেন লাগছে</div>
+      <p>কারণ <code>sudo</code> user-এর <b>নিজের</b> password চায়। Password ছাড়া account-এ <code>sudo</code> কাজ করবে না — এটা Lab 2-এর সেই <code>passwordless account</code> error-এরই আরেক রূপ।</p>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ id rootuser
+$ getent group superadmin</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ id rootuser</span>
+uid=1002(rootuser) gid=1003(rootuser) groups=1003(rootuser),1002(<b>superadmin</b>)
+
+<span class="o">$ getent group superadmin</span>
+superadmin:x:1002:<b>rootuser</b></pre>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" data-n="2">
+    <h4>superadmin group-কে পুরো sudo access দেওয়া</h4>
+    <p class="obj">লক্ষ্য: <code>/etc/sudoers</code>-এ group-এর জন্য নিয়ম লেখা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo visudo</pre>
+    </div>
+
+    <p>Editor খুলবে। নিচের লাইনটা যোগ করো:</p>
+    <div class="code">
+      <div class="code-bar"><span>/etc/sudoers</span><button class="copy">copy</button></div>
+<pre>%superadmin ALL=(ALL) ALL</pre>
+    </div>
+
+    <p>Save করে বেরিয়ে এসো। <code>nano</code> হলে <code>Ctrl+O</code> → <code>Enter</code> → <code>Ctrl+X</code>; <code>vi</code> হলে <code>Esc</code> → <code>:wq</code> → <code>Enter</code>।</p>
+
+    <div class="box danger">
+      <div class="box-t">কখনো সরাসরি nano /etc/sudoers করবে না</div>
+      <p><code>visudo</code> save করার আগে file-এর বানান পরীক্ষা করে। ভুল থাকলে সে বলে দেয় আর <b>save করতে দেয় না</b>:</p>
+      <div class="code">
+        <div class="code-bar"><span>visudo — ভুল ধরা পড়লে</span></div>
+<pre>&gt;&gt;&gt; /etc/sudoers: syntax error near line 28 &lt;&lt;&lt;
+What now? </pre>
+      </div>
+      <p>এখানে <code>e</code> চেপে আবার edit করতে ফিরে যাও। সরাসরি <code>nano</code> দিয়ে খুলে ভুল লিখে save করে ফেললে <code>sudo</code> পুরো নষ্ট হয়ে যাবে — আর তখন সেটা ঠিক করার জন্যও <code>sudo</code> লাগত, যেটা তুমি এইমাত্র হারিয়েছ।</p>
+    </div>
+
+    <p><b>যাচাই করো — নিয়মটা ঠিকঠাক বসেছে কিনা:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo grep superadmin /etc/sudoers</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>%superadmin ALL=(ALL) ALL</pre>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" data-n="3">
+    <h4>rootuser-এর ক্ষমতা পরীক্ষা</h4>
+    <p class="obj">লক্ষ্য: প্রমাণ করা যে sudo ছাড়া পারে না, sudo দিয়ে পারে।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo su - rootuser</pre>
+    </div>
+
+    <p>এখন তুমি <code>rootuser</code> হয়ে আছো। প্রথমে <b>sudo ছাড়া</b> system-এর password file পড়ার চেষ্টা করো:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — rootuser হিসেবে</span><button class="copy">copy</button></div>
+<pre>$ cat /etc/shadow</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — আটকে যাবে</div>
+<pre>cat: /etc/shadow: Permission denied</pre>
+      <div class="note-line">এটাই আশা করা হচ্ছিল। <code>/etc/shadow</code>-এ সবার password-এর hash থাকে, তাই সাধারণ user সেটা পড়তে পারে না।</div>
+    </div>
+
+    <p>এবার <code>sudo</code> দিয়ে একই কাজ:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — rootuser হিসেবে</span><button class="copy">copy</button></div>
+<pre>$ sudo cat /etc/shadow</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — এবার কাজ করবে</div>
+<pre>[sudo] password for rootuser:
+root:$y$j9T$vX...:20138:0:99999:7:::
+daemon:*:20138:0:99999:7:::
+...
+serviceop:$y$j9T$Kd...:20338:0:99999:7:::
+rootuser:$y$j9T$Qm...:20338:0:99999:7:::</pre>
+      <div class="note-line">এখানে <code>rootuser</code>-এর <b>নিজের</b> password চাওয়া হচ্ছে — root-এর না।</div>
+    </div>
+
+    <p>দুটো output পাশাপাশি রাখলেই <code>sudo</code>-র পুরো ব্যাপারটা পরিষ্কার: <b>একই user, একই command — শুধু <code>sudo</code> শব্দটা যোগ করায় ফল বদলে গেল।</b> কারণ <code>%superadmin ALL=(ALL) ALL</code> নিয়মটা তাকে অনুমতি দিয়েছে।</p>
+
+    <p>কাজ শেষে নিজের account-এ ফিরে এসো:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ exit</pre>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">নিজে কী কী পারি, দেখার সহজ উপায়</div>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo -l</pre>
+      </div>
+      <p>এটা দেখিয়ে দেয় বর্তমান user ঠিক কোন কোন command <code>sudo</code> দিয়ে চালাতে পারবে। Step 5-এ এটা আবার কাজে লাগবে।</p>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step" data-n="4">
+    <h4>serviceop-এর জন্য সীমিত অনুমতি</h4>
+    <p class="obj">লক্ষ্য: শুধু <code>sshd</code> restart আর reload — তার বেশি কিছু নয়।</p>
+
+    <p>এবার মূল কাজ। <code>serviceop</code>-কে আমরা <code>/etc/sudoers</code>-এ না লিখে আলাদা একটা file-এ লিখব:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo visudo -f /etc/sudoers.d/serviceop</pre>
+    </div>
+
+    <p>ভেতরে এই দুটো লাইন লেখো:</p>
+    <div class="code">
+      <div class="code-bar"><span>/etc/sudoers.d/serviceop</span><button class="copy">copy</button></div>
+<pre>Cmnd_Alias  SERVICE = /bin/systemctl restart sshd.service, /bin/systemctl reload sshd.service
+
+serviceop ALL=SERVICE</pre>
+    </div>
+
+    <p><b>ব্যাখ্যা — দুটো লাইন দুটো কাজ করছে:</b></p>
+    <ul>
+      <li><code>Cmnd_Alias SERVICE = ...</code> — কয়েকটা command-কে একসাথে <code>SERVICE</code> নাম দিয়ে ডাকার ব্যবস্থা। এটা শুধু একটা ডাকনাম, নিজে কোনো অনুমতি দেয় না।</li>
+      <li><code>serviceop ALL=SERVICE</code> — এই লাইনটাই আসল অনুমতি দিচ্ছে: <code>serviceop</code> শুধু ঐ তালিকার command গুলো চালাতে পারবে।</li>
+    </ul>
+
+    <div class="box note">
+      <div class="box-t">আলাদা file কেন, /etc/sudoers-এ না লিখে</div>
+      <p><code>/etc/sudoers.d/</code>-এর ভেতরের প্রতিটা file-ও sudo পড়ে, ঠিক যেন মূল file-এরই অংশ। আলাদা রাখার সুবিধা তিনটে — এক, কারো অনুমতি তুলে নিতে হলে শুধু তার file টা মুছে দিলেই হলো; দুই, মূল <code>/etc/sudoers</code> ঘাঁটাঘাঁটি করতে হয় না, তাই ভুল করে সব নষ্ট করার ভয় কম; তিন, কোন নিয়ম কার জন্য সেটা file-এর নাম দেখেই বোঝা যায়।</p>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">Path টা হুবহু মিলতে হবে</div>
+      <p><code>Cmnd_Alias</code>-এ command-এর <b>পুরো path</b> লিখতে হয়। তোমার system-এ <code>systemctl</code> কোথায় আছে সেটা আগে দেখে নাও:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ which systemctl</pre>
+      </div>
+      <p>যদি <code>/usr/bin/systemctl</code> আসে, তাহলে উপরের লাইনে <code>/bin/systemctl</code>-এর বদলে সেটাই লেখো — নাহলে নিয়মটা মিলবে না আর অনুমতিও কাজ করবে না। (অনেক আধুনিক distro-তে <code>/bin</code> আসলে <code>/usr/bin</code>-এর দিকেই ইশারা করে, তাই দুটোই কাজ করতে পারে।)</p>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step" data-n="5">
+    <h4>serviceop যা পারে, আর যা পারে না</h4>
+    <p class="obj">লক্ষ্য: সীমানাটা দুই দিক থেকেই পরীক্ষা করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo su - serviceop</pre>
+    </div>
+
+    <p>প্রথমে দেখে নাও সে কী কী পারে:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — serviceop হিসেবে</span><button class="copy">copy</button></div>
+<pre>$ sudo -l</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>User serviceop may run the following commands on this host:
+    (root) /bin/systemctl restart sshd.service,
+           /bin/systemctl reload sshd.service</pre>
+      <div class="note-line">তালিকাটা ছোট — ঠিক যতটুকু দিয়েছি, ততটুকুই।</div>
+    </div>
+
+    <p><b>যা পারার কথা — restart:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash — serviceop হিসেবে</span><button class="copy">copy</button></div>
+<pre>$ sudo systemctl restart sshd.service</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — সফল</div>
+<pre>[sudo] password for serviceop:
+<span class="o">(কোনো output নেই — মানে কাজ হয়ে গেছে)</span></pre>
+      <div class="note-line">Unix-এর নিয়ম — কাজ ঠিকঠাক হলে সাধারণত কিছুই বলে না। চুপ থাকা মানেই সফল।</div>
+    </div>
+
+    <p><b>যা পারার কথা না — status দেখা:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash — serviceop হিসেবে</span><button class="copy">copy</button></div>
+<pre>$ sudo systemctl status sshd.service</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — আটকে যাবে</div>
+<pre>Sorry, user serviceop is not allowed to execute
+'/bin/systemctl status sshd.service' as root on labserver.</pre>
+      <div class="note-line">এটাই lab-এর সবচেয়ে গুরুত্বপূর্ণ output। <code>restart</code> চলল, কিন্তু <code>status</code> চলল না।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">এটাই principle of least privilege</div>
+      <p>খেয়াল করো — দুটোই <code>systemctl</code>, দুটোই একই service-এর উপর। তবু একটা চলল, আরেকটা চলল না। কারণ sudo শুধু "কোন program" দেখে না, দেখে <b>পুরো command line-টা</b> তালিকার সাথে মেলে কিনা।</p>
+      <p>এই নীতিটাকে বলে <b>principle of least privilege</b> — কাজ চালানোর জন্য যতটুকু ন্যূনতম ক্ষমতা দরকার, ঠিক ততটুকুই দেওয়া। <code>serviceop</code>-এর account কেউ দখল করে নিলেও সে ঐ দুটো command ছাড়া আর কিছুই করতে পারবে না।</p>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step" data-n="6">
+    <h4>Service সত্যিই restart হয়েছে কিনা প্রমাণ করা</h4>
+    <p class="obj">লক্ষ্য: "কিছুই দেখাল না" — তাহলে কাজটা হলো কীভাবে বুঝব?</p>
+
+    <p>Step 5-এ restart করার পরে কোনো output আসেনি। তাহলে সত্যিই কিছু হয়েছে কিনা বুঝব কীভাবে? দুটো উপায় আছে।</p>
+
+    <h4>উপায় ১ — Process ID বদলেছে কিনা দেখা</h4>
+    <p>প্রতিটা চলন্ত process-এর একটা নম্বর থাকে, PID। Service restart হওয়া মানে পুরোনো process মরে গিয়ে <b>নতুন একটা</b> চালু হওয়া — তাই নম্বরটাও বদলে যাবে।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># আগে দেখে নাও</span>
+$ pidof sshd
+
+<span class="c"># restart করো</span>
+$ sudo systemctl restart sshd.service
+
+<span class="c"># আবার দেখো</span>
+$ pidof sshd</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">restart-এর আগে →</span>  <b>812</b>
+<span class="o">restart-এর পরে →</span>  <b>1547</b></pre>
+      <div class="note-line">নম্বর বদলে গেছে — অর্থাৎ পুরোনোটা বন্ধ হয়ে নতুন process চালু হয়েছে। এটাই প্রমাণ।</div>
+    </div>
+
+    <h4>উপায় ২ — কতক্ষণ ধরে চলছে দেখা</h4>
+    <p>নতুন process মানে তার বয়সও নতুন। <code>etime</code> (elapsed time) দিয়ে সেটা দেখা যায়:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ps -eo pid,etime,cmd | grep sshd</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>  PID     ELAPSED CMD
+ 1547       <b>00:40</b> sshd: /usr/sbin/sshd -D [listener]
+ 1602       00:00 grep --color=auto sshd</pre>
+      <div class="note-line"><code>00:40</code> মানে process টা মাত্র ৪০ সেকেন্ড ধরে চলছে — অর্থাৎ ৪০ সেকেন্ড আগে restart হয়েছে।</div>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b> <code>ps -eo pid,etime,cmd</code> — <code>-e</code> মানে সব process, <code>-o</code> দিয়ে ঠিক কোন কোন ঘর দেখতে চাই সেটা বলা। শেষের <code>grep sshd</code> দিয়ে শুধু sshd-র লাইনগুলো ছেঁকে নিচ্ছি।</p>
+
+    <div class="box confuse">
+      <div class="box-t">Output-এ grep নিজেই কেন আসছে?</div>
+      <p>দ্বিতীয় লাইনটা <code>grep --color=auto sshd</code> — এটা তোমার নিজের <code>grep</code> command! <code>ps</code> চলার সময় <code>grep</code>-ও একটা process হিসেবে চলছিল, আর তার নিজের লেখার মধ্যেও "sshd" শব্দটা আছে, তাই সে নিজেকেই ধরে ফেলেছে।</p>
+      <p>এড়াতে চাইলে <code>grep [s]shd</code> লিখতে পারো — তখন pattern টা আর নিজের সাথে মেলে না।</p>
+    </div>
+  </div>
+
+  <h3>পুরো ব্যাপারটা এক নজরে</h3>
+  <p><code>serviceop</code> যখন <code>sudo systemctl restart sshd.service</code> লেখে, ভেতরে ঠিক এই ধাপগুলো ঘটে:</p>
+
+  <div class="out">
+    <div class="out-bar">sudo-র ভেতরের পথ</div>
+<pre>serviceop টাইপ করল:  sudo systemctl restart sshd.service
+                            │
+                            ▼
+             ১. serviceop-এর নিজের password চাইল
+                            │
+                            ▼
+             ২. /etc/sudoers + /etc/sudoers.d/ পড়ল
+                            │
+                            ▼
+             ৩. পেল →  serviceop ALL=SERVICE
+                            │
+                            ▼
+             ৪. মিলিয়ে দেখল → command টা SERVICE তালিকায় আছে?
+                            │
+                ┌───────────┴───────────┐
+              আছে                    নেই
+                │                       │
+                ▼                       ▼
+     ৫. root-এর ক্ষমতা দিয়ে      "not allowed to execute"
+        command চালাল                  │
+                │                       │
+                ▼                       ▼
+     ৬. log-এ লিখে রাখল        log-এ লিখে রাখল (ব্যর্থ চেষ্টা)
+                │
+                ▼
+     ৭. ক্ষমতা ফিরিয়ে নিল — serviceop আবার সাধারণ user</pre>
+  </div>
+
+  <p>খেয়াল করার মতো দুটো জিনিস — <b>ক্ষমতাটা সাময়িক</b> (শুধু ঐ একটা command-এর জন্য), আর <b>সব চেষ্টা log হয়</b>, সফল হোক বা ব্যর্থ। কে কখন কী করার চেষ্টা করেছে, সব লেখা থাকে:</p>
+
+  <div class="code">
+    <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># Ubuntu / Debian</span>
+$ sudo grep sudo /var/log/auth.log | tail -5
+
+<span class="c"># অথবা যেকোনো systemd system-এ</span>
+$ sudo journalctl -e /usr/bin/sudo | tail -5</pre>
+  </div>
+
+  <div class="out">
+    <div class="out-bar">output — log-এ যা দেখাবে</div>
+<pre>serviceop : TTY=pts/1 ; PWD=/home/serviceop ; USER=root ;
+            COMMAND=/bin/systemctl restart sshd.service
+
+serviceop : <b>command not allowed</b> ; TTY=pts/1 ; PWD=/home/serviceop ;
+            USER=root ; COMMAND=/bin/systemctl status sshd.service</pre>
+    <div class="note-line">সফল আর ব্যর্থ — দুটোই লেখা আছে। এটাকেই বলে accountability।</div>
+  </div>
+
+  <h3>নিজে করো — Challenge</h3>
+  <ol>
+    <li><code>serviceop</code>-কে <code>systemctl status sshd.service</code> চালানোরও অনুমতি দাও, তারপর <code>sudo -l</code> দিয়ে মিলিয়ে দেখো।</li>
+    <li><code>rootuser</code>-কে <code>superadmin</code> group থেকে সরিয়ে দাও, তারপর দেখো <code>sudo cat /etc/shadow</code> এখনো চলে কিনা।</li>
+    <li>এমন একটা নিয়ম লেখো যাতে <code>serviceop</code> <code>nginx</code> restart করতে পারে <b>কিন্তু password টাইপ করতে না হয়</b>। (ইঙ্গিত: <code>NOPASSWD</code>)</li>
+  </ol>
+
+  <details class="solve">
+    <summary>সমাধান দেখো</summary>
+    <div class="sbody">
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — SERVICE তালিকায় status যোগ করো</span>
+$ sudo visudo -f /etc/sudoers.d/serviceop</pre>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span>/etc/sudoers.d/serviceop</span><button class="copy">copy</button></div>
+<pre>Cmnd_Alias  SERVICE = /bin/systemctl restart sshd.service, \
+                      /bin/systemctl reload sshd.service, \
+                      /bin/systemctl status sshd.service
+
+serviceop ALL=SERVICE</pre>
+      </div>
+      <p>লাইন লম্বা হলে শেষে <code>\</code> দিয়ে পরের লাইনে টানা যায়। এবার <code>sudo -l</code> দিলে তিনটে command-ই দেখাবে।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ২ — group থেকে সরানো</span>
+$ sudo gpasswd -d rootuser superadmin
+$ sudo su - rootuser
+$ sudo cat /etc/shadow
+<span class="o">Sorry, user rootuser is not allowed to execute '/bin/cat /etc/shadow' as root.</span></pre>
+      </div>
+      <p>অনুমতিটা ছিল <b>group-এর</b>, ব্যক্তির নয়। Group থেকে বেরোনো মাত্রই ক্ষমতা চলে গেল — এটাই group দিয়ে access দেওয়ার সুবিধা।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>/etc/sudoers.d/serviceop — NOPASSWD</span><button class="copy">copy</button></div>
+<pre>Cmnd_Alias  WEB = /bin/systemctl restart nginx.service
+
+serviceop ALL=SERVICE, NOPASSWD: WEB</pre>
+      </div>
+      <p><code>NOPASSWD:</code> শুধু তার পরের অংশের জন্য খাটে। তাই <code>SERVICE</code>-এর জন্য password লাগবে, কিন্তু <code>WEB</code>-এর জন্য লাগবে না। Automation script-এ এটা কাজে লাগে, তবে যতটা সম্ভব কম ব্যবহার করাই ভালো।</p>
+      <p>খেয়াল রেখো — <code>WEB</code>-এর লাইনটা <b>আগের <code>SERVICE</code> লাইনের সাথেই একই file-এ</b> থাকবে। শুধু এই দুটো লাইন আলাদা file-এ রাখলে sudo বলবে <code>Cmnd_Alias "SERVICE" referenced but not defined</code>, কারণ তখন <code>SERVICE</code>-এর সংজ্ঞাটাই কোথাও নেই।</p>
+    </div>
+  </details>
+
+  <h3>Command গুলো এক নজরে</h3>
+  <table>
+    <tr><th>Command</th><th>কাজ</th></tr>
+    <tr><td><code>visudo</code></td><td><code>/etc/sudoers</code> নিরাপদে edit করে (বানান পরীক্ষা করে)</td></tr>
+    <tr><td><code>visudo -f &lt;file&gt;</code></td><td>অন্য কোনো sudoers file edit করে</td></tr>
+    <tr><td><code>sudo -l</code></td><td>বর্তমান user কী কী চালাতে পারে দেখায়</td></tr>
+    <tr><td><code>sudo su - &lt;user&gt;</code></td><td>ঐ user হয়ে যায় (তার environment সহ)</td></tr>
+    <tr><td><code>useradd -m -G &lt;group&gt;</code></td><td>home directory সহ user বানায়, group-এ ঢোকায়</td></tr>
+    <tr><td><code>gpasswd -d &lt;user&gt; &lt;group&gt;</code></td><td>group থেকে user সরায়</td></tr>
+    <tr><td><code>pidof &lt;name&gt;</code></td><td>process-এর ID দেখায়</td></tr>
+    <tr><td><code>ps -eo pid,etime,cmd</code></td><td>process কতক্ষণ ধরে চলছে দেখায়</td></tr>
+    <tr><td><code>which &lt;command&gt;</code></td><td>command-টা কোথায় আছে বলে দেয়</td></tr>
+  </table>
+
+  <h3>আটকে গেলে</h3>
+  <table>
+    <tr><th>সমস্যা</th><th>কী হয়েছে / কী করবে</th></tr>
+    <tr><td><code>serviceop is not allowed</code> — অথচ অনুমতি দিয়েছি</td><td>Path মিলছে না। <code>which systemctl</code> দিয়ে দেখো — <code>/bin</code> না <code>/usr/bin</code>? sudoers-এ হুবহু সেটাই লেখো।</td></tr>
+    <tr><td><code>sshd.service not found</code></td><td>কিছু distro-তে নাম <code>ssh.service</code>। <code>systemctl list-units --type=service | grep ssh</code> দিয়ে আসল নাম দেখো।</td></tr>
+    <tr><td>Container / WSL-এ <code>systemctl</code> চলে না</td><td>ওখানে systemd থাকে না। <code>sshd</code>-র বদলে অন্য কোনো command দিয়ে অনুশীলন করো — যেমন <code>/bin/systemctl</code>-এর জায়গায় <code>/usr/bin/apt update</code>।</td></tr>
+    <tr><td><code>visudo: command not found</code></td><td><code>sudo apt install sudo</code> দিয়ে install করো।</td></tr>
+    <tr><td><code>syntax error near line N</code></td><td><code>e</code> চেপে edit-এ ফিরে ঐ লাইনটা ঠিক করো। <b>কখনোই ভুল রেখে save করবে না।</b></td></tr>
+    <tr><td>sudo পুরো নষ্ট হয়ে গেছে</td><td>VM হলে recovery/single-user mode-এ boot করে ঠিক করতে হবে। এজন্যই <code>visudo</code> ব্যবহার করা জরুরি।</td></tr>
+  </table>
+
+  <h3>পরিষ্কার করে ফেলা (ঐচ্ছিক)</h3>
+  <div class="code">
+    <div class="code-bar"><span>bash — cleanup</span><button class="copy">copy</button></div>
+<pre><span class="c"># serviceop-এর sudo নিয়ম মুছে দাও</span>
+$ sudo rm /etc/sudoers.d/serviceop
+
+<span class="c"># user দুজন মুছে দাও (home directory সহ)</span>
+$ sudo userdel -r serviceop
+$ sudo userdel -r rootuser
+
+$ sudo groupdel superadmin
+
+<span class="c"># /etc/sudoers থেকে %superadmin লাইনটা হাতে মুছে দাও</span>
+$ sudo visudo</pre>
+  </div>
+
+  <div class="box danger">
+    <div class="box-t">শুধু নিজের practice machine-এ</div>
+    <p><code>userdel -r</code> home directory সহ সব মুছে দেয়, ফেরানোর উপায় নেই। আর <code>/etc/sudoers</code> edit করার সময় <b>শুধু নিজের যোগ করা লাইনটাই</b> মুছবে — আগে থেকে থাকা লাইনে হাত দিলে system-এর sudo নষ্ট হয়ে যাবে।</p>
+  </div>
+
+  <div class="check" data-lab="l3">
+    <div class="ct">Lab 3 — চেকলিস্ট</div>
+    <label><input type="checkbox"><span><code>superadmin</code> group আর দুজন user বানিয়েছি</span></label>
+    <label><input type="checkbox"><span>দুজনেরই password সেট করেছি</span></label>
+    <label><input type="checkbox"><span><code>visudo</code> দিয়ে <code>%superadmin</code> নিয়মটা লিখেছি</span></label>
+    <label><input type="checkbox"><span><code>rootuser</code> হয়ে দেখেছি — sudo ছাড়া আটকায়, sudo দিয়ে চলে</span></label>
+    <label><input type="checkbox"><span><code>/etc/sudoers.d/serviceop</code> বানিয়ে <code>Cmnd_Alias</code> লিখেছি</span></label>
+    <label><input type="checkbox"><span><code>sudo -l</code> দিয়ে <code>serviceop</code>-এর তালিকা দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>restart</code> চলেছে কিন্তু <code>status</code> আটকে গেছে — নিজে দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>pidof</code> দিয়ে PID বদলানো যাচাই করেছি</span></label>
+    <label><input type="checkbox"><span><code>ps -eo pid,etime,cmd</code> দিয়ে সময় দেখেছি</span></label>
+    <label><input type="checkbox"><span>Challenge গুলো নিজে করেছি</span></label>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">মূল কথা</div>
+    <p>Root-এর password ছড়িয়ে দেওয়ার বদলে <code>sudo</code> দিয়ে <b>যার যতটুকু দরকার ততটুকু</b> ক্ষমতা দেওয়া যায়। Group-কে অনুমতি দিলে সেটা সবার জন্য একসাথে খাটে; <code>Cmnd_Alias</code> দিয়ে নির্দিষ্ট কয়েকটা command-এই আটকে রাখা যায়। আর <code>visudo</code> ছাড়া sudoers file কখনো ছোঁবে না — এই একটা অভ্যাসই একদিন তোমার server বাঁচিয়ে দেবে।</p>
+  </div>
+</section>
