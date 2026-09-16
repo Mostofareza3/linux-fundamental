@@ -1,0 +1,837 @@
+<!-- ============================================================
+     lab-05-user-modification.html
+     ------------------------------------------------------------
+     এটা একটা lab-এর content। labs.html এটাকে fetch করে দেখায়।
+     Title / tag / সময় / বিবরণ আসে labs/manifest.js থেকে —
+     এখানে আর লিখতে হয় না।
+     ============================================================ -->
+<section class="lab">
+  <div class="ch-head">
+    <div class="ch-meta">
+      <span class="ch-num">Lab 05</span>
+      <span class="layer-tag">chapter 06</span>
+      <span class="layer-tag time">≈ 59 মিনিট</span>
+    </div>
+    <h2>Linux User Modification</h2>
+    <p class="ch-lede">Account বানানো সহজ অংশ। আসল কাজ শুরু হয় তার পরে — কারো নাম বদলায়, কেউ অন্য টিমে যায়, কারো shell বদলাতে হয়, কারো account-এর একটা মেয়াদ বেঁধে দিতে হয়। এই সবকিছুর জন্য একটাই command — <code>usermod</code>। এই lab-এ তুমি একটা account-কে ধাপে ধাপে ভেঙেচুরে নতুন করে গড়বে, আর প্রতিবার দেখবে system-এর ঠিক কোন file-টা বদলাচ্ছে।</p>
+  </div>
+
+  <h3>এই lab শেষে যা পারবে</h3>
+  <ul>
+    <li>Username, shell, home directory, UID — সব বদলাতে পারবে।</li>
+    <li>বুঝবে কোন পরিবর্তনে system নিজে থেকে কী কী ঠিক করে দেয়, আর কী দেয় না।</li>
+    <li><code>chage</code> দিয়ে password-এর মেয়াদ আর account-এর মেয়াদ আলাদা করে বুঝবে।</li>
+    <li>Account lock করে <code>/etc/shadow</code>-তে ঠিক কী ঘটে সেটা দেখবে।</li>
+    <li>একটা command-এই পুরো সাজানো account বানাবে।</li>
+  </ul>
+
+  <div class="box note">
+    <div class="box-t">আগে যা জানা থাকলে সুবিধা</div>
+    <p><a href="#l2">Lab 02 — User &amp; Group Management</a>। ওখানে user আর group <b>বানানো</b> শিখেছ; এই lab পুরোটাই বানানো জিনিস <b>বদলানো</b> নিয়ে। Primary আর supplementary group-এর পার্থক্যটা ওখান থেকে মনে করে নিলে এখানে সুবিধা হবে।</p>
+  </div>
+
+  <div class="box warn">
+    <div class="box-t">practice machine-এ করো</div>
+    <p>এই lab-এ UID বদলানো, home directory সরানো, account-এ মেয়াদ বসানো — সবই আছে। Production server-এ এসব করলে চলমান service ভেঙে যেতে পারে। কাজটা <b>নিজের VM, WSL, container বা ফেলে দেওয়া যায় এমন VPS-এ</b> করো। শেষে পরিষ্কার করার ধাপ দেওয়া আছে।</p>
+  </div>
+
+  <h3>User-এর তথ্য আসলে কোথায় থাকে</h3>
+  <p>এই lab-এর প্রতিটা command আসলে তিনটে text file-এর কোনো একটা বদলাচ্ছে। এই তিনটে চিনে রাখলে বাকি সব ধাপ নিজে থেকেই পরিষ্কার হয়ে যাবে:</p>
+
+  <table>
+    <tr><th>File</th><th>কী থাকে</th></tr>
+    <tr><td><code>/etc/passwd</code></td><td>username, UID, GID, comment, home directory, shell</td></tr>
+    <tr><td><code>/etc/shadow</code></td><td>password-এর hash আর password-সংক্রান্ত সব মেয়াদ</td></tr>
+    <tr><td><code>/etc/group</code></td><td>কোন group-এ কারা আছে</td></tr>
+  </table>
+
+  <div class="out">
+    <div class="out-bar">/etc/passwd-এর একটা লাইন</div>
+<pre>testuser:x:1001:1001:Test User Account:/home/testuser:/bin/bash
+    │    │  │    │          │                 │            │
+    │    │  │    │          │                 │            └─ shell
+    │    │  │    │          │                 └────────────── home directory
+    │    │  │    │          └──────────────────────────────── comment (GECOS)
+    │    │  │    └─────────────────────────────────────────── primary group-এর GID
+    │    │  └──────────────────────────────────────────────── UID
+    │    └─────────────────────────────────────────────────── <span class="o">password এখানে নেই (x = shadow-এ আছে)</span>
+    └──────────────────────────────────────────────────────── username</pre>
+  </div>
+
+  <div class="box confuse">
+    <div class="box-t">ঐ 'x' টা password নয়</div>
+    <p>অনেক পুরোনো Unix-এ ঐ ঘরেই password-এর hash থাকত। কিন্তু <code>/etc/passwd</code> file-টা <b>সবাই পড়তে পারে</b> — তাই সেটা ছিল বিপজ্জনক। এখন hash সরিয়ে রাখা হয় <code>/etc/shadow</code>-তে, যেটা শুধু root পড়তে পারে। <code>x</code> মানে শুধু "password অন্য জায়গায় খোঁজো"।</p>
+    <p>এজন্যই এই lab-এ <code>grep testuser /etc/passwd</code> চলে <code>sudo</code> ছাড়া, কিন্তু <code>chage -l</code> বা <code>passwd -S</code>-এ <code>sudo</code> লাগে।</p>
+  </div>
+
+  <h3>যে পথটা আমরা হাঁটব</h3>
+  <p>একটাই account, ধাপে ধাপে বদলাতে বদলাতে অন্যরকম হয়ে যাবে:</p>
+
+  <div class="out">
+    <div class="out-bar">যা করতে যাচ্ছি</div>
+<pre>testuser  বানানো
+   │
+   ├─ testgroup-এ যোগ করা          <span class="o">(usermod -aG)</span>
+   ├─ shell → /bin/bash             <span class="o">(usermod -s)</span>
+   ├─ নাম → <b>newuser</b>                 <span class="o">(usermod -l)</span>
+   ├─ home → /home/newuser          <span class="o">(usermod -d -m)</span>
+   ├─ মেয়াদ → 2025-12-31            <span class="o">(usermod -e)</span>
+   ├─ UID → 1100                    <span class="o">(usermod -u)</span>
+   ├─ lock → unlock                 <span class="o">(usermod -L / -U)</span>
+   └─ comment → "Test User Account" <span class="o">(usermod -c)</span>
+
+customuser  ← এই সবকিছু <b>একটা</b> command-এ  <span class="o">(useradd)</span></pre>
+  </div>
+
+  <h3>অনুশীলন</h3>
+
+  <h3 class="part">Part 1 — User আর group বানানো</h3>
+
+  <!-- STEP 1 -->
+  <div class="step" data-n="1">
+    <h4>যা বদলাবো, আগে সেটা বানিয়ে নাও</h4>
+    <p class="obj">লক্ষ্য: একটা user আর একটা group — বাকি পুরো lab এদের নিয়েই।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo useradd -m testuser
+$ sudo groupadd testgroup</pre>
+    </div>
+
+    <p><b>যাচাই করো — দুটো আলাদা file-এ দুটো লাইন বসেছে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ grep testuser /etc/passwd
+$ grep testgroup /etc/group</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ grep testuser /etc/passwd</span>
+testuser:x:1001:1001::/home/testuser:<b>/bin/sh</b>
+
+<span class="o">$ grep testgroup /etc/group</span>
+testgroup:x:1002:</pre>
+      <div class="note-line">দুটো জিনিস খেয়াল করো — shell হলো <code>/bin/sh</code> (Step 3-এ বদলাবো), আর comment-এর ঘরটা খালি (<code>1001::</code> — দুটো colon পাশাপাশি)। <code>testgroup</code>-এর শেষে কিছু নেই, মানে এখনো কোনো সদস্য নেই।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">grep দিয়ে দেখার চেয়ে ভালো উপায়</div>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ getent passwd testuser
+$ getent group testgroup</pre>
+      </div>
+      <p><code>grep</code> শুধু file-টা পড়ে। <code>getent</code> পড়ে system-কে জিজ্ঞেস করে — তাই user যদি LDAP বা Active Directory-র মতো কোনো বাইরের জায়গা থেকে আসে, <code>getent</code> তাকেও খুঁজে পায়, <code>grep</code> পায় না। অভ্যাসটা <code>getent</code>-এর করাই ভালো।</p>
+      <p>আর <code>grep testuser</code> দিলে যে কোনো লাইনে ঐ শব্দটা থাকলেই সেটা দেখাবে — যেমন <code>testuser2</code>-ও ধরা পড়বে। <code>getent</code> হুবহু মেলে।</p>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" data-n="2">
+    <h4>Group-এ যোগ করা — আর সেই ভয়ংকর -a</h4>
+    <p class="obj">লক্ষ্য: <code>testuser</code>-কে <code>testgroup</code>-এ বসানো, পুরোনো group না হারিয়ে।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -a -G testgroup testuser
+$ groups testuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>testuser : testuser <b>testgroup</b></pre>
+      <div class="note-line">প্রথমটা তার primary group (নিজের নামে), দ্বিতীয়টা নতুন supplementary group।</div>
+    </div>
+
+    <div class="box danger">
+      <div class="box-t">-a বাদ দিলে আগের সব group মুছে যায়</div>
+      <p><code>-G</code> মানে "supplementary group-এর তালিকাটা <b>এই</b> হবে" — অর্থাৎ পুরো তালিকা বদলে দেওয়া। <code>-a</code> (append) যোগ করলে তবেই সেটা হয় "তালিকায় আরেকটা যোগ করো"।</p>
+      <div class="out">
+        <div class="out-bar">পার্থক্যটা</div>
+<pre>user আগে ছিল:  developers, docs, sudo
+
+usermod <b>-aG</b> testgroup user  →  developers, docs, sudo, testgroup  <span class="o">✓</span>
+usermod <b>-G</b>  testgroup user  →  testgroup                          <span class="o">✗ বাকি সব গেল</span></pre>
+      </div>
+      <p>বাস্তবে এই এক অক্ষরের ভুলে মানুষ নিজের <code>sudo</code> access হারিয়ে ফেলে — আর তখন সেটা ফেরত আনতেও <code>sudo</code> লাগত। তাই <code>-G</code> লিখলেই সাথে <code>-a</code> লেখার অভ্যাস করো।</p>
+      <p><code>-aG</code> আর <code>-a -G</code> — দুটো একই জিনিস, শুধু লেখার ধরন আলাদা।</p>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">-g (ছোট হাতের) আবার আলাদা</div>
+      <p><code>-g</code> দিয়ে <b>primary</b> group বদলায়, <code>-G</code> দিয়ে <b>supplementary</b>। ছোট-বড় হাতের এই একটা অক্ষরের তফাতেই কাজ সম্পূর্ণ আলাদা। Part 5-এ একই command-এ দুটোই একসাথে ব্যবহার করব।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 2 — Attribute বদলানো</h3>
+
+  <!-- STEP 3 -->
+  <div class="step" data-n="3">
+    <h4>Shell বদলানো</h4>
+    <p class="obj">লক্ষ্য: <code>/bin/sh</code> থেকে <code>/bin/bash</code>।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -s /bin/bash testuser
+$ getent passwd testuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>testuser:x:1001:1001::/home/testuser:<b>/bin/bash</b></pre>
+      <div class="note-line">লাইনের একদম শেষের ঘরটা বদলে গেছে — আর কিছু না।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">Lab 4-এর সাথে মিলিয়ে নাও</div>
+      <p><a href="#l4">Lab 04</a>-এ দেখেছিলে <code>/bin/sh</code> user-এর <code>.bashrc</code> পড়ে না — তাই ছাঁচে রাখা alias আর welcome message কিছুই আসত না। এই command-টাই সেই সমস্যার সমাধান, পরে থেকে।</p>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">যেসব shell নেই, সেগুলো বসানো যাবে না</div>
+      <p>System যে shell গুলো চেনে তার তালিকা থাকে <code>/etc/shells</code>-এ:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ cat /etc/shells</pre>
+      </div>
+      <p>ভুল path দিলে <code>usermod</code> সাধারণত একটা সতর্কবার্তা দেয়, কিন্তু <b>কাজটা করেও ফেলে</b> — আর তখন ঐ user আর login করতে পারে না। তাই bash আছে কিনা <code>which bash</code> দিয়ে আগে দেখে নাও।</p>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">ইচ্ছে করে login বন্ধ করার একটা কৌশল</div>
+      <p>Service account-দের (যেমন <code>www-data</code>) shell হিসেবে ইচ্ছে করেই <code>/usr/sbin/nologin</code> বসানো হয় — তাদের কাজ আছে, কিন্তু কারো login করার দরকার নেই:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ getent passwd www-data</pre>
+      </div>
+      <div class="out">
+        <div class="out-bar">output</div>
+<pre>www-data:x:33:33:www-data:/var/www:<b>/usr/sbin/nologin</b></pre>
+      </div>
+      <p>এটা lock করা নয় — Step 8-এর <code>-L</code>-এর সাথে গুলিয়ে ফেলো না। এখানে account সচল, শুধু shell-টা এমন যে login করলেই বের করে দেয়।</p>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step" data-n="4">
+    <h4>Username বদলানো — আর যা যা বদলায় না</h4>
+    <p class="obj">লক্ষ্য: <code>testuser</code> → <code>newuser</code>, আর তার পিছনে পড়ে থাকা জিনিসগুলো খুঁজে বের করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -l newuser testuser</pre>
+    </div>
+
+    <p class="note-line">ক্রমটা খেয়াল করো — <b>আগে নতুন নাম, পরে পুরোনো নাম</b>। উল্টো লিখলে <code>user 'newuser' does not exist</code> বলবে।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ getent passwd newuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>newuser:x:1001:1001::<b>/home/testuser</b>:/bin/bash</pre>
+      <div class="note-line">নাম বদলেছে, কিন্তু home directory এখনো <code>/home/testuser</code>! এটাই পরের step-এর কাজ।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">-l শুধু নামটাই বদলায়, আর কিচ্ছু না</div>
+      <p>নাম বদলানোর পরেও যা যা আগের মতোই থেকে যায়:</p>
+      <table>
+        <tr><th>যা থেকে যায়</th><th>ঠিক করতে</th></tr>
+        <tr><td>Home directory-র নাম</td><td><code>usermod -d /home/newuser -m newuser</code> (Step 5)</td></tr>
+        <tr><td>Primary group-এর নাম (<code>testuser</code>)</td><td><code>groupmod -n newuser testuser</code></td></tr>
+        <tr><td>Mail spool-এর file-এর নাম</td><td>হাতে <code>mv</code></td></tr>
+        <tr><td>Cron job, sudoers-এ লেখা পুরোনো নাম</td><td>হাতে খুঁজে বদলাতে হবে</td></tr>
+      </table>
+      <p>এজন্যই বাস্তবে username বদলানো এড়িয়ে চলা হয় — নতুন account বানিয়ে file গুলো সরিয়ে নেওয়া অনেক সময় নিরাপদ।</p>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">ঐ user login করা অবস্থায় নাম বদলানো যায় না</div>
+      <p>চেষ্টা করলে বলবে:</p>
+      <div class="code">
+        <div class="code-bar"><span>output</span></div>
+<pre>usermod: user testuser is currently used by process 2841</pre>
+      </div>
+      <p>কে কী চালাচ্ছে দেখতে <code>sudo pkill -u testuser</code> দিয়ে তার সব process বন্ধ করে নাও, নাহলে <code>who</code> দিয়ে দেখো সে কোথায় login করে আছে।</p>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step" data-n="5">
+    <h4>Home directory বদলানো</h4>
+    <p class="obj">লক্ষ্য: folder-টার নামও বদলানো, আর ভেতরের file গুলো সাথে নিয়ে যাওয়া।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -d /home/newuser -m newuser
+$ getent passwd newuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>newuser:x:1001:1001::<b>/home/newuser</b>:/bin/bash</pre>
+    </div>
+
+    <p><b>Folder-টা সত্যিই সরেছে কিনা দেখো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -la /home/newuser
+$ ls /home/testuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ ls -la /home/newuser</span>
+drwxr-x--- 2 <b>newuser newuser</b> 4096 Mar 02 12:10 .
+-rw-r--r-- 1 newuser newuser  220 Mar 02 12:04 .bash_logout
+-rw-r--r-- 1 newuser newuser 3771 Mar 02 12:04 .bashrc
+-rw-r--r-- 1 newuser newuser  807 Mar 02 12:04 .profile
+
+<span class="o">$ ls /home/testuser</span>
+ls: cannot access '/home/testuser': No such file or directory</pre>
+      <div class="note-line">পুরোনো folder-টা আর নেই — সরে গেছে, copy হয়নি। File গুলো <a href="#l4">Lab 04</a>-এর <code>/etc/skel/</code> থেকেই এসেছিল।</div>
+    </div>
+
+    <div class="box danger">
+      <div class="box-t">-m ছাড়া -d দিলে user তার সব file হারায়</div>
+      <p>এই দুটো flag আলাদা কাজ করে:</p>
+      <table>
+        <tr><th>Flag</th><th>কী করে</th></tr>
+        <tr><td><code>-d</code></td><td><code>/etc/passwd</code>-এ শুধু <b>ঠিকানাটা</b> বদলায়</td></tr>
+        <tr><td><code>-m</code></td><td>পুরোনো folder-টা সত্যিই নতুন জায়গায় <b>সরিয়ে</b> নেয়</td></tr>
+      </table>
+      <p>শুধু <code>-d</code> দিলে <code>/etc/passwd</code> বলবে home হলো <code>/home/newuser</code> — কিন্তু সেই folder-টাই নেই। তখন login করলে user গিয়ে পড়বে <code>/</code>-তে, আর তার সব file পড়ে থাকবে পুরোনো folder-এ, অনাথ হয়ে।</p>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">-m নিজে থেকেই মালিকানা ঠিক করে দেয়</div>
+      <p><a href="#l4">Lab 04</a>-এ হাতে <code>cp</code> করার পর <code>chown -R</code> করতে হয়েছিল। এখানে সেটা লাগেনি — <code>usermod -m</code> সরানোর সাথে সাথে ভেতরের সব file-এর মালিকানাও ঠিক করে দেয়। উপরের output-এ <code>newuser newuser</code> দেখেই সেটা বোঝা যাচ্ছে।</p>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step" data-n="6">
+    <h4>Password দেওয়া</h4>
+    <p class="obj">লক্ষ্য: account-টা সত্যিই ব্যবহারযোগ্য করা — পরের step গুলোর জন্য এটা দরকার।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo passwd newuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>New password:
+Retype new password:
+passwd: password updated successfully</pre>
+      <div class="note-line">টাইপ করার সময় screen-এ কিছুই দেখা যাবে না — কোনো তারা চিহ্নও না। এটা স্বাভাবিক।</div>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">এটা কেন এখনই দরকার</div>
+      <p>Password ছাড়া account-এ Step 8-এর lock/unlock দেখে বোঝার কিছু থাকে না — <code>passwd -S</code> তখন <code>L</code>-ও না, <code>P</code>-ও না, দেখায় <code>NP</code> (no password)। আর Step 9-এর password-এর মেয়াদও তখন অর্থহীন, কারণ মেয়াদ দেওয়ার মতো কোনো password-ই নেই।</p>
+    </div>
+  </div>
+
+  <!-- STEP 7 -->
+  <div class="step" data-n="7">
+    <h4>Account-এর মেয়াদ আর UID</h4>
+    <p class="obj">লক্ষ্য: একটা তারিখ বেঁধে দেওয়া, আর UID বদলানোর ফাঁদটা চেনা।</p>
+
+    <p><b>প্রথমে মেয়াদ:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -e 2025-12-31 newuser
+$ sudo chage -l newuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>Last password change                    : Mar 02, 2026
+Password expires                        : never
+Password inactive                       : never
+<b>Account expires                         : Dec 31, 2025</b>
+Minimum number of days between password change : 0
+Maximum number of days between password change : 99999
+Number of days of warning before password expires : 7</pre>
+      <div class="note-line">তারিখটা লিখতে হয় <code>YYYY-MM-DD</code> ছাঁচে। খেয়াল করো — এই তারিখটা <b>আজকের আগে</b>, অর্থাৎ account-টা এইমাত্র মেয়াদোত্তীর্ণ হয়ে গেল!</div>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">চলে যাওয়া তারিখ দিলে account সাথে সাথে বন্ধ</div>
+      <p><code>usermod -e</code> ভবিষ্যতের তারিখ চায়। অতীতের তারিখ দিলে user পরের বার login করতে গেলেই দেখবে:</p>
+      <div class="code">
+        <div class="code-bar"><span>output</span></div>
+<pre>Your account has expired; please contact your system administrator</pre>
+      </div>
+      <p>পরীক্ষা করার জন্য ভবিষ্যতের একটা তারিখ দাও, আর মেয়াদ পুরোপুরি তুলে নিতে খালি স্ট্রিং:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># ভবিষ্যতের তারিখ</span>
+$ sudo usermod -e 2027-12-31 newuser
+
+<span class="c"># মেয়াদ তুলে নাও</span>
+$ sudo usermod -e "" newuser</pre>
+      </div>
+    </div>
+
+    <p><b>এবার UID:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -u 1100 newuser
+$ id newuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>uid=<b>1100</b>(newuser) gid=1001(testuser) groups=1001(testuser),1002(testgroup)</pre>
+      <div class="note-line">UID বদলেছে। কিন্তু primary group-এর নাম এখনো <code>testuser</code> — Step 4-এ বলা সেই "যা যা বদলায় না"-র একটা।</div>
+    </div>
+
+    <div class="box danger">
+      <div class="box-t">UID বদলালে পুরোনো file গুলো অনাথ হয়ে যায়</div>
+      <p>File-এর ভেতরে মালিকের <b>নাম</b> লেখা থাকে না, লেখা থাকে <b>UID নম্বর</b>। তাই UID বদলানো মানে ঐ user-এর পুরোনো সব file-এর মালিক এখন এমন একটা নম্বর, যেটা আর কারো নয়।</p>
+      <p><code>usermod -u</code> home directory-র ভেতরটা নিজে থেকে ঠিক করে দেয়, কিন্তু <b>বাইরের কোনো file নয়</b> — যেমন <code>/var/www</code> বা <code>/opt</code>-এ থাকা file:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># পুরোনো UID-র অনাথ file খুঁজে বের করো</span>
+$ sudo find / -uid 1001 -not -path "/proc/*" 2&gt;/dev/null
+
+<span class="c"># পেলে মালিকানা ঠিক করো</span>
+$ sudo find / -uid 1001 -not -path "/proc/*" -exec chown newuser {} \;</pre>
+      </div>
+      <p>এজন্যই চালু system-এ UID বদলানো এড়িয়ে চলা হয়। একান্ত দরকার হলে আগে ঐ user-এর সব process বন্ধ করো, তারপর বদলাও, তারপর <code>find</code> দিয়ে খুঁজে সব ঠিক করো।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 3 — Lock, মেয়াদ আর comment</h3>
+
+  <!-- STEP 8 -->
+  <div class="step" data-n="8">
+    <h4>Lock করলে ভেতরে ঠিক কী ঘটে</h4>
+    <p class="obj">লক্ষ্য: <code>/etc/shadow</code>-তে পরিবর্তনটা নিজে চোখে দেখা।</p>
+
+    <p>Lock করার <b>আগে</b> shadow file-এর লাইনটা দেখে নাও:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo grep newuser /etc/shadow</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>newuser:<b>$y$j9T$Kd8v...</b>:20515:0:99999:7:::</pre>
+    </div>
+
+    <p><b>এবার lock করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -L newuser
+$ sudo grep newuser /etc/shadow
+$ sudo passwd -S newuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ sudo grep newuser /etc/shadow</span>
+newuser:<b>!</b>$y$j9T$Kd8v...:20515:0:99999:7:::
+
+<span class="o">$ sudo passwd -S newuser</span>
+newuser <b>L</b> 03/02/2026 0 99999 7 -1</pre>
+      <div class="note-line">পুরো কৌশলটা ঐ একটা <code>!</code> চিহ্ন — hash-এর সামনে বসে গেছে।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">একটা বিস্ময়বোধক চিহ্নেই পুরো কাজ</div>
+      <p>Login করার সময় system তোমার দেওয়া password-টা hash করে, তারপর shadow file-এর hash-এর সাথে মেলায়। এখন সামনে <code>!</code> বসে যাওয়ায় সেটা আর কোনো বৈধ hash-ই নয় — তাই <b>কোনো password দিয়েই আর মেলানো সম্ভব নয়</b>।</p>
+      <p>আসল hash-টা কিন্তু <code>!</code>-এর পিছনে অক্ষত আছে। তাই <code>usermod -U</code> দিয়ে শুধু <code>!</code> চিহ্নটা তুলে নিলেই পুরোনো password আবার আগের মতো কাজ করে — নতুন করে password দিতে হয় না।</p>
+    </div>
+
+    <p><b>এবার unlock করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -U newuser
+$ sudo passwd -S newuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>newuser <b>P</b> 03/02/2026 0 99999 7 -1</pre>
+      <div class="note-line"><code>L</code> থেকে <code>P</code> — আবার সচল।</div>
+    </div>
+
+    <table>
+      <tr><th><code>passwd -S</code>-এর অক্ষর</th><th>মানে</th></tr>
+      <tr><td><code>P</code></td><td>Password আছে, account সচল</td></tr>
+      <tr><td><code>L</code></td><td>Locked — hash-এর সামনে <code>!</code> বসানো</td></tr>
+      <tr><td><code>NP</code></td><td>কোনো password নেই (Step 6 না করলে এটাই দেখতে)</td></tr>
+    </table>
+
+    <div class="box warn">
+      <div class="box-t">Lock করা মানে পুরোপুরি বন্ধ নয়</div>
+      <p><code>-L</code> শুধু <b>password দিয়ে</b> login বন্ধ করে। কিন্তু user যদি SSH key দিয়ে ঢোকে, সে কিন্তু এখনো ঢুকতে পারবে — কারণ সেখানে password-এর দরকারই হয় না।</p>
+      <p>সত্যিকারের পুরো বন্ধ করতে তিনটে একসাথে লাগে:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -L newuser                      <span class="c"># password বন্ধ</span>
+$ sudo usermod -s /usr/sbin/nologin newuser     <span class="c"># shell বন্ধ</span>
+$ sudo usermod -e 1 newuser                     <span class="c"># account মেয়াদোত্তীর্ণ</span></pre>
+      </div>
+      <p>কেউ কোম্পানি ছেড়ে গেলে বাস্তবে এই তিনটেই করা হয়, account মুছে ফেলার আগে।</p>
+    </div>
+  </div>
+
+  <!-- STEP 9 -->
+  <div class="step" data-n="9">
+    <h4>Password-এর মেয়াদ — chage</h4>
+    <p class="obj">লক্ষ্য: পরের বার login-এ password বদলাতে বাধ্য করা, আর ৯০ দিনের নিয়ম বসানো।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># পরের login-এ password বদলাতেই হবে</span>
+$ sudo chage -d 0 newuser
+
+<span class="c"># password-এর সর্বোচ্চ বয়স ৯০ দিন</span>
+$ sudo chage -M 90 newuser
+
+$ sudo chage -l newuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>Last password change                    : <b>password must be changed</b>
+Password expires                        : password must be changed
+Password inactive                       : password must be changed
+Account expires                         : Dec 31, 2027
+Minimum number of days between password change : 0
+<b>Maximum number of days between password change : 90</b>
+Number of days of warning before password expires : 7</pre>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">"Account expires" আর "Password expires" — দুটো আলাদা জিনিস</div>
+      <p>একই output-এ পাশাপাশি থাকায় এই দুটো প্রায়ই গুলিয়ে যায়:</p>
+      <table>
+        <tr><th></th><th>Password expires</th><th>Account expires</th></tr>
+        <tr><td>কে বসায়</td><td><code>chage -M</code></td><td><code>usermod -e</code> / <code>chage -E</code></td></tr>
+        <tr><td>মেয়াদ শেষ হলে</td><td>নতুন password দিয়ে ঢুকতে পারবে</td><td>আর ঢুকতেই পারবে না</td></tr>
+        <tr><td>কেন</td><td>নিয়মিত password বদলানোর নিয়ম</td><td>Intern, contractor — যার একটা শেষ তারিখ আছে</td></tr>
+      </table>
+      <p>এক কথায় — password-এর মেয়াদ শেষ হলে user নিজেই ঠিক করে নিতে পারে, account-এর মেয়াদ শেষ হলে admin ছাড়া উপায় নেই।</p>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">chage -d 0 আসলে কী করছে</div>
+      <p><code>-d</code> মানে "শেষ কবে password বদলেছে"। <code>0</code> বসানো মানে বলা হচ্ছে — সেটা বদলেছে <b>১ জানুয়ারি ১৯৭০</b>-এ (Unix-এ সময় গোনা শুরুর দিন)।</p>
+      <p>System তখন হিসেব করে দেখে password-টার বয়স ৫০ বছরের বেশি, অর্থাৎ সব নিয়মের বাইরে — তাই পরের login-এই বদলাতে বাধ্য করে। নতুন employee-কে প্রথম password দেওয়ার পর এটাই করা হয়, যাতে সে নিজের একটা password বসিয়ে নেয়।</p>
+    </div>
+
+    <table>
+      <tr><th><code>chage</code> flag</th><th>কাজ</th></tr>
+      <tr><td><code>-l</code></td><td>সব তারিখ দেখায় (list)</td></tr>
+      <tr><td><code>-d 0</code></td><td>পরের login-এ password বদলাতে বাধ্য করে</td></tr>
+      <tr><td><code>-M 90</code></td><td>Password সর্বোচ্চ ৯০ দিন টিকবে</td></tr>
+      <tr><td><code>-m 7</code></td><td>দুবার বদলানোর মাঝে অন্তত ৭ দিন যেতে হবে</td></tr>
+      <tr><td><code>-W 14</code></td><td>মেয়াদ শেষের ১৪ দিন আগে সতর্ক করবে</td></tr>
+      <tr><td><code>-E 2027-12-31</code></td><td>Account-এর মেয়াদ (<code>usermod -e</code>-র মতোই)</td></tr>
+    </table>
+  </div>
+
+  <!-- STEP 10 -->
+  <div class="step" data-n="10">
+    <h4>Comment ঘরটা ভরা</h4>
+    <p class="obj">লক্ষ্য: account-টা কার, সেটা লিখে রাখা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -c "Test User Account" newuser
+$ getent passwd newuser</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>newuser:x:1100:1001:<b>Test User Account</b>:/home/newuser:/bin/bash</pre>
+      <div class="note-line">Step 1-এ যে ঘরটা খালি ছিল (<code>1001::</code>), সেটা এখন ভরা।</div>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">GECOS — নামটা এলো কোথা থেকে</div>
+      <p>এই ঘরটার পোশাকি নাম <b>GECOS field</b>। নামটা ১৯৭০-এর দশকের একটা operating system-এর (General Electric Comprehensive Operating System) নাম থেকে এসেছে — সেই system-এ printer-এ কাজ পাঠানোর জন্য কিছু তথ্য এখানে রাখতে হতো।</p>
+      <p>সেই system কবেই হারিয়ে গেছে, কিন্তু নামটা রয়ে গেছে। এখন এখানে থাকে user-এর পুরো নাম, বিভাগ, ফোন নম্বর — comma দিয়ে আলাদা করে:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -c "Nabil Ahmed,Engineering,+8801700000000" newuser</pre>
+      </div>
+      <p><code>finger</code>-এর মতো পুরোনো command গুলো এই comma গুলো বুঝে সাজিয়ে দেখাত।</p>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">এখানে colon লেখা যাবে না</div>
+      <p><code>/etc/passwd</code>-এ ঘর আলাদা করা হয় colon (<code>:</code>) দিয়ে। Comment-এ একটা colon ঢুকিয়ে দিলে file-এর ঐ লাইনে ঘরের সংখ্যা বেড়ে যাবে, আর লাইনটা নষ্ট হয়ে যাবে। <code>usermod</code> সাধারণত আটকে দেয়, কিন্তু হাতে file edit করলে সে সুরক্ষাটুকুও থাকে না।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 4 — একটা command-এ পুরোটা</h3>
+
+  <!-- STEP 11 -->
+  <div class="step" data-n="11">
+    <h4>সব attribute একসাথে দিয়ে user বানানো</h4>
+    <p class="obj">লক্ষ্য: Step ১ থেকে ১০ পর্যন্ত যা করলে, সেটা একটা লাইনে।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo useradd -m -d /home/customuser -s /bin/bash \
+      -g users -G sudo -c "Custom User" -e 2027-12-31 customuser</pre>
+    </div>
+
+    <p class="note-line">লাইনের শেষের <code>\</code> মানে "লাইনটা এখনো শেষ হয়নি, পরের লাইনে চলছে"। একটানা লিখলেও একই কাজ।</p>
+
+    <table>
+      <tr><th>অংশ</th><th>কী করছে</th><th>এর আগে কোথায় দেখেছ</th></tr>
+      <tr><td><code>-m</code></td><td>home directory বানায়, <a href="#l4">/etc/skel/</a> ঢালে</td><td>Lab 04</td></tr>
+      <tr><td><code>-d /home/customuser</code></td><td>home-এর ঠিকানা</td><td>Step 5</td></tr>
+      <tr><td><code>-s /bin/bash</code></td><td>login shell</td><td>Step 3</td></tr>
+      <tr><td><code>-g users</code></td><td><b>primary</b> group</td><td>Step 2-এর note</td></tr>
+      <tr><td><code>-G sudo</code></td><td><b>supplementary</b> group</td><td>Step 2</td></tr>
+      <tr><td><code>-c "Custom User"</code></td><td>comment / GECOS</td><td>Step 10</td></tr>
+      <tr><td><code>-e 2027-12-31</code></td><td>account-এর মেয়াদ</td><td>Step 7</td></tr>
+    </table>
+
+    <div class="box confuse">
+      <div class="box-t">এখানে -G-র সাথে -a লাগে না কেন</div>
+      <p>Step 2-এ <code>-a</code> বাদ দেওয়াকে বিপজ্জনক বলেছিলাম। কিন্তু এখানে <code>useradd</code>-এ সেটা লাগছে না — কারণ user-টা <b>এইমাত্র জন্মাচ্ছে</b>, তার আগে থেকে কোনো group-এর তালিকাই নেই। হারানোর কিছু নেই বলেই append করার প্রশ্ন নেই।</p>
+      <p><code>-a</code> শুধু <code>usermod</code>-এর সাথেই খাটে, <code>useradd</code>-এ ওটা নেই।</p>
+    </div>
+
+    <p><b>যাচাই করো — তিন জায়গা থেকে তিন রকম তথ্য:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ id customuser
+$ getent passwd customuser
+$ sudo chage -l customuser | head -4</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ id customuser</span>
+uid=1101(customuser) gid=<b>100(users)</b> groups=100(users),27(<b>sudo</b>)
+
+<span class="o">$ getent passwd customuser</span>
+customuser:x:1101:100:<b>Custom User</b>:/home/customuser:/bin/bash
+
+<span class="o">$ sudo chage -l customuser | head -4</span>
+Last password change                    : Mar 02, 2026
+Password expires                        : never
+Password inactive                       : never
+<b>Account expires                         : Dec 31, 2027</b></pre>
+      <div class="note-line"><code>gid=100(users)</code> — primary group আর নিজের নামে নয়, কারণ <code>-g users</code> দেওয়া হয়েছে। <code>groups</code>-এ <code>sudo</code>-ও আছে।</div>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">group গুলো আগে থেকে থাকতে হবে</div>
+      <p><code>-g</code> আর <code>-G</code>-তে যে group-এর নাম দেবে, সেটা <b>আগেই বানানো থাকতে হবে</b> — <code>useradd</code> নিজে বানিয়ে নেয় না:</p>
+      <div class="code">
+        <div class="code-bar"><span>output</span></div>
+<pre>useradd: group 'users' does not exist</pre>
+      </div>
+      <p>এলে আগে <code>sudo groupadd users</code> চালাও। <code>sudo</code> group-টা Debian/Ubuntu-তে থাকে, কিন্তু RHEL/Fedora-তে সেটার নাম <code>wheel</code> — <code>getent group wheel</code> দিয়ে দেখে নাও।</p>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">এক command না দশ command — কোনটা ভালো</div>
+      <p>দুটোরই জায়গা আছে। <b>নতুন</b> account বানানোর সময় সব একসাথে দেওয়াই ভালো — script-এ লেখা যায়, আর ভুলে কোনো ধাপ বাদ পড়ে না।</p>
+      <p>কিন্তু <b>চালু</b> account বদলানোর সময় <code>usermod</code> দিয়ে একটা একটা করে করাই নিরাপদ — প্রতিটা ধাপের পর যাচাই করে নেওয়া যায়, আর কিছু ভাঙলে কোনটায় ভাঙল সেটা বোঝা যায়।</p>
+    </div>
+  </div>
+
+  <h3>পুরো ব্যাপারটা এক নজরে</h3>
+  <p>কোন command system-এর কোন file-টা ছুঁচ্ছে — এটাই এই lab-এর মূল মানচিত্র:</p>
+
+  <div class="out">
+    <div class="out-bar">কে কোথায় লেখে</div>
+<pre>usermod -l  (নাম)      ─┐
+usermod -u  (UID)       │
+usermod -g  (primary)   ├──→  <b>/etc/passwd</b>
+usermod -d  (home)      │     <span class="o">সবাই পড়তে পারে</span>
+usermod -s  (shell)     │
+usermod -c  (comment)  ─┘
+
+usermod -L / -U        ─┐
+usermod -e  (মেয়াদ)     ├──→  <b>/etc/shadow</b>
+chage   -d -M -m -W -E ─┤     <span class="o">শুধু root পড়তে পারে</span>
+passwd                 ─┘
+
+usermod -aG (group)    ────→  <b>/etc/group</b>
+groupadd / groupdel           <span class="o">সবাই পড়তে পারে</span>
+
+usermod -m  (home সরানো) ──→  <span class="o">file system — আসল folder সরে</span></pre>
+  </div>
+
+  <p>এই ভাগটা মনে রাখলে দুটো জিনিস নিজে থেকেই পরিষ্কার হয়ে যায় — কেন <code>chage -l</code>-এ <code>sudo</code> লাগে কিন্তু <code>getent passwd</code>-এ লাগে না, আর কেন <code>usermod -d</code> (শুধু লেখা) আর <code>usermod -m</code> (সত্যিই সরানো) দুটো আলাদা flag।</p>
+
+  <div class="box tip">
+    <div class="box-t">যাচাই করার তিনটে হাতিয়ার</div>
+    <table>
+      <tr><th>Command</th><th>কোথা থেকে পড়ে</th><th>কখন ব্যবহার করবে</th></tr>
+      <tr><td><code>id &lt;user&gt;</code></td><td>passwd + group</td><td>UID আর group দেখতে</td></tr>
+      <tr><td><code>getent passwd &lt;user&gt;</code></td><td>passwd</td><td>shell, home, comment দেখতে</td></tr>
+      <tr><td><code>sudo chage -l &lt;user&gt;</code></td><td>shadow</td><td>সব তারিখ আর মেয়াদ দেখতে</td></tr>
+    </table>
+    <p>প্রতিটা <code>usermod</code>-এর পরে এদের একটা চালিয়ে মিলিয়ে নেওয়ার অভ্যাস করো। <code>usermod</code> কাজ হয়ে গেলে কিছুই বলে না — তাই যাচাই না করলে জানার উপায় নেই।</p>
+  </div>
+
+  <h3>নিজে করো — Challenge</h3>
+  <ol>
+    <li><code>newuser</code>-এর primary group-এর নামটা এখনো <code>testuser</code>। <code>groupmod</code> দিয়ে সেটাও <code>newuser</code> করো, তারপর <code>id</code> দিয়ে মিলিয়ে দেখো।</li>
+    <li>এমন একটা account বানাও যাতে user login করতেই না পারে, কিন্তু account-টা থেকে যায় — তিনটে কাজ একসাথে (Step 8-এর সতর্কবার্তাটা দেখো)।</li>
+    <li>একজন intern-এর account বানাও: ৩০ দিন পরে account-এর মেয়াদ শেষ হবে, password সর্বোচ্চ ১৫ দিন টিকবে, আর প্রথম login-এই password বদলাতে হবে। (ইঙ্গিত: তারিখ হিসেব করতে <code>date -d "+30 days" +%F</code>)</li>
+  </ol>
+
+  <details class="solve">
+    <summary>সমাধান দেখো</summary>
+    <div class="sbody">
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — primary group-এর নাম বদলানো</span>
+$ sudo groupmod -n newuser testuser
+$ id newuser
+<span class="o">uid=1100(newuser) gid=1001(newuser) groups=1001(newuser),1002(testgroup)</span></pre>
+      </div>
+      <p>খেয়াল করো GID নম্বরটা (<code>1001</code>) বদলায়নি, শুধু নামটা বদলেছে। এটাই চাই — নম্বর বদলালে ঐ group-এর মালিকানায় থাকা সব file আবার অনাথ হয়ে যেত, ঠিক Step 7-এর UID-র মতো।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ২ — পুরোপুরি বন্ধ, কিন্তু মোছা নয়</span>
+$ sudo useradd -m -s /bin/bash blockeduser
+$ sudo passwd blockeduser
+
+$ sudo usermod -L blockeduser
+$ sudo usermod -s /usr/sbin/nologin blockeduser
+$ sudo usermod -e 1 blockeduser
+
+$ sudo passwd -S blockeduser
+<span class="o">blockeduser L 03/02/2026 0 99999 7 -1</span>
+$ getent passwd blockeduser
+<span class="o">blockeduser:x:1102:1102::/home/blockeduser:/usr/sbin/nologin</span></pre>
+      </div>
+      <p>তিনটে দরজাই বন্ধ — password মিলবে না, shell login করতে দেবে না, আর account নিজেই মেয়াদোত্তীর্ণ। <code>-e 1</code> মানে ১৯৭০-এর ২ জানুয়ারি, অর্থাৎ বহু আগেই শেষ। তবু home directory আর সব file অক্ষত আছে — পরে দরকার হলে ফেরত পাওয়া যাবে।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ৩ — intern account</span>
+$ sudo useradd -m -s /bin/bash -c "Summer Intern" intern
+$ sudo passwd intern
+
+<span class="c"># ৩০ দিন পরের তারিখ হিসেব করে বসানো</span>
+$ sudo usermod -e "$(date -d '+30 days' +%F)" intern
+
+$ sudo chage -M 15 intern
+$ sudo chage -d 0 intern
+
+$ sudo chage -l intern</pre>
+      </div>
+      <div class="out">
+        <div class="out-bar">output</div>
+<pre>Last password change                    : <b>password must be changed</b>
+Account expires                         : <b>Apr 01, 2026</b>
+Maximum number of days between password change : <b>15</b></pre>
+      </div>
+      <p><code>$(date -d '+30 days' +%F)</code> আজকের তারিখ থেকে ৩০ দিন পরের তারিখটা <code>YYYY-MM-DD</code> ছাঁচে বের করে দেয় — হাতে হিসেব করার দরকার নেই। macOS-এ এই লেখাটা আলাদা (<code>date -v+30d +%F</code>), তবে Linux-এ উপরেরটাই চলে।</p>
+      <p>ক্রমটা খেয়াল করো — <code>chage -d 0</code> সবার শেষে। আগে দিলে <code>passwd</code> চালানোর সময় সেটা মুছে গিয়ে আজকের তারিখ বসে যেত।</p>
+    </div>
+  </details>
+
+  <h3>Command গুলো এক নজরে</h3>
+  <table>
+    <tr><th>Command</th><th>কাজ</th></tr>
+    <tr><td><code>usermod -aG &lt;group&gt; &lt;user&gt;</code></td><td>supplementary group-এ যোগ করে (<code>-a</code> ভুলো না)</td></tr>
+    <tr><td><code>usermod -g &lt;group&gt; &lt;user&gt;</code></td><td>primary group বদলায়</td></tr>
+    <tr><td><code>usermod -s &lt;shell&gt; &lt;user&gt;</code></td><td>login shell বদলায়</td></tr>
+    <tr><td><code>usermod -l &lt;new&gt; &lt;old&gt;</code></td><td>username বদলায় (নতুন নাম আগে)</td></tr>
+    <tr><td><code>usermod -d &lt;dir&gt; -m &lt;user&gt;</code></td><td>home directory বদলায় আর file সরায়</td></tr>
+    <tr><td><code>usermod -u &lt;uid&gt; &lt;user&gt;</code></td><td>UID বদলায়</td></tr>
+    <tr><td><code>usermod -c "&lt;text&gt;" &lt;user&gt;</code></td><td>comment / GECOS বসায়</td></tr>
+    <tr><td><code>usermod -e &lt;YYYY-MM-DD&gt; &lt;user&gt;</code></td><td>account-এর মেয়াদ বসায়</td></tr>
+    <tr><td><code>usermod -L / -U &lt;user&gt;</code></td><td>account lock / unlock করে</td></tr>
+    <tr><td><code>groupmod -n &lt;new&gt; &lt;old&gt;</code></td><td>group-এর নাম বদলায়</td></tr>
+    <tr><td><code>chage -l &lt;user&gt;</code></td><td>সব তারিখ আর মেয়াদ দেখায়</td></tr>
+    <tr><td><code>chage -d 0 &lt;user&gt;</code></td><td>পরের login-এ password বদলাতে বাধ্য করে</td></tr>
+    <tr><td><code>chage -M &lt;days&gt; &lt;user&gt;</code></td><td>password-এর সর্বোচ্চ বয়স</td></tr>
+    <tr><td><code>passwd -S &lt;user&gt;</code></td><td>account-এর অবস্থা (<code>P</code>/<code>L</code>/<code>NP</code>)</td></tr>
+    <tr><td><code>getent passwd &lt;user&gt;</code></td><td>user-এর passwd লাইনটা দেখায়</td></tr>
+    <tr><td><code>userdel -r &lt;user&gt;</code></td><td>user আর তার home directory মোছে</td></tr>
+    <tr><td><code>groupdel &lt;group&gt;</code></td><td>group মোছে</td></tr>
+  </table>
+
+  <h3>আটকে গেলে</h3>
+  <table>
+    <tr><th>সমস্যা</th><th>কী হয়েছে / কী করবে</th></tr>
+    <tr><td><code>user is currently used by process N</code></td><td>ঐ user login করে আছে। <code>sudo pkill -u &lt;user&gt;</code> দিয়ে তার process বন্ধ করো, তারপর আবার চেষ্টা করো।</td></tr>
+    <tr><td>নাম বদলানোর পর user-এর file-এ ঢুকতে পারছে না</td><td><code>-l</code> home directory বদলায় না। <code>sudo usermod -d /home/&lt;new&gt; -m &lt;new&gt;</code> চালাও।</td></tr>
+    <tr><td>UID বদলানোর পর কিছু file-এ access নেই</td><td>ঐ file গুলো এখনো পুরোনো UID-র নামে। <code>sudo find / -uid &lt;পুরোনো&gt; -not -path "/proc/*" 2&gt;/dev/null</code> দিয়ে খুঁজে <code>chown</code> করো।</td></tr>
+    <tr><td><code>usermod: group 'X' does not exist</code></td><td>Group টা আগে বানাও — <code>sudo groupadd X</code>। RHEL/Fedora-তে <code>sudo</code>-র বদলে <code>wheel</code>।</td></tr>
+    <tr><td><code>passwd -S</code>-এ <code>NP</code> দেখাচ্ছে</td><td>Account-এ কোনো password নেই। <code>sudo passwd &lt;user&gt;</code> দিয়ে একটা বসাও (Step 6)।</td></tr>
+    <tr><td>Account expired বলে login করতে দিচ্ছে না</td><td>মেয়াদ চলে গেছে। <code>sudo usermod -e "" &lt;user&gt;</code> দিয়ে মেয়াদ তুলে নাও।</td></tr>
+    <tr><td><code>usermod -e</code>-তে <code>invalid date</code></td><td>ছাঁচটা <code>YYYY-MM-DD</code> হতে হবে — <code>31-12-2025</code> নয়, <code>2025-12-31</code>।</td></tr>
+    <tr><td>Lock করার পরও user SSH দিয়ে ঢুকছে</td><td><code>-L</code> শুধু password বন্ধ করে, key নয়। Shell-ও <code>nologin</code> করে দাও (Step 8-এর তিনটে command)।</td></tr>
+    <tr><td><code>groupdel: cannot remove the primary group</code></td><td>কারো primary group এটা। আগে ঐ user-কে মুছো বা তার primary group বদলাও।</td></tr>
+  </table>
+
+  <h3>পরিষ্কার করে ফেলা (ঐচ্ছিক)</h3>
+  <div class="code">
+    <div class="code-bar"><span>bash — cleanup</span><button class="copy">copy</button></div>
+<pre><span class="c"># user গুলো মুছে দাও (home directory সহ)</span>
+$ sudo userdel -r newuser
+$ sudo userdel -r customuser
+
+<span class="c"># Challenge-এর user গুলো করে থাকলে</span>
+$ sudo userdel -r blockeduser
+$ sudo userdel -r intern
+
+<span class="c"># group মুছে দাও</span>
+$ sudo groupdel testgroup
+
+<span class="c"># মিলিয়ে দেখো — কিছুই যেন না থাকে</span>
+$ getent passwd newuser customuser
+$ getent group testgroup</pre>
+  </div>
+
+  <div class="box note">
+    <div class="box-t">userdel -r-এ ভুলে যাওয়া file পড়ে থাকতে পারে</div>
+    <p><code>-r</code> শুধু home directory আর mail spool মোছে। ঐ user-এর বানানো যদি অন্য কোথাও file থাকে — যেমন <code>/tmp</code> বা <code>/var</code>-এ — সেগুলো পড়ে থাকবে, আর তাদের মালিক হবে এমন একটা UID যেটা আর কারো নয়। খুঁজে বের করতে:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo find / -nouser -not -path "/proc/*" 2&gt;/dev/null</pre>
+    </div>
+    <p><code>-nouser</code> মানে "এমন file যার মালিকের কোনো account নেই"।</p>
+  </div>
+
+  <div class="box danger">
+    <div class="box-t">শুধু নিজের practice machine-এ</div>
+    <p><code>userdel -r</code> home directory সহ সব মুছে দেয়, ফেরানোর উপায় নেই। আর <code>find / -exec chown</code>-জাতীয় command গুলো ভুল UID দিয়ে চালালে system-এর file-এর মালিকানা নষ্ট হয়ে যেতে পারে — চালানোর আগে <code>-exec</code> অংশটা বাদ দিয়ে একবার দেখে নাও কোন কোন file ধরা পড়ছে।</p>
+  </div>
+
+  <div class="check" data-lab="l5">
+    <div class="ct">Lab 5 — চেকলিস্ট</div>
+    <label><input type="checkbox"><span><code>testuser</code> আর <code>testgroup</code> বানিয়েছি</span></label>
+    <label><input type="checkbox"><span><code>usermod -aG</code> দিয়ে group-এ যোগ করেছি, আর <code>-a</code> কেন জরুরি বুঝেছি</span></label>
+    <label><input type="checkbox"><span>Shell বদলে <code>/bin/bash</code> করেছি</span></label>
+    <label><input type="checkbox"><span><code>-l</code> দিয়ে নাম বদলেছি, আর দেখেছি home directory বদলায়নি</span></label>
+    <label><input type="checkbox"><span><code>-d -m</code> দিয়ে home directory সরিয়েছি</span></label>
+    <label><input type="checkbox"><span>Password বসিয়েছি আর account-এ মেয়াদ দিয়েছি</span></label>
+    <label><input type="checkbox"><span>UID বদলেছি, আর অনাথ file-এর ব্যাপারটা বুঝেছি</span></label>
+    <label><input type="checkbox"><span><code>/etc/shadow</code>-তে lock-এর <code>!</code> চিহ্নটা নিজে দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>chage</code> দিয়ে password-এর মেয়াদ বসিয়েছি</span></label>
+    <label><input type="checkbox"><span>একটা command-এ পুরো সাজানো <code>customuser</code> বানিয়েছি</span></label>
+    <label><input type="checkbox"><span>Challenge গুলো নিজে করেছি</span></label>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">মূল কথা</div>
+    <p>User-এর সব তথ্য আসলে তিনটে সাধারণ text file-এ লেখা — <code>/etc/passwd</code>, <code>/etc/shadow</code>, <code>/etc/group</code>। <code>usermod</code> আর <code>chage</code> কোনো জাদু করে না, শুধু ঐ file গুলোর ঘর গুলো নিরাপদে বদলে দেয়। কোন command কোন file ছোঁয় — এটুকু মাথায় থাকলে পুরো user management নিজে থেকেই সহজ হয়ে যায়।</p>
+    <p>আর সবচেয়ে বড় শিক্ষাটা হলো — <b>যা বদলাও, তা যাচাই করো</b>। <code>usermod</code> সফল হলে কিছুই বলে না, তাই <code>id</code>, <code>getent passwd</code> বা <code>chage -l</code> চালিয়ে প্রতিবার মিলিয়ে নেওয়াটাই একজন admin-এর আসল অভ্যাস।</p>
+  </div>
+</section>

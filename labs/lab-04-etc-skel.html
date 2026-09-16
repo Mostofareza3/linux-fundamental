@@ -1,0 +1,597 @@
+<!-- ============================================================
+     lab-04-etc-skel.html
+     ------------------------------------------------------------
+     এটা একটা lab-এর content। labs.html এটাকে fetch করে দেখায়।
+     Title / tag / সময় / বিবরণ আসে labs/manifest.js থেকে —
+     এখানে আর লিখতে হয় না।
+     ============================================================ -->
+<section class="lab">
+  <div class="ch-head">
+    <div class="ch-meta">
+      <span class="ch-num">Lab 04</span>
+      <span class="layer-tag">chapter 06</span>
+      <span class="layer-tag time">≈ 59 মিনিট</span>
+    </div>
+    <h2>Understanding /etc/skel/ in Linux</h2>
+    <p class="ch-lede">নতুন user বানালে তার home directory-তে <code>.bashrc</code>, <code>.profile</code> — এই file গুলো কোথা থেকে আসে? কেউ তো হাতে বানায় না। আসে <code>/etc/skel/</code> থেকে। এটা একটা ছাঁচ — নতুন user-এর home directory ঠিক এই ছাঁচে ঢেলে বানানো হয়। এই lab-এ তুমি ছাঁচটা নিজের মতো বদলাবে, আর দেখবে পরের user সত্যিই সেটা পাচ্ছে কিনা।</p>
+  </div>
+
+  <h3>এই lab শেষে যা পারবে</h3>
+  <ul>
+    <li><code>/etc/skel/</code> কী আর কখন কাজ করে, বলতে পারবে।</li>
+    <li>নতুন user বানিয়ে প্রমাণ করবে file গুলো সত্যিই copy হচ্ছে।</li>
+    <li>ছাঁচে নিজের file আর alias যোগ করবে — সব নতুন user সেটা পাবে।</li>
+    <li>ছাঁচ থেকে জিনিস সরিয়ে দিলে কী হয়, দেখবে।</li>
+    <li>home directory ছাড়া বানানো user-এর জন্য হাতে ছাঁচটা ঢালবে।</li>
+  </ul>
+
+  <div class="box note">
+    <div class="box-t">আগে যা জানা থাকলে সুবিধা</div>
+    <p><a href="#l2">Lab 02 — User &amp; Group Management</a>। এখানে <code>useradd -m</code> বারবার লাগবে, তাই user বানানোর কাজটা আগে থেকে হাতে থাকলে সবচেয়ে ভালো।</p>
+  </div>
+
+  <div class="box warn">
+    <div class="box-t">practice machine-এ করো</div>
+    <p>এই lab-এ কয়েকজন test user বানানো হবে আর <code>/etc/skel/</code> বদলানো হবে। কাজটা <b>নিজের VM, WSL, container বা ফেলে দেওয়া যায় এমন VPS-এ</b> করো। শেষে পরিষ্কার করার ধাপ দেওয়া আছে।</p>
+  </div>
+
+  <h3>/etc/skel/ আসলে কী</h3>
+  <p><b>skel</b> এসেছে <b>skeleton</b> থেকে — কঙ্কাল। নামটাই বলে দিচ্ছে কাজটা কী: এটা নতুন user-এর home directory-র কঙ্কাল, মানে মূল কাঠামোটা।</p>
+  <p>নতুন user বানানোর সময় system এই folder-এর ভেতরের সবকিছু — লুকোনো file সহ — তুলে নিয়ে নতুন user-এর home directory-তে বসিয়ে দেয়। তাই প্রতিটা নতুন user একই রকম, আগে থেকে গোছানো একটা environment নিয়ে শুরু করে।</p>
+
+  <div class="out">
+    <div class="out-bar">যা ঘটে</div>
+<pre>/etc/skel/                          /home/newuser/
+├── .bashrc        ──┐              ├── .bashrc
+├── .profile         ├─ copy ──→    ├── .profile
+└── .bash_logout   ──┘              └── .bash_logout
+                                    <span class="o">(ownership: newuser:newuser)</span></pre>
+  </div>
+
+  <table>
+    <tr><th>File</th><th>কাজ</th></tr>
+    <tr><td><code>.bashrc</code></td><td>bash shell চালু হলে যা যা চলবে — alias, prompt, environment</td></tr>
+    <tr><td><code>.profile</code></td><td>login করার সময় একবার চলে — environment variable, PATH</td></tr>
+    <tr><td><code>.bash_logout</code></td><td>logout করার সময় যা চলবে — যেমন screen পরিষ্কার করা</td></tr>
+  </table>
+
+  <div class="box confuse">
+    <div class="box-t">ছাঁচ বদলালে পুরোনো user-দের কিছু হয় না</div>
+    <p>এটা মনে রাখা সবচেয়ে জরুরি। <code>/etc/skel/</code> শুধু <b>user বানানোর মুহূর্তে</b> একবার copy হয় — তারপর আর কোনো সম্পর্ক থাকে না। আজ ছাঁচে নতুন file যোগ করলে <b>কালকের</b> user সেটা পাবে, কিন্তু <b>গতকালের</b> user পাবে না।</p>
+    <p>এটা link নয়, copy। একবার ঢেলে দেওয়ার পর ছাঁচ আর তৈরি জিনিসটার মধ্যে আর কোনো যোগ নেই।</p>
+  </div>
+
+  <h3>অনুশীলন</h3>
+
+  <!-- STEP 1 -->
+  <div class="step" data-n="1">
+    <h4>ছাঁচের ভেতরে কী আছে দেখা</h4>
+    <p class="obj">লক্ষ্য: কাজ শুরুর আগে জানা — এখন ছাঁচে কী কী আছে।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -la /etc/skel/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>total 20
+drwxr-xr-x  2 root root 4096 Jan 10 09:14 .
+drwxr-xr-x 98 root root 4096 Mar 02 11:02 ..
+-rw-r--r--  1 root root  220 Jan 10 09:14 <b>.bash_logout</b>
+-rw-r--r--  1 root root 3771 Jan 10 09:14 <b>.bashrc</b>
+-rw-r--r--  1 root root  807 Jan 10 09:14 <b>.profile</b></pre>
+      <div class="note-line">তিনটে file-ই <code>.</code> দিয়ে শুরু — মানে লুকোনো file। তাই <code>-a</code> ছাড়া <code>ls</code> দিলে folder টা খালি মনে হবে।</div>
+    </div>
+
+    <p><b>ব্যাখ্যা:</b></p>
+    <table>
+      <tr><th>Flag</th><th>কী করে</th></tr>
+      <tr><td><code>-l</code></td><td>লম্বা তালিকা — permission, মালিক, আকার, তারিখ</td></tr>
+      <tr><td><code>-a</code></td><td>লুকোনো file-ও দেখায় (<code>.</code> দিয়ে শুরু হওয়া)</td></tr>
+    </table>
+
+    <div class="box tip">
+      <div class="box-t">এখানে -a বাদ দিলে ভুল বুঝবে</div>
+      <p><code>ls /etc/skel/</code> দিলে বেশিরভাগ system-এ <b>কিছুই দেখাবে না</b> — কারণ সব file-ই লুকোনো। এই এক জায়গায় <code>-a</code> ভুলে গেলে মনে হবে ছাঁচটা খালি, অথচ তা নয়।</p>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" data-n="2">
+    <h4>নতুন user বানিয়ে প্রমাণ করা</h4>
+    <p class="obj">লক্ষ্য: ছাঁচের file গুলো সত্যিই copy হচ্ছে — নিজে চোখে দেখা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo useradd -m testuser</pre>
+    </div>
+
+    <p>এবার তার home directory দেখো:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -la /home/testuser/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>total 20
+drwxr-x--- 2 <b>testuser testuser</b> 4096 Mar 02 11:05 .
+drwxr-xr-x 4 root     root     4096 Mar 02 11:05 ..
+-rw-r--r-- 1 <b>testuser testuser</b>  220 Mar 02 11:05 .bash_logout
+-rw-r--r-- 1 <b>testuser testuser</b> 3771 Mar 02 11:05 .bashrc
+-rw-r--r-- 1 <b>testuser testuser</b>  807 Mar 02 11:05 .profile</pre>
+      <div class="note-line">হুবহু সেই তিনটে file। খেয়াল করো মালিক বদলে গেছে — ছাঁচে ছিল <code>root</code>, এখানে <code>testuser</code>।</div>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">-m না দিলে কিছুই হবে না</div>
+      <p><code>-m</code> মানে "home directory বানাও"। এই flag ছাড়া <code>useradd</code> শুধু account-টা খোলে, কোনো folder বানায় না — আর folder না বানালে ছাঁচ ঢালারও প্রশ্ন নেই। Step 6-এ ঠিক এই পরিস্থিতিটা নিয়েই কাজ করব।</p>
+    </div>
+
+    <p><b>ছাঁচ আর ফলাফল পাশাপাশি মিলিয়ে দেখতে চাইলে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ diff &lt;(ls -A /etc/skel/) &lt;(ls -A /home/testuser/)</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">(কোনো output নেই — মানে দুটো তালিকা হুবহু এক)</span></pre>
+      <div class="note-line"><code>diff</code> শুধু পার্থক্য দেখায়। চুপ থাকা মানে কোনো পার্থক্য নেই।</div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" data-n="3">
+    <h4>ছাঁচে নিজের file যোগ করা</h4>
+    <p class="obj">লক্ষ্য: একটা welcome message বানানো, যা প্রত্যেক নতুন user পাবে।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ echo "Welcome to this system, enjoy your stay!" | sudo tee /etc/skel/welcome.txt</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>Welcome to this system, enjoy your stay!</pre>
+      <div class="note-line"><code>tee</code> একই সাথে file-এ লেখে আর screen-এও দেখায় — তাই লেখাটা দুবার দেখছ মনে হতে পারে।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">sudo echo "..." &gt; file কেন কাজ করে না</div>
+      <p>স্বাভাবিক মনে হয় <code>sudo echo "..." &gt; /etc/skel/welcome.txt</code> লিখলেই হবে। কিন্তু হয় না — <code>Permission denied</code> আসে।</p>
+      <p>কারণ <code>&gt;</code> চিহ্নটা <code>sudo</code>-র কাজ নয়, সেটা <b>shell</b>-এর কাজ। আর shell টা চলছে তোমার সাধারণ user হিসেবে। তাই <code>sudo</code> শুধু <code>echo</code>-কে root বানায়, কিন্তু file-এ লেখার কাজটা করে সেই সাধারণ shell — যার অনুমতি নেই।</p>
+      <p><code>tee</code> এই সমস্যাটা এড়ায়, কারণ লেখার কাজটা <code>tee</code> নিজেই করে — আর <code>tee</code>-কে <code>sudo</code> দিয়ে চালানো যায়।</p>
+    </div>
+
+    <p><b>এবার নতুন user বানিয়ে দেখো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo useradd -m testuser2
+$ ls -la /home/testuser2/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>-rw-r--r-- 1 testuser2 testuser2  220 Mar 02 11:12 .bash_logout
+-rw-r--r-- 1 testuser2 testuser2 3771 Mar 02 11:12 .bashrc
+-rw-r--r-- 1 testuser2 testuser2  807 Mar 02 11:12 .profile
+-rw-r--r-- 1 testuser2 testuser2   41 Mar 02 11:12 <b>welcome.txt</b></pre>
+      <div class="note-line"><code>welcome.txt</code> চলে এসেছে।</div>
+    </div>
+
+    <p><b>এখন পুরোনো user-কে দেখো — সেখানে কিন্তু আসেনি:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls /home/testuser/welcome.txt</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>ls: cannot access '/home/testuser/welcome.txt': No such file or directory</pre>
+      <div class="note-line">এটাই সেই কথাটার প্রমাণ — ছাঁচ শুধু <b>ভবিষ্যতের</b> user-দের জন্য। <code>testuser</code> আগেই বানানো হয়ে গেছে, তাই সে বাদ পড়ল।</div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step" data-n="4">
+    <h4>ছাঁচের .bashrc বদলানো — alias আর welcome message</h4>
+    <p class="obj">লক্ষ্য: প্রত্যেক নতুন user যেন কিছু তৈরি alias আর একটা অভ্যর্থনা পায়।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo cp /etc/skel/.bashrc /etc/skel/.bashrc.bak
+$ sudo vim /etc/skel/.bashrc</pre>
+    </div>
+
+    <p class="note-line">প্রথম লাইনটা একটা backup — বদলানোর আগে আসল file-এর একটা copy রেখে দেওয়া। কিছু ভুল হলে ফিরে আসা যাবে।</p>
+
+    <p>File-এর <b>একদম শেষে</b> এই অংশটা যোগ করো:</p>
+    <div class="code">
+      <div class="code-bar"><span>/etc/skel/.bashrc</span><button class="copy">copy</button></div>
+<pre># Custom aliases
+alias myinfo='echo "Current user: $(whoami)"'
+alias diskspace='df -h /'
+
+# Welcome message displayed at login
+echo "Welcome to your Linux environment!"</pre>
+    </div>
+
+    <p>Save করে বেরিয়ে এসো। <code>vim</code> হলে <code>Esc</code> → <code>:wq</code> → <code>Enter</code>; <code>nano</code> হলে <code>Ctrl+O</code> → <code>Enter</code> → <code>Ctrl+X</code>।</p>
+
+    <div class="box tip">
+      <div class="box-t">alias-এ single quote কেন</div>
+      <p><code>alias myinfo='... $(whoami) ...'</code> — এখানে single quote (<code>'</code>) ব্যবহার করা হয়েছে ইচ্ছে করে। Single quote-এর ভেতরে <code>$(whoami)</code> এখনই চলে না, লেখা হিসেবেই জমা থাকে — আর চলে প্রতিবার যখন তুমি <code>myinfo</code> লেখো।</p>
+      <p>Double quote (<code>"</code>) দিলে <code>$(whoami)</code> alias বানানোর মুহূর্তেই চলে যেত, আর সেই একটা উত্তরই চিরকাল আটকে থাকত।</p>
+    </div>
+
+    <p><b>নতুন user বানাও — এবার shell-টা স্পষ্ট করে বলে দাও:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo useradd -m -s /bin/bash testuser3
+$ sudo passwd testuser3</pre>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">-s /bin/bash বাদ দিলে কিছুই দেখবে না</div>
+      <p>কিছু system-এ নতুন user-এর default shell থাকে <code>/bin/sh</code>। আর <code>/bin/sh</code> <code>.bashrc</code> পড়েই না — ওটা bash-এর নিজস্ব file। তখন alias-ও আসবে না, welcome message-ও না, আর তুমি ভাববে ছাঁচ কাজ করছে না।</p>
+      <p>তাই <code>-s /bin/bash</code> দিয়ে shell-টা স্পষ্ট করে বলে দেওয়াই নিরাপদ।</p>
+    </div>
+
+    <p><b>ঐ user হয়ে ঢোকো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ su - testuser3</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>Password:
+<b>Welcome to your Linux environment!</b>
+testuser3@labserver:~$</pre>
+      <div class="note-line">Welcome message এসেছে — মানে ছাঁচের <code>.bashrc</code> সত্যিই copy হয়েছে আর চলছে।</div>
+    </div>
+
+    <p><b>alias দুটো পরীক্ষা করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash — testuser3 হিসেবে</span><button class="copy">copy</button></div>
+<pre>$ myinfo
+$ diskspace</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ myinfo</span>
+Current user: <b>testuser3</b>
+
+<span class="o">$ diskspace</span>
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        49G   12G   35G  26% /</pre>
+      <div class="note-line"><code>myinfo</code> নিজে থেকেই বলে দিচ্ছে কে চালাচ্ছে — কারণ single quote-এর জন্য <code>whoami</code> প্রতিবার নতুন করে চলছে।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">su - testuser3 দিলে SSH agent-এর error আসছে?</div>
+      <p>Container বা কিছু setup-এ <code>su -</code> করার সময় এরকম কিছু লাইন দেখা যেতে পারে:</p>
+      <div class="code">
+        <div class="code-bar"><span>output</span></div>
+<pre>Could not open a connection to your authentication agent.</pre>
+      </div>
+      <p>এটা ছাঁচের সাথে সম্পর্কহীন — environment-এর ব্যাপার, নিরাপদে অগ্রাহ্য করা যায়। আসল কথা হলো এর পরেও welcome message-টা এসেছে কিনা। এলেই কাজ হয়েছে।</p>
+      <p>চাইলে ছাঁচেই একটা তৈরি <code>.ssh</code> folder রেখে দিতে পারো, তাহলে প্রত্যেক নতুন user সেটা ঠিক permission সহ পাবে — Challenge-এ এটা আছে।</p>
+    </div>
+
+    <p>কাজ শেষে নিজের account-এ ফিরে এসো:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ exit</pre>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step" data-n="5">
+    <h4>ছাঁচ থেকে জিনিস সরিয়ে দেওয়া</h4>
+    <p class="obj">লক্ষ্য: উল্টো দিকটাও পরীক্ষা করা — সরালে সত্যিই আর যায় না তো?</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo rm /etc/skel/welcome.txt</pre>
+    </div>
+
+    <p>এখন নতুন একজন user বানাও:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo useradd -m testuser4
+$ ls -la /home/testuser4/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>-rw-r--r-- 1 testuser4 testuser4  220 Mar 02 11:30 .bash_logout
+-rw-r--r-- 1 testuser4 testuser4 3922 Mar 02 11:30 .bashrc
+-rw-r--r-- 1 testuser4 testuser4  807 Mar 02 11:30 .profile</pre>
+      <div class="note-line">এবার <code>welcome.txt</code> নেই। অথচ <code>.bashrc</code>-র আকার <code>3922</code> — আগের <code>3771</code>-এর চেয়ে বড়, কারণ Step 4-এ যোগ করা লাইনগুলো এখনো ছাঁচে আছে।</div>
+    </div>
+
+    <p>তিনজন user পাশাপাশি রাখলে পুরো ব্যাপারটা এক নজরে বোঝা যায়:</p>
+
+    <div class="out">
+      <div class="out-bar">কে কী পেল</div>
+<pre>                  welcome.txt   বদলানো .bashrc
+testuser             ✗                ✗        <span class="o">← ছাঁচ বদলানোর আগে বানানো</span>
+testuser2            ✓                ✗        <span class="o">← welcome যোগ করার পরে</span>
+testuser3            ✓                ✓        <span class="o">← .bashrc বদলানোর পরে</span>
+testuser4            ✗                ✓        <span class="o">← welcome সরানোর পরে</span></pre>
+      <div class="note-line">প্রত্যেক user ছাঁচের <b>সেই মুহূর্তের</b> চেহারাটা নিয়ে জন্মেছে — তারপর আর বদলায়নি।</div>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step" data-n="6">
+    <h4>home directory ছাড়া বানানো user — হাতে ছাঁচ ঢালা</h4>
+    <p class="obj">লক্ষ্য: <code>-m</code> ভুলে গেলে কী হয়, আর সেটা পরে কীভাবে ঠিক করতে হয়।</p>
+
+    <p>এবার ইচ্ছে করেই <code>-m</code> ছাড়া একজন user বানাও:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo useradd testuser5
+$ ls -la /home/testuser5/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>ls: cannot access '/home/testuser5/': No such file or directory</pre>
+      <div class="note-line">Account আছে (<code>id testuser5</code> দিয়ে দেখো), কিন্তু থাকার জায়গা নেই।</div>
+    </div>
+
+    <p><b>হাতে home directory বানাও:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo mkdir /home/testuser5
+$ ls -la /home/testuser5/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>total 8
+drwxr-xr-x 2 <b>root root</b> 4096 Mar 02 11:38 .
+drwxr-xr-x 7 root root 4096 Mar 02 11:38 ..</pre>
+      <div class="note-line">Folder খালি, আর মালিক <code>root</code> — user নিজে এখানে কিছু লিখতেও পারবে না। দুটোই ঠিক করতে হবে।</div>
+    </div>
+
+    <p><b>ছাঁচটা হাতে ঢেলে দাও:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo cp -r /etc/skel/. /home/testuser5/
+$ sudo chown -R testuser5:testuser5 /home/testuser5/</pre>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">শেষের ঐ বিন্দুটা (/etc/skel<b>/.</b>) খুব জরুরি</div>
+      <p>তিনটে লেখার তিন রকম মানে:</p>
+      <table>
+        <tr><th>যা লিখলে</th><th>যা হবে</th></tr>
+        <tr><td><code>cp -r /etc/skel /home/testuser5/</code></td><td>ভেতরে <b>skel নামে একটা folder</b> বসবে — যা চাইনি</td></tr>
+        <tr><td><code>cp -r /etc/skel/* /home/testuser5/</code></td><td>শুধু সাধারণ file যাবে, <b>লুকোনো file গুলো বাদ পড়বে</b> — অর্থাৎ <code>.bashrc</code>-ই যাবে না!</td></tr>
+        <tr><td><code>cp -r /etc/skel/. /home/testuser5/</code></td><td>ভেতরের <b>সবকিছু</b>, লুকোনো file সহ — এটাই চাই</td></tr>
+      </table>
+      <p>মাঝেরটাই সবচেয়ে বিপজ্জনক, কারণ command টা চলে যায় কোনো error ছাড়াই — শুধু আসল file গুলোই বাদ পড়ে থাকে।</p>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -la /home/testuser5/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>total 20
+drwxr-xr-x 2 <b>testuser5 testuser5</b> 4096 Mar 02 11:40 .
+drwxr-xr-x 7 root      root      4096 Mar 02 11:38 ..
+-rw-r--r-- 1 <b>testuser5 testuser5</b>  220 Mar 02 11:40 .bash_logout
+-rw-r--r-- 1 <b>testuser5 testuser5</b> 3922 Mar 02 11:40 .bashrc
+-rw-r--r-- 1 <b>testuser5 testuser5</b>  807 Mar 02 11:40 .profile</pre>
+      <div class="note-line">File গুলো এসেছে, আর মালিকানাও ঠিক হয়েছে।</div>
+    </div>
+
+    <p><b>ব্যাখ্যা — দুটো command দুটো আলাদা কাজ করছে:</b></p>
+    <table>
+      <tr><th>Command</th><th>কাজ</th></tr>
+      <tr><td><code>cp -r</code></td><td>folder সহ ভেতরের সবকিছু copy করে (<code>-r</code> = recursive)</td></tr>
+      <tr><td><code>chown -R user:group</code></td><td>মালিকানা বদলায়, <code>-R</code> দিয়ে ভেতরের সব file-এও</td></tr>
+    </table>
+
+    <div class="box note">
+      <div class="box-t">chown ভুলে গেলে যা হয়</div>
+      <p>File গুলো <code>root</code>-এর মালিকানায় থেকে যাবে। তখন user নিজের <code>.bashrc</code> সম্পাদনা করতে পারবে না, কিছু program নিজের setting লিখতে গিয়ে আটকে যাবে — অথচ <code>ls</code> দেখে সব ঠিকঠাক মনে হবে। এই ভুলটা ধরা কঠিন, তাই <code>cp</code>-র পরেই <code>chown</code> করার অভ্যাস করো।</p>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">আসলে একটাই command-এ হয়ে যেত</div>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo mkhomedir_helper testuser5</pre>
+      </div>
+      <p>Debian/Ubuntu-তে এই একটা command নিজেই folder বানায়, ছাঁচ ঢালে আর মালিকানা ঠিক করে দেয়। তবু হাতে করাটা একবার শিখে রাখা ভালো — তাহলে ভেতরে ঠিক কী ঘটছে সেটা জানা থাকে, আর যেসব system-এ এই helper নেই সেখানেও আটকাবে না।</p>
+    </div>
+  </div>
+
+  <h3>পুরো ব্যাপারটা এক নজরে</h3>
+  <p><code>sudo useradd -m newuser</code> লিখলে ভেতরে ঠিক এই ধাপগুলো ঘটে:</p>
+
+  <div class="out">
+    <div class="out-bar">useradd -m এর ভেতরের পথ</div>
+<pre>sudo useradd -m newuser
+          │
+          ▼
+১. /etc/passwd + /etc/shadow-এ account লেখা হলো
+          │
+          ▼
+২. -m আছে?
+          │
+     ┌────┴────┐
+   আছে       নেই
+     │         │
+     ▼         ▼
+৩. /home/  কোনো home directory
+   newuser  বানানো হলো না
+   বানানো          │
+     │              ▼
+     ▼        <span class="o">(Step 6-এর অবস্থা —</span>
+৪. /etc/skel/-এর    <span class="o"> হাতে ঢালতে হবে)</span>
+   সবকিছু copy
+   (লুকোনো file সহ)
+     │
+     ▼
+৫. সব file-এর মালিক
+   newuser:newuser
+     │
+     ▼
+৬. shell ঠিক করা (-s, নাহলে default)</pre>
+  </div>
+
+  <p>খেয়াল করার মতো কথাটা হলো — ধাপ ৪ ঘটে <b>একবার, জন্মের মুহূর্তে</b>। তারপর ছাঁচ আর ঐ home directory-র মধ্যে আর কোনো সম্পর্ক নেই।</p>
+
+  <div class="box note">
+    <div class="box-t">ছাঁচের ঠিকানা বদলানোও যায়</div>
+    <p>Default ঠিকানাটা লেখা থাকে <code>/etc/default/useradd</code> file-এ:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ grep SKEL /etc/default/useradd</pre>
+    </div>
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>SKEL=/etc/skel</pre>
+    </div>
+    <p>একবারের জন্য অন্য ছাঁচ ব্যবহার করতে চাইলে <code>useradd -k /path/to/other-skel -m username</code> — যেমন developer-দের জন্য এক ছাঁচ, সাধারণ user-দের জন্য আরেকটা।</p>
+  </div>
+
+  <h3>নিজে করো — Challenge</h3>
+  <ol>
+    <li>ছাঁচে একটা <code>projects</code> নামের খালি folder বানাও, তারপর নতুন user বানিয়ে দেখো সেটা এসেছে কিনা।</li>
+    <li>ছাঁচে <code>.ssh</code> folder বানাও <code>700</code> permission দিয়ে, ভেতরে খালি <code>authorized_keys</code> file <code>600</code> permission দিয়ে। নতুন user বানিয়ে permission গুলো মিলিয়ে দেখো।</li>
+    <li><code>/etc/skel-dev/</code> নামে আলাদা একটা ছাঁচ বানাও, তাতে অন্যরকম <code>.bashrc</code> রাখো, তারপর <code>-k</code> দিয়ে সেই ছাঁচ থেকে একজন user বানাও।</li>
+  </ol>
+
+  <details class="solve">
+    <summary>সমাধান দেখো</summary>
+    <div class="sbody">
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — ছাঁচে folder</span>
+$ sudo mkdir /etc/skel/projects
+$ sudo useradd -m ch1user
+$ ls -la /home/ch1user/
+<span class="o">drwxr-xr-x 2 ch1user ch1user 4096 Mar 02 11:52 projects</span></pre>
+      </div>
+      <p>File-ই হোক বা folder — ছাঁচের ভেতরের সবকিছুই যায়। মালিকানাও নতুন user-এর নামে বসে যায়।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ২ — .ssh ঠিক permission সহ</span>
+$ sudo mkdir -p /etc/skel/.ssh
+$ sudo touch /etc/skel/.ssh/authorized_keys
+$ sudo chmod 700 /etc/skel/.ssh
+$ sudo chmod 600 /etc/skel/.ssh/authorized_keys
+
+$ sudo useradd -m ch2user
+$ sudo ls -la /home/ch2user/.ssh/
+<span class="o">drwx------ 2 ch2user ch2user 4096 Mar 02 11:55 .</span>
+<span class="o">-rw------- 1 ch2user ch2user    0 Mar 02 11:55 authorized_keys</span></pre>
+      </div>
+      <p>Permission গুলোও ছাঁচ থেকেই এসেছে — <code>cp</code> সেগুলো ধরে রাখে। এটা <code>.ssh</code>-র ক্ষেত্রে দরকারি, কারণ permission একটু ঢিলে হলে SSH নিজেই key টা মানতে অস্বীকার করে।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ৩ — আলাদা ছাঁচ</span>
+$ sudo cp -r /etc/skel /etc/skel-dev
+$ echo 'alias gs="git status"' | sudo tee -a /etc/skel-dev/.bashrc
+
+$ sudo useradd -k /etc/skel-dev -m -s /bin/bash devuser
+$ sudo grep "git status" /home/devuser/.bashrc
+<span class="o">alias gs="git status"</span>
+
+$ sudo useradd -m -s /bin/bash normaluser
+$ sudo grep "git status" /home/normaluser/.bashrc
+<span class="o">(কিছুই নেই — সে default ছাঁচ থেকে এসেছে)</span></pre>
+      </div>
+      <p><code>tee -a</code>-তে <code>-a</code> মানে append — file-এর শেষে যোগ করো, আগেরটা মুছে দিও না। <code>-a</code> ভুলে গেলে পুরো <code>.bashrc</code> মুছে গিয়ে শুধু ঐ এক লাইনটাই থেকে যাবে।</p>
+    </div>
+  </details>
+
+  <h3>Command গুলো এক নজরে</h3>
+  <table>
+    <tr><th>Command</th><th>কাজ</th></tr>
+    <tr><td><code>ls -la /etc/skel/</code></td><td>ছাঁচের ভেতরে কী আছে দেখায় (লুকোনো file সহ)</td></tr>
+    <tr><td><code>useradd -m &lt;user&gt;</code></td><td>home directory সহ user বানায়, ছাঁচ ঢালে</td></tr>
+    <tr><td><code>useradd -m -s /bin/bash &lt;user&gt;</code></td><td>উপরেরটাই, সাথে shell ঠিক করে দেয়</td></tr>
+    <tr><td><code>useradd -k &lt;dir&gt; -m &lt;user&gt;</code></td><td>অন্য কোনো ছাঁচ থেকে user বানায়</td></tr>
+    <tr><td><code>echo "..." | sudo tee &lt;file&gt;</code></td><td>root-এর মালিকানার file-এ লেখে</td></tr>
+    <tr><td><code>cp -r /etc/skel/. &lt;dir&gt;/</code></td><td>ছাঁচের সবকিছু হাতে copy করে</td></tr>
+    <tr><td><code>chown -R user:group &lt;dir&gt;</code></td><td>folder আর ভেতরের সবকিছুর মালিকানা বদলায়</td></tr>
+    <tr><td><code>mkhomedir_helper &lt;user&gt;</code></td><td>home directory বানিয়ে ছাঁচ ঢেলে মালিকানা ঠিক করে</td></tr>
+  </table>
+
+  <h3>আটকে গেলে</h3>
+  <table>
+    <tr><th>সমস্যা</th><th>কী হয়েছে / কী করবে</th></tr>
+    <tr><td><code>ls /etc/skel/</code> খালি দেখাচ্ছে</td><td>সব file লুকোনো। <code>-a</code> যোগ করো — <code>ls -la /etc/skel/</code>।</td></tr>
+    <tr><td>নতুন user welcome message পাচ্ছে না</td><td>তার shell সম্ভবত <code>/bin/sh</code>। <code>getent passwd &lt;user&gt;</code> দিয়ে দেখো; <code>usermod -s /bin/bash &lt;user&gt;</code> দিয়ে বদলাও।</td></tr>
+    <tr><td>পুরোনো user নতুন file পাচ্ছে না</td><td>এটা ভুল নয়, এটাই নিয়ম। ছাঁচ শুধু নতুন user-দের জন্য। পুরোনোদের দিতে হলে হাতে <code>cp</code> করে <code>chown</code> করতে হবে।</td></tr>
+    <tr><td><code>sudo echo &gt; /etc/skel/...</code> এ Permission denied</td><td><code>&gt;</code> চালায় তোমার নিজের shell, root নয়। <code>| sudo tee &lt;file&gt;</code> ব্যবহার করো।</td></tr>
+    <tr><td>হাতে copy করার পরও <code>.bashrc</code> নেই</td><td><code>/etc/skel/*</code> লিখেছ সম্ভবত — <code>*</code> লুকোনো file ধরে না। <code>/etc/skel/.</code> লেখো।</td></tr>
+    <tr><td>User নিজের file edit করতে পারছে না</td><td><code>chown</code> বাদ পড়েছে। <code>sudo chown -R &lt;user&gt;:&lt;user&gt; /home/&lt;user&gt;/</code> চালাও।</td></tr>
+    <tr><td><code>useradd: user already exists</code></td><td>আগের চেষ্টায় বানানো হয়ে গেছে। <code>sudo userdel -r &lt;user&gt;</code> দিয়ে মুছে আবার শুরু করো।</td></tr>
+  </table>
+
+  <h3>পরিষ্কার করে ফেলা (ঐচ্ছিক)</h3>
+  <div class="code">
+    <div class="code-bar"><span>bash — cleanup</span><button class="copy">copy</button></div>
+<pre><span class="c"># test user গুলো মুছে দাও (home directory সহ)</span>
+$ for u in testuser testuser2 testuser3 testuser4 testuser5; do
+&gt;   sudo userdel -r "$u"
+&gt; done
+
+<span class="c"># Challenge-এর user গুলো করে থাকলে</span>
+$ sudo userdel -r ch1user
+$ sudo userdel -r ch2user
+$ sudo userdel -r devuser
+$ sudo userdel -r normaluser
+
+<span class="c"># ছাঁচটা আগের অবস্থায় ফিরিয়ে আনো</span>
+$ sudo mv /etc/skel/.bashrc.bak /etc/skel/.bashrc
+$ sudo rm -rf /etc/skel/projects /etc/skel/.ssh
+$ sudo rm -rf /etc/skel-dev
+
+<span class="c"># মিলিয়ে দেখো</span>
+$ ls -la /etc/skel/</pre>
+  </div>
+
+  <div class="box danger">
+    <div class="box-t">ছাঁচ পরিষ্কার করার সময় সাবধান</div>
+    <p><code>/etc/skel/</code>-এর ভেতরে <b>শুধু নিজের যোগ করা জিনিসগুলোই</b> মুছবে। আসল <code>.bashrc</code>, <code>.profile</code>, <code>.bash_logout</code> মুছে ফেললে এরপর বানানো প্রতিটা user একদম খালি, setting-হীন home directory নিয়ে জন্মাবে। Step 4-এ যে backup রেখেছিলে, সেটা এখানেই কাজে লাগল।</p>
+    <p>আর <code>userdel -r</code> home directory সহ সব মুছে দেয় — ফেরানোর উপায় নেই।</p>
+  </div>
+
+  <div class="check" data-lab="l4">
+    <div class="ct">Lab 4 — চেকলিস্ট</div>
+    <label><input type="checkbox"><span><code>ls -la /etc/skel/</code> দিয়ে ছাঁচের ভেতরটা দেখেছি</span></label>
+    <label><input type="checkbox"><span>নতুন user বানিয়ে file গুলো copy হতে দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>tee</code> দিয়ে ছাঁচে <code>welcome.txt</code> যোগ করেছি</span></label>
+    <label><input type="checkbox"><span>প্রমাণ করেছি পুরোনো user সেটা পায়নি</span></label>
+    <label><input type="checkbox"><span>ছাঁচের <code>.bashrc</code>-তে alias আর welcome message বসিয়েছি</span></label>
+    <label><input type="checkbox"><span><code>su -</code> দিয়ে ঢুকে <code>myinfo</code> ও <code>diskspace</code> চালিয়েছি</span></label>
+    <label><input type="checkbox"><span>ছাঁচ থেকে file সরিয়ে পরের user-এ তার প্রভাব দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>-m</code> ছাড়া user বানিয়ে হাতে ছাঁচ ঢেলেছি</span></label>
+    <label><input type="checkbox"><span><code>chown -R</code> দিয়ে মালিকানা ঠিক করেছি</span></label>
+    <label><input type="checkbox"><span>Challenge গুলো নিজে করেছি</span></label>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">মূল কথা</div>
+    <p><code>/etc/skel/</code> হলো নতুন user-এর home directory-র ছাঁচ। যা কিছু ওখানে রাখবে — file, folder, alias, permission — প্রত্যেক নতুন user সেটা নিয়েই জন্মাবে। একবার ছাঁচটা ঠিক করে সাজিয়ে রাখলে আর কখনো হাতে করে প্রত্যেকের environment গোছাতে হয় না।</p>
+    <p>তবে মনে রেখো — ছাঁচ কাজ করে <b>শুধু জন্মের মুহূর্তে</b>। পুরোনো user-দের কিছু দিতে হলে সেটা হাতেই করতে হবে, বা <code>/etc/bash.bashrc</code>-র মতো system-wide file ব্যবহার করতে হবে।</p>
+  </div>
+</section>

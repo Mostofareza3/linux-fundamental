@@ -37,12 +37,28 @@ window.LAB_MANIFEST = [
     tag:   "chapter 06",
     time:  "60 মিনিট",
     desc:  "sudoers, visudo, Cmnd_Alias — কাকে কতটুকু ক্ষমতা দেবে, ঠিক ততটুকুই।"
+  },
+  {
+    id:    "l4",
+    file:  "labs/lab-04-etc-skel.html",
+    title: "Understanding /etc/skel/",
+    tag:   "chapter 06",
+    time:  "59 মিনিট",
+    desc:  "নতুন user-এর home directory-র ছাঁচ — একবার সাজিয়ে রাখলে সবাই একই environment নিয়ে জন্মায়।"
+  },
+  {
+    id:    "l5",
+    file:  "labs/lab-05-user-modification.html",
+    title: "Linux User Modification",
+    tag:   "chapter 06",
+    time:  "59 মিনিট",
+    desc:  "usermod, chage — নাম, shell, home, UID, মেয়াদ — বানানো account ধাপে ধাপে বদলানো।"
   }
 
   /* পরের lab এখানে যোগ করো:
   ,{
-    id:    "l4",
-    file:  "labs/lab-04-file-permissions.html",
+    id:    "l6",
+    file:  "labs/lab-06-file-permissions.html",
     title: "File Permissions",
     tag:   "chapter 06",
     time:  "50 মিনিট",
