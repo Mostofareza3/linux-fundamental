@@ -53,16 +53,24 @@ window.LAB_MANIFEST = [
     tag:   "chapter 06",
     time:  "59 মিনিট",
     desc:  "usermod, chage — নাম, shell, home, UID, মেয়াদ — বানানো account ধাপে ধাপে বদলানো।"
+  },
+  {
+    id:    "l6",
+    file:  "labs/lab-06-file-permissions.html",
+    title: "Mastering File Permissions",
+    tag:   "chapter 06",
+    time:  "59 মিনিট",
+    desc:  "umask, chmod, setfacl — তিন টিমকে একই folder-এ তিন রকম অনুমতি দেওয়া।"
   }
 
   /* পরের lab এখানে যোগ করো:
   ,{
-    id:    "l6",
-    file:  "labs/lab-06-file-permissions.html",
-    title: "File Permissions",
-    tag:   "chapter 06",
+    id:    "l7",
+    file:  "labs/lab-07-process-management.html",
+    title: "Process Management",
+    tag:   "chapter 07",
     time:  "50 মিনিট",
-    desc:  "chmod, chown — কে কী করতে পারবে সেটা ঠিক করা।"
+    desc:  "ps, top, kill — কোন program চলছে আর কীভাবে থামাবে।"
   }
   */
 ];

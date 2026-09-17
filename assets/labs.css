@@ -256,6 +256,34 @@ td{background:var(--surface)}
 }
 
 /* ============================================================
+   FIGURE  — diagram / ছবি
+   ------------------------------------------------------------
+   ব্যবহার:
+     <figure class="fig">
+       <img src="..." alt="...">
+       <figcaption>ছবিটা কী দেখাচ্ছে</figcaption>
+     </figure>
+
+   বেশিরভাগ diagram সাদা background ধরে বানানো, তাই dark theme-এ
+   ছবিটাকে নিজের একটা সাদা পাটাতনে বসানো হয় — নাহলে কালো লেখা
+   কালো background-এ মিলিয়ে যায়।
+   ============================================================ */
+.fig{
+  margin:22px 0 26px;border:1px solid var(--border-strong);border-radius:var(--r);
+  background:var(--surface);overflow:hidden;
+}
+.fig img{
+  display:block;width:100%;height:auto;
+  background:#fff;padding:14px;box-sizing:border-box;
+}
+.fig figcaption{
+  padding:10px 16px;border-top:1px solid var(--border);
+  font-size:14.5px;line-height:1.7;color:var(--muted);background:var(--surface-2);
+}
+/* ছবিটা নিজেই dark theme সামলাতে পারলে .fig-auto দিয়ে পাটাতনটা বন্ধ করো */
+.fig-auto img{background:transparent}
+
+/* ============================================================
    STEP
    ============================================================ */
 .step{

@@ -1,0 +1,1028 @@
+<!-- ============================================================
+     lab-06-file-permissions.html
+     ------------------------------------------------------------
+     এটা একটা lab-এর content। labs.html এটাকে fetch করে দেখায়।
+     Title / tag / সময় / বিবরণ আসে labs/manifest.js থেকে —
+     এখানে আর লিখতে হয় না।
+     ============================================================ -->
+<section class="lab">
+  <div class="ch-head">
+    <div class="ch-meta">
+      <span class="ch-num">Lab 06</span>
+      <span class="layer-tag">chapter 06</span>
+      <span class="layer-tag time">≈ 59 মিনিট</span>
+    </div>
+    <h2>Mastering Linux File Permissions</h2>
+    <p class="ch-lede">প্রতিটা file-এর গায়ে ছোট্ট একটা লেবেল সাঁটা থাকে — কে এর মালিক, কোন group-এর, আর কে কী করতে পারবে। এই lab-এ তিনটে হাতিয়ার শিখবে: <code>umask</code> ঠিক করে নতুন file কী নিয়ে জন্মাবে, <code>chmod</code> বদলায় যা আগে থেকেই আছে, আর <code>setfacl</code> এমন কিছু পারে যা সাধারণ মডেল দিয়ে কোনোভাবেই হয় না — একই file-এ একাধিক group-কে আলাদা আলাদা অনুমতি দেওয়া।</p>
+  </div>
+
+  <h3>এই lab শেষে যা পারবে</h3>
+  <ul>
+    <li><code>rwxr-xr--</code>-এর মতো permission string দেখেই পড়ে ফেলবে।</li>
+    <li><code>umask</code> দিয়ে নতুন file-এর default অনুমতি ঠিক করবে।</li>
+    <li><code>chmod</code>-এর দুই ধরনের লেখা — octal আর symbolic — দুটোই ব্যবহার করবে।</li>
+    <li><code>setfacl</code> দিয়ে একই folder-এ তিনটে group-কে তিন রকম অনুমতি দেবে।</li>
+    <li><code>getfacl</code> দিয়ে যাচাই করবে কার কী অনুমতি আছে।</li>
+    <li>সবচেয়ে গুরুত্বপূর্ণ — বুঝবে Linux <b>কোন ক্রমে</b> অনুমতি পরীক্ষা করে, আর কেন মাঝে মাঝে ফল উল্টো হয়।</li>
+  </ul>
+
+  <div class="box note">
+    <div class="box-t">আগে যা জানা থাকলে সুবিধা</div>
+    <p><a href="#l2">Lab 02 — User &amp; Group Management</a> আর <a href="#l5">Lab 05 — User Modification</a>। এখানে group বানানো আর <code>usermod -aG</code> ধরে নেওয়া হয়েছে — Lab 05-এ <code>-a</code> বাদ দেওয়ার যে বিপদটার কথা বলেছিলাম, সেটা এখানে ছয়বার লাগবে।</p>
+  </div>
+
+  <div class="box warn">
+    <div class="box-t">practice machine-এ করো</div>
+    <p>এই lab-এ ছয়জন user, তিনটে group আর একটা পুরো directory কাঠামো বানানো হবে। কাজটা <b>নিজের VM, WSL, container বা ফেলে দেওয়া যায় এমন VPS-এ</b> করো। শেষে পরিষ্কার করার ধাপ দেওয়া আছে।</p>
+  </div>
+
+  <h3>Permission string পড়া</h3>
+  <p><code>ls -l</code> দিলে প্রতিটা লাইনের শুরুতে ১০টা অক্ষরের একটা string থাকে। এটাই পুরো permission-এর গল্প:</p>
+
+  <figure class="fig">
+    <img
+      src="https://raw.githubusercontent.com/poridhiEng/lab-asset/1bc572d6354bd0f165f066ab72b933a5a47457f7/Linux%20Labs/Lab%2007/images/permissions.svg"
+      alt="rwxr-xr-- permission string ভেঙে দেখানো — প্রথম অক্ষরটা file-এর ধরন (- মানে সাধারণ file, d মানে directory), তারপর তিনটে তিন অক্ষরের দল: owner-এর জন্য rwx (পড়া, লেখা, চালানো), group-এর জন্য r-x (পড়া আর চালানো), আর others-এর জন্য r-- (শুধু পড়া)।"
+      loading="lazy" width="602" height="242">
+    <figcaption>১০টা অক্ষর = ১টা ধরন + ৩টে দলের ৩টে করে অনুমতি।</figcaption>
+  </figure>
+
+  <p>পুরো <code>ls -l</code> লাইনটার সাথে মিলিয়ে দেখলে ব্যাপারটা আরও পরিষ্কার হয়:</p>
+
+  <div class="out">
+    <div class="out-bar">১০টা অক্ষর ভেঙে দেখা</div>
+<pre>-rwxr-xr--  1  alice  dev  4096  Mar 10 09:00  deploy.sh
+│└─┬┘└─┬┘└─┬┘        │     │
+│  │   │   │         │     └─ group-এর নাম
+│  │   │   │         └─────── মালিকের নাম
+│  │   │   └─ <b>others</b>  r--  <span class="o">বাকি সবাই: শুধু পড়তে পারবে</span>
+│  │   └───── <b>group</b>   r-x  <span class="o">dev group: পড়তে ও চালাতে পারবে</span>
+│  └───────── <b>owner</b>   rwx  <span class="o">alice: সব পারবে</span>
+└──────────── ধরন    -    <span class="o">- = সাধারণ file, d = directory, l = link</span></pre>
+  </div>
+
+  <table>
+    <tr><th>অক্ষর</th><th>File-এর ক্ষেত্রে</th><th>Directory-র ক্ষেত্রে</th></tr>
+    <tr><td><code>r</code> (read)</td><td>ভেতরের লেখা পড়া যাবে</td><td>ভেতরে কী কী আছে তার <b>তালিকা</b> দেখা যাবে</td></tr>
+    <tr><td><code>w</code> (write)</td><td>লেখা বদলানো যাবে</td><td>ভেতরে file <b>বানানো বা মোছা</b> যাবে</td></tr>
+    <tr><td><code>x</code> (execute)</td><td>program হিসেবে চালানো যাবে</td><td>ভেতরে <b>ঢোকা</b> যাবে (<code>cd</code>)</td></tr>
+  </table>
+
+  <div class="box confuse">
+    <div class="box-t">Directory-তে x ছাড়া r প্রায় অর্থহীন</div>
+    <p>এটা এই lab-এর সবচেয়ে দরকারি ধারণাগুলোর একটা। Directory-তে <code>x</code> না থাকলে তুমি ভেতরে <b>ঢুকতেই</b> পারবে না — তাই ভেতরের কোনো file পড়তেও পারবে না, যদিও ঐ file-এ তোমার read অনুমতি আছে।</p>
+    <div class="out">
+      <div class="out-bar">r আছে, x নেই — যা হয়</div>
+<pre>$ ls mydir/          <span class="o">→ নামগুলো দেখা যায়</span>
+main.c  app.conf
+
+$ cat mydir/main.c   <span class="o">→ কিন্তু পড়া যায় না!</span>
+cat: mydir/main.c: Permission denied</pre>
+    </div>
+    <p>এজন্যই পুরো lab জুড়ে read-only অনুমতি দিতে গিয়ে আমরা <code>r</code> নয়, <code>rx</code> লিখব। "Read-only" মানে directory-র ক্ষেত্রে <code>r-x</code>।</p>
+  </div>
+
+  <p>এতক্ষণ যা যা দেখলে — তিনটে দল, তিন ধরনের অনুমতি, আর সেগুলো মিলে তৈরি হওয়া string — সবটা একসাথে এভাবে সাজানো যায়:</p>
+
+  <figure class="fig">
+    <img
+      src="https://raw.githubusercontent.com/poridhiEng/lab-asset/1bc572d6354bd0f165f066ab72b933a5a47457f7/Linux%20Labs/Lab%2007/images/permission-model.svg"
+      alt="Linux permission মডেলের তিনটে অংশ — Permission Components: কাদের জন্য নিয়ম, অর্থাৎ Owner, Group আর Others। Permission Types: কী কী করা যাবে, অর্থাৎ read (r), write (w) আর execute (x)। Permission String: এই দুটো মিলে তৈরি হওয়া - rwx r-x r-- এর মতো string।"
+      loading="lazy" width="802" height="532">
+    <figcaption><b>কাদের জন্য</b> (owner / group / others) × <b>কী করতে পারবে</b> (r / w / x) — এই দুটো গুণ করলেই permission string।</figcaption>
+  </figure>
+
+  <h3>Octal সংখ্যাগুলো কোথা থেকে আসে</h3>
+  <p><code>chmod 750</code>-এর ঐ তিনটে সংখ্যা আসলে তিনটে দলের জন্য তিনটে হিসেব। প্রতিটা অনুমতির একটা নির্দিষ্ট মান আছে:</p>
+
+  <div class="out">
+    <div class="out-bar">যোগ করলেই সংখ্যাটা পাওয়া যায়</div>
+<pre>r = <b>4</b>        w = <b>2</b>        x = <b>1</b>
+
+rwx  =  4+2+1  =  <b>7</b>          r-x  =  4+0+1  =  <b>5</b>
+rw-  =  4+2+0  =  <b>6</b>          r--  =  4+0+0  =  <b>4</b>
+---  =  0+0+0  =  <b>0</b>
+
+        chmod  7  5  0
+               │  │  └─ others : ---  কিছুই না
+               │  └──── group  : r-x  পড়া আর ঢোকা
+               └─────── owner  : rwx  সব</pre>
+  </div>
+
+  <h3>তিনটে হাতিয়ার — কে কখন কাজ করে</h3>
+  <table>
+    <tr><th>হাতিয়ার</th><th>কখন কাজ করে</th><th>কী করে</th></tr>
+    <tr><td><code>umask</code></td><td>File জন্মানোর <b>মুহূর্তে</b></td><td>Default থেকে কিছু অনুমতি কেটে নেয়</td></tr>
+    <tr><td><code>chmod</code></td><td>বিদ্যমান file-এ</td><td>owner/group/others — এই তিন দলের অনুমতি বদলায়</td></tr>
+    <tr><td><code>setfacl</code></td><td>বিদ্যমান file-এ</td><td>তিন দলের বাইরে <b>বাড়তি</b> নিয়ম যোগ করে</td></tr>
+  </table>
+
+  <p>এক কথায় — <code>umask</code> হলো কারখানার setting, <code>chmod</code> হলো হাতে করা সমন্বয়, আর <code>setfacl</code> হলো সেই সূক্ষ্ম কাজ যেটা সাধারণ মডেল দিয়ে হয় না।</p>
+
+  <figure class="fig">
+    <img
+      src="https://raw.githubusercontent.com/poridhiEng/lab-asset/1bc572d6354bd0f165f066ab72b933a5a47457f7/Linux%20Labs/Lab%2007/images/Tools.svg"
+      alt="তিনটে হাতিয়ারের তুলনা — umask কাজ করে file জন্মানোর আগে, chmod আর setfacl কাজ করে file জন্মানোর পরে। umask default থেকে bit কাটে, chmod owner/group/others-এর অনুমতি বসায়, আর setfacl নাম ধরে ধরে user ও group-এর অনুমতি দেয়।"
+      loading="lazy" width="1002" height="532">
+    <figcaption>সময়ের হিসেবে তিনটে হাতিয়ার — <code>umask</code> file জন্মানোর <b>আগে</b>, বাকি দুটো <b>পরে</b>। এই ক্রমটাই এই lab-এর মূল কাঠামো।</figcaption>
+  </figure>
+
+  <h3>যে দৃশ্যটা আমরা বানাবো</h3>
+  <p>তুমি Poridhi.io-র system administrator। <b>ProjectX</b> নামে নতুন একটা project শুরু হচ্ছে, তিনটে টিম কাজ করবে — কিন্তু প্রত্যেকের দরকার আলাদা:</p>
+
+  <table>
+    <tr><th>টিম</th><th>Group</th><th>যা দরকার</th></tr>
+    <tr><td>Developers</td><td><code>dev</code></td><td>Source code-এ পূর্ণ অধিকার, config-এ শুধু পড়া</td></tr>
+    <tr><td>Operations</td><td><code>ops</code></td><td>Config-এ পূর্ণ অধিকার, source code-এ শুধু পড়া</td></tr>
+    <tr><td>QA Testers</td><td><code>qa</code></td><td>সব জায়গায় শুধু পড়া, লিখতে পারবে শুধু <code>tests</code>-এ</td></tr>
+  </table>
+
+  <div class="out">
+    <div class="out-bar">যা বানাতে যাচ্ছি</div>
+<pre>ProjectX/
+├── src/      dev: <b>rwx</b>   ops: r-x   qa: r-x
+├── config/   dev: r-x   ops: <b>rwx</b>   qa: r-x
+├── docs/     dev: rwx   ops: r-x   qa: r-x
+└── tests/    dev: rwx   ops: r-x   qa: <b>rwx</b></pre>
+  </div>
+
+  <div class="box confuse">
+    <div class="box-t">কেন chmod একা এটা পারে না</div>
+    <p>প্রতিটা file-এর <b>ঠিক একটা</b> group owner থাকে — একটার বেশি নয়। তাই <code>src/</code>-এর group যদি <code>dev</code> হয়, তাহলে <code>chmod</code> দিয়ে তুমি <code>dev</code>-কে যা খুশি দিতে পারো, কিন্তু <code>ops</code> আর <code>qa</code> দুজনেই পড়ে যাবে "others"-এর দলে — আর তাদের দুজনকে আলাদা করে কিছু বলার কোনো উপায় নেই।</p>
+    <p>এখানেই ACL (Access Control List) আসে। <code>setfacl</code> ঐ তিন দলের বাইরে যত খুশি নাম ধরে নিয়ম লিখতে দেয়।</p>
+  </div>
+
+  <h3>অনুশীলন</h3>
+
+  <h3 class="part">Part 1 — পরিবেশ তৈরি</h3>
+
+  <!-- STEP 1 -->
+  <div class="step" data-n="1">
+    <h4>ACL package আছে কিনা দেখা</h4>
+    <p class="obj">লক্ষ্য: <code>setfacl</code> আর <code>getfacl</code> হাতে পাওয়া।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo apt update &amp;&amp; sudo apt install -y acl
+$ which setfacl getfacl</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>/usr/bin/setfacl
+/usr/bin/getfacl</pre>
+      <div class="note-line">দুটো path-ই দেখালে কাজ চলবে। RHEL/Fedora হলে <code>sudo dnf install -y acl</code>।</div>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">Filesystem-এও ACL চালু থাকতে হবে</div>
+      <p>Package থাকাই যথেষ্ট নয় — filesystem-টাও ACL সমর্থন করতে হবে। আধুনিক ext4, xfs, btrfs-এ এটা default-এই চালু। যাচাই করতে:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ mount | grep " / "</pre>
+      </div>
+      <p>যদি পরে <code>setfacl: Operation not supported</code> আসে, তার মানে ঐ filesystem-এ ACL বন্ধ — তখন <code>sudo mount -o remount,acl /</code> দিয়ে চালু করতে হবে। কিছু container-এ এটা লাগতে পারে।</p>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" data-n="2">
+    <h4>তিনটে টিম আর ছয়জন user</h4>
+    <p class="obj">লক্ষ্য: group বানানো, user বানানো, আর তাদের group-এ বসানো।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo groupadd dev
+$ sudo groupadd ops
+$ sudo groupadd qa</pre>
+    </div>
+
+    <p>এবার ছয়জন user — প্রত্যেকের shell স্পষ্ট করে বলে দিচ্ছি:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ for u in dev_user1 dev_user2 ops_user1 ops_user2 qa_user1 qa_user2; do
+&gt;   sudo useradd -m -s /bin/bash "$u"
+&gt; done</pre>
+    </div>
+
+    <p class="note-line">একটা একটা করে ছয়বার <code>useradd</code> লিখলেও একই কাজ — <code>for</code> শুধু টাইপ করা বাঁচায়।</p>
+
+    <p><b>এবার group-এ বসাও:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo usermod -aG dev dev_user1
+$ sudo usermod -aG dev dev_user2
+$ sudo usermod -aG ops ops_user1
+$ sudo usermod -aG ops ops_user2
+$ sudo usermod -aG qa  qa_user1
+$ sudo usermod -aG qa  qa_user2</pre>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">Lab 5-এর সেই -a</div>
+      <p><a href="#l5">Lab 05</a>-এ বলেছিলাম <code>-G</code>-র সাথে <code>-a</code> না দিলে আগের সব group মুছে যায়। এখানে ছয়বার লাগছে — প্রতিবারই <code>-aG</code>। অভ্যাসটা এভাবেই গড়ে ওঠে।</p>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ getent group dev ops qa
+$ id dev_user1</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">$ getent group dev ops qa</span>
+dev:x:1003:<b>dev_user1,dev_user2</b>
+ops:x:1004:<b>ops_user1,ops_user2</b>
+qa:x:1005:<b>qa_user1,qa_user2</b>
+
+<span class="o">$ id dev_user1</span>
+uid=1003(dev_user1) gid=1003(dev_user1) groups=1003(dev_user1),1003(<b>dev</b>)</pre>
+      <div class="note-line">প্রত্যেকের primary group নিজের নামে, আর <code>dev</code>/<code>ops</code>/<code>qa</code> হলো supplementary।</div>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">Password এখানে লাগছে না</div>
+      <p>মূল lab-এ প্রত্যেকের password বসানো হয়েছিল। আমরা সেটা বাদ দিচ্ছি, কারণ পরীক্ষা করার সময় <code>su</code> দিয়ে login না করে <code>sudo -u</code> দিয়ে command চালাবো — তাতে password লাগে না। ছয়বার password টাইপ করার ঝামেলাও বাঁচল।</p>
+      <p>চাইলে <code>sudo passwd dev_user1</code> দিয়ে বসিয়ে নিতে পারো, কোনো ক্ষতি নেই।</p>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" data-n="3">
+    <h4>Directory কাঠামো বানানো</h4>
+    <p class="obj">লক্ষ্য: চারটে subdirectory, চার রকম প্রয়োজন।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo mkdir -p /home/poridhian/code/projects/ProjectX/{src,config,docs,tests}</pre>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">ঐ কোঁকড়া বন্ধনী দুটো</div>
+      <p><code>{src,config,docs,tests}</code> — এটাকে বলে brace expansion। Shell এটাকে ভেঙে চারটে আলাদা path বানিয়ে দেয়, অর্থাৎ উপরের এক লাইন আর নিচের চার লাইন হুবহু একই কাজ:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash — একই জিনিস</span></div>
+<pre>$ sudo mkdir -p /home/poridhian/code/projects/ProjectX/src
+$ sudo mkdir -p /home/poridhian/code/projects/ProjectX/config
+$ sudo mkdir -p /home/poridhian/code/projects/ProjectX/docs
+$ sudo mkdir -p /home/poridhian/code/projects/ProjectX/tests</pre>
+      </div>
+      <p>আর <code>-p</code> মানে "মাঝের folder গুলোও বানিয়ে নাও" — <code>/home/poridhian/code/projects/</code> না থাকলেও এক command-এই পুরো পথটা তৈরি হয়ে যাবে।</p>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -l /home/poridhian/code/projects/ProjectX/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>total 16
+drwxr-xr-x 2 root root 4096 Mar 02 13:10 config
+drwxr-xr-x 2 root root 4096 Mar 02 13:10 docs
+drwxr-xr-x 2 root root 4096 Mar 02 13:10 src
+drwxr-xr-x 2 root root 4096 Mar 02 13:10 tests</pre>
+      <div class="note-line">এখন সব <code>root root</code>-এর আর <code>755</code> — Part 3-এ এটাই বদলাবো।</div>
+    </div>
+  </div>
+
+  <h3 class="part">Part 2 — umask দিয়ে default ঠিক করা</h3>
+
+  <!-- STEP 4 -->
+  <div class="step" data-n="4">
+    <h4>এখনকার umask দেখা</h4>
+    <p class="obj">লক্ষ্য: নতুন file কেন <code>644</code> নিয়ে জন্মায়, সেটা বোঝা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ umask</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>0022</pre>
+      <div class="note-line">প্রথম <code>0</code>-টা special permission-এর জন্য, আপাতত ভুলে যাও। আসল অংশ <code>022</code>।</div>
+    </div>
+
+    <p><code>umask</code> অনুমতি <b>দেয় না</b> — <b>কেটে নেয়</b>। হিসেবটা এরকম:</p>
+
+    <div class="out">
+      <div class="out-bar">হিসেবটা</div>
+<pre>                    File              Directory
+সর্বোচ্চ default      666 (rw-rw-rw-)   777 (rwxrwxrwx)
+umask 022 কাটে      -022 (----w--w-)   -022 (----w--w-)
+                   ─────              ─────
+ফল                  <b>644</b> (rw-r--r--)   <b>755</b> (rwxr-xr-x)</pre>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">File কখনো execute অনুমতি নিয়ে জন্মায় না</div>
+      <p>খেয়াল করো — directory-র সর্বোচ্চ <code>777</code>, কিন্তু file-এর <code>666</code>, <code>777</code> নয়। অর্থাৎ <code>umask 000</code> দিলেও নতুন file-এ <code>x</code> বসবে না।</p>
+      <p>এটা Linux-এর একটা ইচ্ছাকৃত নিরাপত্তা — কোনো file program হিসেবে চলতে পারবে কিনা, সেটা তোমাকে <b>স্পষ্ট করে</b> <code>chmod +x</code> দিয়ে বলতে হবে। নাহলে কেউ ক্ষতিকর কিছু download করলেই সেটা চালু হওয়ার যোগ্য হয়ে যেত।</p>
+    </div>
+
+    <p><b>নিজে দেখে নাও:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ touch /tmp/testfile
+$ ls -l /tmp/testfile</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>-<b>rw-r--r--</b> 1 poridhian poridhian 0 Mar 02 13:15 /tmp/testfile</pre>
+      <div class="note-line">ঠিক <code>644</code> — হিসেব মিলে গেছে।</div>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step" data-n="5">
+    <h4>Project-এর জন্য কড়া umask</h4>
+    <p class="obj">লক্ষ্য: নতুন file যেন group পড়তে পারে, কিন্তু বাইরের কেউ না।</p>
+
+    <p>ProjectX-এর জন্য চাই <code>umask 027</code>:</p>
+
+    <div class="out">
+      <div class="out-bar">027 কী করে</div>
+<pre>                    File              Directory
+সর্বোচ্চ default      666               777
+umask 027 কাটে      -027              -027
+                   ─────              ─────
+ফল                  <b>640</b> (rw-r-----)   <b>750</b> (rwxr-x---)
+                                       <span class="o">others: কিছুই না</span></pre>
+    </div>
+
+    <p>টিমের সবাই যাতে এই setting পায়, তার জন্য একটা script বানাই:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo tee /home/poridhian/code/projects/ProjectX/project_env.sh &gt; /dev/null &lt;&lt; 'EOF'
+#!/bin/bash
+# Set project-specific umask
+umask 027
+echo "ProjectX environment active"
+echo "umask is now: $(umask)"
+EOF
+
+$ sudo chmod +x /home/poridhian/code/projects/ProjectX/project_env.sh</pre>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">ঐ &lt;&lt; 'EOF' জিনিসটা</div>
+      <p>এটাকে বলে heredoc — "এখান থেকে <code>EOF</code> পর্যন্ত সব লেখা ঐ command-এ পাঠাও"। বহু লাইনের file বানানোর সহজ উপায়।</p>
+      <p><code>EOF</code>-এর চারপাশের <b>single quote দুটো খুব জরুরি</b>। ওগুলো থাকলে ভেতরের <code>$(umask)</code> এখনই চলে না, file-এ লেখা হিসেবেই বসে — আর চলে পরে, যখন script টা চালাবে। Quote বাদ দিলে <code>$(umask)</code> এখনই চলে গিয়ে file-এ শুধু ফলাফলটা (<code>0022</code>) বসে যেত, আর script টা অর্থহীন হয়ে যেত।</p>
+      <p>মূল lab-এ <code>cat &gt; file</code> ব্যবহার করা হয়েছে; আমরা <code>sudo tee</code> ব্যবহার করছি — কারণ <a href="#l4">Lab 04</a>-এ দেখেছ, <code>&gt;</code> চালায় তোমার নিজের shell, root নয়।</p>
+    </div>
+
+    <p><b>এবার script টা চালাও — কিন্তু বিশেষভাবে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ source /home/poridhian/code/projects/ProjectX/project_env.sh</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>ProjectX environment active
+umask is now: <b>0027</b></pre>
+    </div>
+
+    <div class="box danger">
+      <div class="box-t">source আর ./script — দুটো সম্পূর্ণ আলাদা</div>
+      <p>এখানে <code>./project_env.sh</code> লিখলে <b>কিছুই কাজ করত না</b> — অথচ output প্রায় একই দেখাত। কারণটা জানা থাকা দরকার:</p>
+      <table>
+        <tr><th>যা লিখলে</th><th>যা হয়</th></tr>
+        <tr><td><code>./project_env.sh</code></td><td>নতুন একটা <b>child shell</b> খোলে, সেখানে umask বদলায়, তারপর ঐ shell মরে যায় — সাথে umask-ও</td></tr>
+        <tr><td><code>source project_env.sh</code></td><td><b>বর্তমান shell-এই</b> লাইনগুলো চালায় — তাই umask টিকে থাকে</td></tr>
+      </table>
+      <p><code>source</code>-এর সংক্ষিপ্ত রূপ হলো একটা বিন্দু: <code>. project_env.sh</code> — দুটো একই।</p>
+    </div>
+
+    <p><b>যাচাই করো — নতুন file এখন কী নিয়ে জন্মাচ্ছে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ touch /tmp/testfile_027
+$ ls -l /tmp/testfile /tmp/testfile_027</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — দুটো পাশাপাশি</div>
+<pre>-rw-r--r-- 1 poridhian poridhian 0 Mar 02 13:15 /tmp/testfile       <span class="o">← umask 022</span>
+-<b>rw-r-----</b> 1 poridhian poridhian 0 Mar 02 13:22 /tmp/testfile_027  <span class="o">← umask 027</span></pre>
+      <div class="note-line">শেষ তিনটে অক্ষর <code>r--</code> থেকে <code>---</code> হয়ে গেছে — others-এর আর কোনো access নেই।</div>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">এই setting শুধু এই shell-এ, আর এখনকার জন্য</div>
+      <p>Terminal বন্ধ করলেই umask আবার <code>022</code>-তে ফিরে যাবে। স্থায়ী করতে হলে লাইনটা <code>~/.bashrc</code>-তে বসাতে হয় — বা <a href="#l4">Lab 04</a>-এর <code>/etc/skel/.bashrc</code>-তে, যাতে প্রত্যেক নতুন user সেটা নিয়েই জন্মায়।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 3 — chmod দিয়ে ভিত্তি গড়া</h3>
+
+  <!-- STEP 6 -->
+  <div class="step" data-n="6">
+    <h4>মালিকানা আর ভিত্তি অনুমতি বসানো</h4>
+    <p class="obj">লক্ষ্য: ACL-এর আগে সাধারণ মডেল দিয়ে যতটা সম্ভব করা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo chown -R dev_user1:dev /home/poridhian/code/projects/ProjectX</pre>
+    </div>
+
+    <p class="note-line"><code>dev_user1:dev</code> — colon-এর আগে মালিক, পরে group। <code>-R</code> মানে ভেতরের সবকিছুতেও।</p>
+
+    <p><b>এবার প্রতিটা folder-এর জন্য আলাদা অনুমতি:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ cd /home/poridhian/code/projects
+
+<span class="c"># মূল folder — others ঢুকতে ও দেখতে পারবে</span>
+$ sudo chmod 775 ProjectX
+
+<span class="c"># src আর config — others সম্পূর্ণ বাইরে</span>
+$ sudo chmod 770 ProjectX/src
+$ sudo chmod 770 ProjectX/config
+
+<span class="c"># docs আর tests — others পড়তে পারবে</span>
+$ sudo chmod 775 ProjectX/docs
+$ sudo chmod 775 ProjectX/tests</pre>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">মূল folder-টা 775 কেন, 770 নয়</div>
+      <p>মনে হতে পারে <code>ProjectX</code>-ও <code>770</code> হওয়া উচিত। কিন্তু তাতে <code>ops</code> আর <code>qa</code>-র কেউ <b>ভেতরে ঢুকতেই</b> পারত না — আর তাহলে <code>src/</code> বা <code>config/</code>-এ যত ACL-ই লেখো, কোনোটাই কাজে লাগত না।</p>
+      <p>মনে করো Step শুরুর সেই কথাটা — ভেতরের file-এ পৌঁছাতে হলে পথের <b>প্রতিটা</b> directory-তে <code>x</code> লাগে। মূল folder-টা সেই পথ।</p>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -l /home/poridhian/code/projects/ProjectX/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>drwxrwx--- 2 dev_user1 dev 4096 Mar 02 13:10 <b>config</b>
+drwxrwxr-x 2 dev_user1 dev 4096 Mar 02 13:10 <b>docs</b>
+-rwxr-xr-x 1 dev_user1 dev  118 Mar 02 13:20 project_env.sh
+drwxrwx--- 2 dev_user1 dev 4096 Mar 02 13:10 <b>src</b>
+drwxrwxr-x 2 dev_user1 dev 4096 Mar 02 13:10 <b>tests</b></pre>
+      <div class="note-line"><code>src</code> আর <code>config</code>-এর শেষে <code>---</code> — others সম্পূর্ণ বাইরে। <code>docs</code> আর <code>tests</code>-এ <code>r-x</code>।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">Symbolic notation — যখন একটা bit-ই বদলাতে চাও</div>
+      <p><code>chmod 750</code> তিনটে দলের অনুমতিই একসাথে বসিয়ে দেয়। কিন্তু শুধু একটা জিনিস যোগ বা বাদ দিতে চাইলে symbolic লেখা সুবিধার:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo chmod g+x ProjectX/src        <span class="c"># group-কে x যোগ করো</span>
+$ sudo chmod o-w ProjectX/docs       <span class="c"># others থেকে w বাদ দাও</span>
+$ sudo chmod o=r ProjectX/docs       <span class="c"># others-এর অনুমতি হুবহু r করো</span></pre>
+      </div>
+      <table>
+        <tr><th>কে</th><th>কাজ</th><th>কী</th></tr>
+        <tr><td><code>u</code> owner, <code>g</code> group, <code>o</code> others, <code>a</code> সবাই</td><td><code>+</code> যোগ, <code>-</code> বাদ, <code>=</code> হুবহু এটাই</td><td><code>r</code>, <code>w</code>, <code>x</code></td></tr>
+      </table>
+      <p>পার্থক্যটা মনে রাখার মতো — <code>+</code> আর <code>-</code> বাকি অনুমতিগুলোতে হাত দেয় না, কিন্তু <code>=</code> আর octal সংখ্যা <b>পুরোটা বদলে দেয়</b>।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 4 — setfacl দিয়ে সূক্ষ্ম নিয়ন্ত্রণ</h3>
+
+  <!-- STEP 7 -->
+  <div class="step" data-n="7">
+    <h4>তিন group-কে তিন রকম অনুমতি</h4>
+    <p class="obj">লক্ষ্য: যেটা <code>chmod</code> দিয়ে কোনোভাবেই হতো না, সেটা করা।</p>
+
+    <div class="out">
+      <div class="out-bar">setfacl-এর গঠন</div>
+<pre>setfacl -m  g:ops:rx  /path/to/dir
+        │   │  │   │
+        │   │  │   └─ কী অনুমতি (r, w, x)
+        │   │  └───── কার নাম (group বা user-এর)
+        │   └──────── ধরন: u = user, g = group
+        └──────────── -m = modify (নিয়ম যোগ/বদল করো)</pre>
+    </div>
+
+    <p><b>src/ — dev-এর জিনিস, বাকিরা শুধু পড়বে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ cd /home/poridhian/code/projects/ProjectX
+
+$ sudo setfacl -R -m g:ops:rx src
+$ sudo setfacl -R -m g:qa:rx  src</pre>
+    </div>
+
+    <p><b>config/ — ops-এর জিনিস, বাকিরা শুধু পড়বে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo setfacl -R -m g:ops:rwx config
+$ sudo setfacl -R -m g:dev:rx  config
+$ sudo setfacl -R -m g:qa:rx   config</pre>
+    </div>
+
+    <p><b>tests/ — qa এখানে লিখতে পারবে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo setfacl -R -m g:qa:rwx tests</pre>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">read-only মানে rx, শুধু r নয়</div>
+      <p>খেয়াল করো সব read-only অনুমতিতে <code>rx</code> লিখেছি। Directory-তে <code>x</code> ছাড়া ভেতরে ঢোকাই যায় না — তাই শুধু <code>r</code> দিলে group-এর লোকেরা file-এর নাম দেখতে পেত, কিন্তু কোনোটা খুলতে পারত না।</p>
+      <p>এই ভুলটা খুব সাধারণ, আর ধরা কঠিন — কারণ <code>ls</code> কাজ করে, তাই মনে হয় সব ঠিক আছে।</p>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ getfacl src</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre># file: src
+# owner: dev_user1
+# group: dev
+user::rwx
+group::rwx
+<b>group:ops:r-x</b>
+<b>group:qa:r-x</b>
+mask::rwx
+other::---</pre>
+      <div class="note-line">উপরের তিনটে (<code>user::</code>, <code>group::</code>, <code>other::</code>) হলো সাধারণ <code>chmod</code>-এর অনুমতি। মাঝের দুটো — যেখানে নাম লেখা আছে — সেগুলোই <code>setfacl</code>-এর যোগ করা।</div>
+    </div>
+
+    <p><b>ls -l-এও একটা ছোট্ট চিহ্ন দেখা যাবে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -l /home/poridhian/code/projects/ProjectX/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>drwxrwx---<b>+</b> 2 dev_user1 dev 4096 Mar 02 13:10 config
+drwxrwxr-x  2 dev_user1 dev 4096 Mar 02 13:10 docs
+drwxrwx---<b>+</b> 2 dev_user1 dev 4096 Mar 02 13:10 src
+drwxrwxr-x<b>+</b> 2 dev_user1 dev 4096 Mar 02 13:10 tests</pre>
+      <div class="note-line">শেষের ঐ <code>+</code> চিহ্নটার মানে "এই folder-এ বাড়তি ACL নিয়ম আছে"। <code>docs</code>-এ নেই, কারণ ওতে আমরা কোনো ACL দিইনি।</div>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">mask:: লাইনটা কী</div>
+      <p><code>getfacl</code>-এর output-এ একটা <code>mask::rwx</code> লাইন দেখেছ। এটা একটা <b>ছাদ</b> — ACL দিয়ে দেওয়া কোনো অনুমতি এর বেশি হতে পারে না।</p>
+      <p>ধরো mask হলো <code>r-x</code>, আর তুমি <code>g:ops:rwx</code> দিলে। তখন <code>getfacl</code> দেখাবে <code>group:ops:rwx</code>, কিন্তু পাশে লিখবে <code>#effective:r-x</code> — অর্থাৎ <code>w</code>-টা লেখা আছে ঠিকই, কাজ করছে না।</p>
+      <p><code>chmod</code> দিয়ে group-এর অনুমতি বদলালে mask-ও বদলে যায় — এজন্যই ACL বসানোর <b>পরে</b> <code>chmod</code> চালালে ACL গুলো নিঃশব্দে অকেজো হয়ে যেতে পারে। ক্রমটা তাই সবসময় <code>chmod</code> আগে, <code>setfacl</code> পরে।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 5 — পরীক্ষা: তত্ত্ব বনাম বাস্তব</h3>
+
+  <!-- STEP 8 -->
+  <div class="step" data-n="8">
+    <h4>Test file বানানো</h4>
+    <p class="obj">লক্ষ্য: প্রতিটা folder-এ একটা করে file — আর প্রথম ধাক্কাটা খাওয়া।</p>
+
+    <p>সোজা উপায়ে চেষ্টা করো:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ echo "// Main application logic" &gt; ProjectX/src/main.c</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — আটকে যাবে</div>
+<pre>bash: ProjectX/src/main.c: Permission denied</pre>
+      <div class="note-line">এটাই আশা করা হচ্ছিল। কেন, সেটা নিজে একবার ভেবে দেখো।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">কেন আটকালো</div>
+      <p><code>src/</code>-এর অনুমতি <code>drwxrwx---</code>, মালিক <code>dev_user1:dev</code>। তুমি চালাচ্ছো <code>poridhian</code> হিসেবে — তুমি মালিকও নও, <code>dev</code> group-এও নও। তাই তুমি "others", আর others-এর জন্য লেখা আছে <code>---</code>।</p>
+      <p>অর্থাৎ permission মডেল ঠিকঠাক কাজ করছে। এটা সমস্যা নয়, এটাই প্রমাণ।</p>
+    </div>
+
+    <p><b>তাহলে dev_user1 হয়ে বানাও:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo -u dev_user1 bash -c 'echo "// Main application logic" &gt; /home/poridhian/code/projects/ProjectX/src/main.c'
+$ sudo -u dev_user1 bash -c 'echo "db_host=db-01" &gt; /home/poridhian/code/projects/ProjectX/config/app.conf'
+$ sudo -u dev_user1 bash -c 'echo "# Documentation" &gt; /home/poridhian/code/projects/ProjectX/docs/README.md'
+$ sudo -u dev_user1 bash -c 'echo "test_case_1: pass" &gt; /home/poridhian/code/projects/ProjectX/tests/test1.txt'</pre>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">ঐ bash -c মোড়কটা কেন লাগছে</div>
+      <p><a href="#l4">Lab 04</a>-এ দেখেছ <code>&gt;</code> চিহ্নটা command-এর কাজ নয়, <b>shell</b>-এর কাজ। এখানেও একই ব্যাপার:</p>
+      <div class="out">
+        <div class="out-bar">পার্থক্যটা</div>
+<pre>sudo -u dev_user1 echo "..." &gt; file
+<span class="o">└─ echo চলে dev_user1 হয়ে, কিন্তু &gt; চালায় তোমার shell → denied</span>
+
+sudo -u dev_user1 bash -c 'echo "..." &gt; file'
+<span class="o">└─ পুরো bash টাই dev_user1 হয়ে চলে, তাই &gt;-ও তার হয়ে → সফল</span></pre>
+      </div>
+      <p>Single quote দুটোও জরুরি — নাহলে <code>&gt;</code> তোমার shell আগেই দেখে ফেলত।</p>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -l ProjectX/src/ ProjectX/config/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>ProjectX/src/:
+-rw-r--r-- 1 <b>dev_user1 dev_user1</b> 26 Mar 02 13:45 main.c
+
+ProjectX/config/:
+-rw-r--r-- 1 <b>dev_user1 dev_user1</b> 14 Mar 02 13:45 app.conf</pre>
+      <div class="note-line">দুটো জিনিস খুব ভালো করে খেয়াল করো — file গুলোর শেষে <b>কোনো <code>+</code> চিহ্ন নেই</b>, আর group হলো <code>dev_user1</code>, <code>dev</code> নয়। পরের step-এ এই দুটোই সব ওলটপালট করে দেবে।</div>
+    </div>
+  </div>
+
+  <!-- STEP 9 -->
+  <div class="step" data-n="9">
+    <h4>পরীক্ষা — আর তিনটে অপ্রত্যাশিত ফল</h4>
+    <p class="obj">লক্ষ্য: নিয়ম যা বলছে আর বাস্তবে যা ঘটছে — পার্থক্যটা ধরা।</p>
+
+    <p>এবার আসল মজা। প্রতিটা command চালানোর আগে নিজে একবার অনুমান করো কী হবে, তারপর মিলিয়ে দেখো।</p>
+
+    <p><b>Developer হিসেবে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — src পড়া (dev-এর নিজের জায়গা)</span>
+$ sudo -u dev_user1 cat ProjectX/src/main.c
+
+<span class="c"># ২ — config পড়া (ACL-এ rx দেওয়া আছে)</span>
+$ sudo -u dev_user1 cat ProjectX/config/app.conf
+
+<span class="c"># ৩ — config-এ লেখা (ACL বলছে read-only!)</span>
+$ sudo -u dev_user1 bash -c 'echo "new_setting=true" &gt;&gt; /home/poridhian/code/projects/ProjectX/config/app.conf'</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">১ →</span> // Main application logic          <span class="o">✓ যেমন ভেবেছিলে</span>
+<span class="o">২ →</span> db_host=db-01                      <span class="o">✓ যেমন ভেবেছিলে</span>
+<span class="o">৩ →</span> <b>(কোনো error নেই — লেখা হয়ে গেল!)</b>      <span class="o">✗ এটা তো হওয়ার কথা ছিল না</span></pre>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">৩ নম্বর — ACL বলছে read-only, তবু লেখা হলো কেন</div>
+      <p>কারণ <code>app.conf</code> file-টা <b>dev_user1 নিজেই বানিয়েছে</b> (Step 8-এ)। সে ঐ file-এর মালিক।</p>
+      <p>আর Linux অনুমতি পরীক্ষা করে একটা নির্দিষ্ট ক্রমে — <b>মালিক সবার আগে</b>। তুমি মালিক হলে তোমার owner-অনুমতি (<code>rw-</code>) দিয়েই কাজ হয়ে যায়, কোনো ACL-এর দিকে তাকানোই হয় না।</p>
+      <p>ACL-এ <code>g:dev:rx</code> লেখা আছে ঠিকই, কিন্তু সেটা প্রযোজ্য হতো <code>dev_user2</code>-র মতো কারো ক্ষেত্রে — যে <code>dev</code> group-এ আছে কিন্তু file-এর মালিক নয়।</p>
+    </div>
+
+    <p><b>Operations হিসেবে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — src পড়া (ACL-এ rx আছে)</span>
+$ sudo -u ops_user1 cat ProjectX/src/main.c
+
+<span class="c"># ২ — src-এ লেখা (read-only হওয়ার কথা)</span>
+$ sudo -u ops_user1 bash -c 'echo "// ops edit" &gt;&gt; /home/poridhian/code/projects/ProjectX/src/main.c'
+
+<span class="c"># ৩ — config-এ লেখা (ACL-এ rwx দেওয়া আছে!)</span>
+$ sudo -u ops_user1 bash -c 'echo "db_port=5432" &gt;&gt; /home/poridhian/code/projects/ProjectX/config/app.conf'</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">১ →</span> // Main application logic          <span class="o">✓ যেমন ভেবেছিলে</span>
+<span class="o">২ →</span> Permission denied                  <span class="o">✓ যেমন ভেবেছিলে</span>
+<span class="o">৩ →</span> <b>Permission denied</b>                  <span class="o">✗ ops-এর তো rwx আছে!</span></pre>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">৩ নম্বর — ACL-এ rwx আছে, তবু আটকালো কেন</div>
+      <p>এবার উল্টো কারণ। <code>setfacl -R</code> চালানো হয়েছিল Step 7-এ — আর <code>app.conf</code> জন্মেছে Step 8-এ, <b>তার পরে</b>।</p>
+      <p><code>-R</code> মানে "এই মুহূর্তে ভেতরে যা যা আছে, সবগুলোতে নিয়মটা বসাও"। ভবিষ্যতে যা জন্মাবে, তাদের জন্য কিছুই বলা হয়নি। তাই <code>app.conf</code>-এ কোনো ACL-ই নেই — Step 8-এর output-এ <code>+</code> চিহ্ন না থাকাটাই ছিল তার ইঙ্গিত।</p>
+      <p>ACL না থাকায় <code>ops_user1</code> পড়ে গেল সাধারণ মডেলের হিসেবে: file-এর মালিক <code>dev_user1</code>, group <code>dev_user1</code>, অনুমতি <code>644</code>। ops সেখানে "others" — আর others-এর আছে শুধু <code>r--</code>।</p>
+      <p><b>মনে রেখো:</b> ACL folder-এ বসানো আর ভেতরের file-এ বসানো — দুটো আলাদা জিনিস।</p>
+    </div>
+
+    <p><b>QA হিসেবে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — src পড়া</span>
+$ sudo -u qa_user1 cat ProjectX/src/main.c
+
+<span class="c"># ২ — tests-এ লেখা (ACL-এ rwx আছে!)</span>
+$ sudo -u qa_user1 bash -c 'echo "test_case_2: pass" &gt;&gt; /home/poridhian/code/projects/ProjectX/tests/test1.txt'
+
+<span class="c"># ৩ — tests-এ নতুন file বানানো</span>
+$ sudo -u qa_user1 bash -c 'echo "test_case_3: pass" &gt; /home/poridhian/code/projects/ProjectX/tests/test2.txt'</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><span class="o">১ →</span> // Main application logic          <span class="o">✓</span>
+<span class="o">২ →</span> <b>Permission denied</b>                  <span class="o">✗ qa-র তো tests-এ rwx আছে!</span>
+<span class="o">৩ →</span> <b>(সফল!)</b>                            <span class="o">← এটাই সবচেয়ে মজার</span></pre>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">২ আটকালো কিন্তু ৩ চলল — পার্থক্যটা কোথায়</div>
+      <p>দুটোই <code>tests/</code>-এ লেখা, তবু একটা আটকালো আরেকটা চলল। কারণ দুটো সম্পূর্ণ আলাদা কাজ:</p>
+      <table>
+        <tr><th></th><th>কী করছে</th><th>কার অনুমতি লাগে</th></tr>
+        <tr><td><code>&gt;&gt; test1.txt</code></td><td>বিদ্যমান <b>file</b>-এর ভেতরে লেখা</td><td><b>file</b>-এর write অনুমতি → qa-র নেই</td></tr>
+        <tr><td><code>&gt; test2.txt</code></td><td><b>নতুন file</b> বানানো</td><td><b>directory</b>-র write অনুমতি → ACL-এ আছে ✓</td></tr>
+      </table>
+      <p>এটাই সেই কথাটার সবচেয়ে পরিষ্কার উদাহরণ — <b>file বানানো বা মোছা directory-র অনুমতির ব্যাপার, file-এর নিজের নয়</b>।</p>
+      <p>এর একটা অদ্ভুত পরিণতিও আছে: directory-তে <code>w</code> থাকলে তুমি এমন file-ও <b>মুছে দিতে</b> পারো যেটা পড়ার অনুমতিও তোমার নেই। file-টা মোছা হচ্ছে না — directory থেকে তার নামটা মোছা হচ্ছে।</p>
+    </div>
+
+    <p><b>নতুন file-টা দেখে নাও:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -l ProjectX/tests/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>-rw-r--r-- 1 dev_user1 dev_user1 18 Mar 02 13:45 test1.txt
+-rw-r--r-- 1 <b>qa_user1  qa_user1</b>  18 Mar 02 14:02 test2.txt</pre>
+      <div class="note-line">নতুন file-এর মালিক <code>qa_user1</code> — কারণ সে-ই বানিয়েছে।</div>
+    </div>
+  </div>
+
+  <!-- STEP 10 -->
+  <div class="step" data-n="10">
+    <h4>সমস্যাটার সমাধান — default ACL</h4>
+    <p class="obj">লক্ষ্য: ভবিষ্যতে জন্মানো file-ও যাতে নিয়ম মেনে চলে।</p>
+
+    <p>Step 9-এ দেখলে মূল সমস্যাটা — <code>setfacl -R</code> শুধু <b>বর্তমান</b> file গুলোতে নিয়ম বসায়। এর সমাধান হলো <b>default ACL</b>, যেটা লেখা হয় <code>-d</code> দিয়ে:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># এখনকার file গুলোর জন্য (আগের মতোই)</span>
+$ sudo setfacl -R -m g:ops:rwx config
+
+<span class="c"># ভবিষ্যতে যা জন্মাবে তাদের জন্য</span>
+$ sudo setfacl -R -d -m g:ops:rwx config
+$ sudo setfacl -R -d -m g:dev:rx  config
+$ sudo setfacl -R -d -m g:qa:rx   config</pre>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">-d মানে "উত্তরাধিকার"</div>
+      <p>Default ACL কোনো অনুমতি <b>দেয় না</b> — এটা একটা ছাঁচ, যা এই directory-তে নতুন জন্মানো প্রতিটা file আর folder পেয়ে যায়। <a href="#l4">Lab 04</a>-এর <code>/etc/skel/</code>-এর সাথে মিল আছে, তবে পার্থক্যও আছে: <code>/etc/skel/</code> একবার copy করে ছেড়ে দেয়, আর default ACL প্রতিবার নতুন file জন্মানোর সময় নিজে থেকেই প্রয়োগ হয়।</p>
+      <p>এজন্যই সাধারণত <b>দুটোই</b> লাগে — <code>-m</code> বর্তমানের জন্য, <code>-d -m</code> ভবিষ্যতের জন্য।</p>
+    </div>
+
+    <p><b>এবার পরীক্ষা করো — নতুন file বানিয়ে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo -u dev_user1 bash -c 'echo "cache_size=256" &gt; /home/poridhian/code/projects/ProjectX/config/cache.conf'
+$ ls -l ProjectX/config/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>-rw-r--r--  1 dev_user1 dev_user1 14 Mar 02 13:45 app.conf
+-rw-rw----<b>+</b> 1 dev_user1 dev_user1 15 Mar 02 14:15 <b>cache.conf</b></pre>
+      <div class="note-line">নতুন file-টার শেষে <code>+</code> চিহ্ন! পুরোনো <code>app.conf</code>-এ এখনো নেই।</div>
+    </div>
+
+    <p><b>এখন ops লিখতে পারবে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo -u ops_user1 bash -c 'echo "cache_ttl=3600" &gt;&gt; /home/poridhian/code/projects/ProjectX/config/cache.conf'
+$ cat ProjectX/config/cache.conf</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>cache_size=256
+<b>cache_ttl=3600</b></pre>
+      <div class="note-line">এবার সফল — কারণ <code>cache.conf</code> জন্মানোর সময়েই default ACL থেকে <code>g:ops:rwx</code> পেয়ে গেছে।</div>
+    </div>
+
+    <p><b>পুরোনো file-টাও ঠিক করে নাও:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo setfacl -m g:ops:rw ProjectX/config/app.conf
+$ sudo -u ops_user1 bash -c 'echo "db_port=5432" &gt;&gt; /home/poridhian/code/projects/ProjectX/config/app.conf'
+$ cat ProjectX/config/app.conf</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>db_host=db-01
+new_setting=true
+<b>db_port=5432</b></pre>
+      <div class="note-line">Step 9-এ যেটা আটকে গিয়েছিল, এখন চলছে। File-এ <code>x</code> দিইনি — ওটা directory-র জন্য, সাধারণ file-এ দরকার নেই।</div>
+    </div>
+  </div>
+
+  <h3>পুরো ব্যাপারটা এক নজরে</h3>
+  <p>এই lab-এর তিনটে "উল্টো ফল"-ই আসলে একটা জিনিস থেকে এসেছে — Linux অনুমতি পরীক্ষা করে একটা নির্দিষ্ট ক্রমে, আর <b>প্রথম যেটা মিলে যায়, সেখানেই থেমে যায়</b>:</p>
+
+  <div class="out">
+    <div class="out-bar">অনুমতি পরীক্ষার ক্রম</div>
+<pre>কেউ একটা file ছুঁতে চাইল
+          │
+          ▼
+১. সে কি root?  ──── হ্যাঁ ──→ <b>সব অনুমতি</b>, আর কিছু দেখা হয় না
+          │ না
+          ▼
+২. সে কি file-এর <b>মালিক</b>?  ── হ্যাঁ ──→ owner-এর অনুমতি খাটবে
+          │ না                              <span class="o">← dev_user1-এর config-এ লেখার রহস্য</span>
+          ▼
+৩. তার নামে কোনো <b>ACL</b> আছে?  ── হ্যাঁ ──→ সেটাই খাটবে
+          │ না
+          ▼
+৪. সে কি file-এর <b>group</b>-এ?  ── হ্যাঁ ──→ group-এর অনুমতি খাটবে
+          │ না
+          ▼
+৫. তার group-এর কোনো <b>ACL</b> আছে?  ── হ্যাঁ ──→ সেটাই খাটবে
+          │ না                                  <span class="o">← ops-এর ACL এখানে খাটত,</span>
+          ▼                                      <span class="o">   যদি file-এ ACL থাকত</span>
+৬. <b>others</b>-এর অনুমতি খাটবে
+                                                <span class="o">← ops শেষমেশ এখানে পড়েছিল</span></pre>
+  </div>
+
+  <p>দুটো কথা মাথায় গেঁথে নাও — <b>মালিকানা ACL-এর আগে</b>, আর <b>ACL file-এ থাকতে হয়, শুধু folder-এ থাকলে হয় না</b>। এই দুটো জানলে এই lab-এর তিনটে বিস্ময়ই আর বিস্ময় থাকে না।</p>
+
+  <div class="box tip">
+    <div class="box-t">স্তরে স্তরে কাজ করার ধারা</div>
+    <table>
+      <tr><th>স্তর</th><th>হাতিয়ার</th><th>কী ঠিক করে</th></tr>
+      <tr><td>১</td><td><code>umask</code></td><td>জন্মের সময় কী পাবে</td></tr>
+      <tr><td>২</td><td><code>chown</code></td><td>কার জিনিস</td></tr>
+      <tr><td>৩</td><td><code>chmod</code></td><td>তিন দলের মোটা দাগের নিয়ম</td></tr>
+      <tr><td>৪</td><td><code>setfacl -m</code></td><td>নাম ধরে বাড়তি নিয়ম</td></tr>
+      <tr><td>৫</td><td><code>setfacl -d -m</code></td><td>ভবিষ্যতের file-এর জন্য ছাঁচ</td></tr>
+    </table>
+    <p>ক্রমটা এলোমেলো করা যায় না — বিশেষ করে <code>chmod</code> সবসময় <code>setfacl</code>-এর <b>আগে</b>, কারণ <code>chmod</code> mask বদলে দিয়ে ACL গুলো নিঃশব্দে অকেজো করে দিতে পারে।</p>
+  </div>
+
+  <h3>নিজে করো — Challenge</h3>
+  <ol>
+    <li><code>docs/</code>-এ এমন ব্যবস্থা করো যাতে তিনটে group-ই লিখতে পারে, কিন্তু বাইরের কেউ পড়তেও না পারে। তারপর তিনজন user দিয়ে পরীক্ষা করো।</li>
+    <li><code>src/</code>-এ default ACL বসাও, তারপর <code>dev_user2</code> দিয়ে একটা নতুন file বানিয়ে <code>getfacl</code> দিয়ে দেখো নিয়মগুলো এসেছে কিনা।</li>
+    <li>একজন বাইরের auditor এলো — <code>audit_user</code>। তাকে কোনো group-এ না ঢুকিয়ে পুরো ProjectX-এ শুধু-পড়ার অনুমতি দাও। (ইঙ্গিত: <code>setfacl</code>-এ <code>g:</code>-র বদলে <code>u:</code>)</li>
+    <li>কোনো একটা group-এর ACL সম্পূর্ণ তুলে নাও। (ইঙ্গিত: <code>-x</code>)</li>
+  </ol>
+
+  <details class="solve">
+    <summary>সমাধান দেখো</summary>
+    <div class="sbody">
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — docs-এ তিন group-ই লিখবে, others কিছুই না</span>
+$ cd /home/poridhian/code/projects/ProjectX
+
+$ sudo chmod 770 docs                      <span class="c"># আগে others-কে বের করো</span>
+$ sudo setfacl -R -m g:ops:rwx docs
+$ sudo setfacl -R -m g:qa:rwx  docs
+$ sudo setfacl -R -d -m g:ops:rwx docs     <span class="c"># ভবিষ্যতের জন্যও</span>
+$ sudo setfacl -R -d -m g:qa:rwx  docs
+
+$ sudo -u ops_user1 bash -c 'echo "ops note" &gt; /home/poridhian/code/projects/ProjectX/docs/ops.md'
+$ sudo -u qa_user1  bash -c 'echo "qa note"  &gt; /home/poridhian/code/projects/ProjectX/docs/qa.md'
+$ ls -l docs/</pre>
+      </div>
+      <p><code>chmod 770</code> আগে চালানোটা জরুরি — <code>setfacl</code>-এর পরে চালালে mask বদলে গিয়ে ACL গুলো অকেজো হয়ে যেত। <code>dev</code>-কে আলাদা করে ACL দিতে হয়নি, কারণ folder-এর group owner-ই <code>dev</code>।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ২ — src-এ default ACL</span>
+$ sudo setfacl -R -d -m g:ops:rx src
+$ sudo setfacl -R -d -m g:qa:rx  src
+
+$ sudo -u dev_user2 bash -c 'echo "// helper" &gt; /home/poridhian/code/projects/ProjectX/src/util.c'
+$ getfacl src/util.c</pre>
+      </div>
+      <div class="out">
+        <div class="out-bar">output</div>
+<pre># file: src/util.c
+# owner: dev_user2
+# group: dev
+user::rw-
+<b>group:ops:r-x</b>            #effective:r--
+<b>group:qa:r-x</b>             #effective:r--
+mask::r--
+other::---</pre>
+      </div>
+      <p>নিয়মগুলো এসেছে। <code>#effective:r--</code> লেখাটা খেয়াল করো — <code>x</code> চাওয়া হয়েছিল কিন্তু mask <code>r--</code> হওয়ায় সেটা কাজ করছে না। সাধারণ file-এ <code>x</code>-এর দরকারও নেই, তাই এখানে সমস্যা নয়। এটাই <code>mask</code> লাইনটার কাজ চোখে দেখা।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ৩ — auditor, কোনো group ছাড়াই</span>
+$ sudo useradd -m -s /bin/bash audit_user
+
+$ sudo setfacl -R -m u:audit_user:rX .
+$ sudo setfacl -R -d -m u:audit_user:rX .
+
+$ sudo -u audit_user cat src/main.c
+<span class="o">// Main application logic</span>
+$ sudo -u audit_user bash -c 'echo "x" &gt;&gt; src/main.c'
+<span class="o">bash: src/main.c: Permission denied</span></pre>
+      </div>
+      <p>দুটো জিনিস এখানে নতুন। <code>u:</code> দিয়ে group নয়, <b>একজন নির্দিষ্ট user</b>-কে অনুমতি দেওয়া হচ্ছে — যেটা সাধারণ মডেলে একদমই সম্ভব নয়।</p>
+      <p>আর বড় হাতের <code>X</code> (ছোট <code>x</code> নয়) মানে — "<b>directory-তে</b> <code>x</code> দাও, কিন্তু সাধারণ file-এ দিও না"। <code>-R</code>-এর সাথে এটা খুবই কাজের, নাহলে প্রতিটা <code>.c</code> file-ও চালানোর যোগ্য হয়ে যেত।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ৪ — ACL তুলে নেওয়া</span>
+$ sudo setfacl -R -x g:qa src           <span class="c"># শুধু qa-র নিয়মটা</span>
+$ getfacl src | grep qa
+<span class="o">(কিছুই নেই)</span>
+
+$ sudo setfacl -R -b docs               <span class="c"># সব ACL একসাথে মুছে দাও</span>
+$ ls -ld docs
+<span class="o">drwxrwx--- 2 dev_user1 dev 4096 Mar 02 14:30 docs</span>   <span class="c"># + চিহ্ন উধাও</span></pre>
+      </div>
+      <p><code>-x</code> একটা নির্দিষ্ট নিয়ম তোলে (অনুমতি লেখার দরকার নেই, শুধু কার নিয়ম সেটা বললেই হয়), আর <code>-b</code> সব ACL মুছে file-টাকে সাধারণ মডেলে ফিরিয়ে আনে।</p>
+    </div>
+  </details>
+
+  <h3>Command গুলো এক নজরে</h3>
+  <table>
+    <tr><th>Command</th><th>কাজ</th></tr>
+    <tr><td><code>umask</code></td><td>এখনকার mask দেখায়</td></tr>
+    <tr><td><code>umask 027</code></td><td>নতুন file-এর default অনুমতি ঠিক করে (শুধু এই shell-এ)</td></tr>
+    <tr><td><code>chmod 750 &lt;path&gt;</code></td><td>octal — তিন দলের অনুমতি একসাথে বসায়</td></tr>
+    <tr><td><code>chmod g+x &lt;path&gt;</code></td><td>symbolic — শুধু একটা bit যোগ/বাদ</td></tr>
+    <tr><td><code>chown -R user:group &lt;path&gt;</code></td><td>মালিক আর group বদলায়</td></tr>
+    <tr><td><code>setfacl -m g:ops:rx &lt;path&gt;</code></td><td>একটা group-এর জন্য ACL বসায়</td></tr>
+    <tr><td><code>setfacl -m u:alice:rw &lt;path&gt;</code></td><td>একজন user-এর জন্য ACL বসায়</td></tr>
+    <tr><td><code>setfacl -R -m ...</code></td><td>ভেতরের সব file-এ বসায় (<b>বর্তমান</b> file-এ)</td></tr>
+    <tr><td><code>setfacl -d -m ...</code></td><td>default ACL — <b>ভবিষ্যতের</b> file-এর জন্য</td></tr>
+    <tr><td><code>setfacl -x g:qa &lt;path&gt;</code></td><td>একটা নির্দিষ্ট ACL নিয়ম তুলে নেয়</td></tr>
+    <tr><td><code>setfacl -b &lt;path&gt;</code></td><td>সব ACL মুছে দেয়</td></tr>
+    <tr><td><code>getfacl &lt;path&gt;</code></td><td>সব অনুমতি আর ACL দেখায়</td></tr>
+    <tr><td><code>sudo -u &lt;user&gt; bash -c '...'</code></td><td>অন্য user হয়ে command চালায় (redirect সহ)</td></tr>
+  </table>
+
+  <h3>আটকে গেলে</h3>
+  <table>
+    <tr><th>সমস্যা</th><th>কী হয়েছে / কী করবে</th></tr>
+    <tr><td><code>setfacl: Operation not supported</code></td><td>Filesystem-এ ACL বন্ধ। <code>sudo mount -o remount,acl /</code> চালাও।</td></tr>
+    <tr><td><code>setfacl: command not found</code></td><td><code>sudo apt install -y acl</code> (বা <code>dnf install acl</code>)।</td></tr>
+    <tr><td>ACL দিয়েছি তবু Permission denied</td><td>তিনটে সম্ভাবনা: (১) file-টা ACL বসানোর পরে জন্মেছে — <code>-d</code> লাগবে; (২) পরে <code>chmod</code> চালিয়ে mask নষ্ট করেছ; (৩) পথের কোনো directory-তে <code>x</code> নেই।</td></tr>
+    <tr><td><code>getfacl</code>-এ <code>#effective:</code> লেখা দেখাচ্ছে</td><td>mask ঐ অনুমতিটা আটকে রাখছে। <code>sudo setfacl -m m::rwx &lt;path&gt;</code> দিয়ে mask বাড়াও।</td></tr>
+    <tr><td>ব্যবহারকারী <code>ls</code> পারছে কিন্তু file পড়তে পারছে না</td><td>Directory-তে <code>r</code> আছে, <code>x</code> নেই। <code>r</code>-এর বদলে <code>rx</code> দাও।</td></tr>
+    <tr><td><code>umask</code> বদলালাম, তবু file আগের মতোই</td><td><code>./script.sh</code> দিয়ে চালিয়েছ। <code>source script.sh</code> ব্যবহার করো।</td></tr>
+    <tr><td><code>sudo -u user echo ... &gt; file</code> denied</td><td><code>&gt;</code> চালাচ্ছে তোমার shell। <code>bash -c '...'</code> দিয়ে মুড়ে দাও।</td></tr>
+    <tr><td>ACL বসানোর পর <code>chmod</code> চালিয়ে সব ভেঙে গেছে</td><td><code>getfacl</code> দিয়ে দেখো mask কমে গেছে কিনা। ক্রমটা সবসময় <code>chmod</code> আগে, <code>setfacl</code> পরে।</td></tr>
+  </table>
+
+  <h3>পরিষ্কার করে ফেলা (ঐচ্ছিক)</h3>
+  <div class="code">
+    <div class="code-bar"><span>bash — cleanup</span><button class="copy">copy</button></div>
+<pre><span class="c"># পুরো project folder-টা মুছে দাও</span>
+$ sudo rm -rf /home/poridhian/code/projects/ProjectX
+
+<span class="c"># user গুলো মুছে দাও</span>
+$ for u in dev_user1 dev_user2 ops_user1 ops_user2 qa_user1 qa_user2; do
+&gt;   sudo userdel -r "$u"
+&gt; done
+
+<span class="c"># Challenge-এর auditor করে থাকলে</span>
+$ sudo userdel -r audit_user
+
+<span class="c"># group গুলো মুছে দাও</span>
+$ sudo groupdel dev
+$ sudo groupdel ops
+$ sudo groupdel qa
+
+<span class="c"># test file গুলো</span>
+$ rm -f /tmp/testfile /tmp/testfile_027</pre>
+  </div>
+
+  <div class="box danger">
+    <div class="box-t">rm -rf নিয়ে সাবধান</div>
+    <p><code>rm -rf</code> কিছু জিজ্ঞেস না করে পুরো folder মুছে দেয়, আর ফেরানোর কোনো উপায় নেই। চালানোর আগে path-টা <b>দুবার</b> পড়ো — বিশেষ করে শুরুর <code>/</code>-টা ঠিক জায়গায় আছে কিনা।</p>
+    <p>নিরাপদ অভ্যাস — আগে <code>ls</code> দিয়ে দেখে নাও ঠিক কোন জিনিসটা ধরা পড়ছে, তারপর <code>ls</code>-টাকে <code>rm -rf</code> দিয়ে বদলাও।</p>
+  </div>
+
+  <div class="check" data-lab="l6">
+    <div class="ct">Lab 6 — চেকলিস্ট</div>
+    <label><input type="checkbox"><span>Permission string-এর ১০টা অক্ষর পড়তে পারি</span></label>
+    <label><input type="checkbox"><span><code>r=4 w=2 x=1</code> হিসেব করে octal বের করতে পারি</span></label>
+    <label><input type="checkbox"><span>তিনটে group আর ছয়জন user বানিয়েছি</span></label>
+    <label><input type="checkbox"><span><code>umask 027</code> বসিয়ে নতুন file-এ পার্থক্য দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>source</code> আর <code>./script</code>-এর পার্থক্য বুঝেছি</span></label>
+    <label><input type="checkbox"><span><code>chmod</code> দিয়ে চারটে folder-এর ভিত্তি অনুমতি বসিয়েছি</span></label>
+    <label><input type="checkbox"><span><code>setfacl</code> দিয়ে তিন group-কে তিন রকম অনুমতি দিয়েছি</span></label>
+    <label><input type="checkbox"><span><code>getfacl</code> আর <code>ls -l</code>-এর <code>+</code> চিহ্ন দিয়ে যাচাই করেছি</span></label>
+    <label><input type="checkbox"><span>মালিক হওয়ায় dev কেন ACL-কে টপকে গেল, বুঝেছি</span></label>
+    <label><input type="checkbox"><span>ACL থাকা সত্ত্বেও ops কেন আটকালো, বুঝেছি</span></label>
+    <label><input type="checkbox"><span><code>-d</code> দিয়ে default ACL বসিয়ে সমস্যাটা সমাধান করেছি</span></label>
+    <label><input type="checkbox"><span>Challenge গুলো নিজে করেছি</span></label>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">মূল কথা</div>
+    <p>তিনটে হাতিয়ার তিনটে আলাদা মুহূর্তে কাজ করে — <code>umask</code> জন্মের সময়, <code>chmod</code> তিন দলের জন্য, আর <code>setfacl</code> নাম ধরে ধরে। একটার কাজ আরেকটা দিয়ে হয় না, তাই বাস্তবে তিনটেই স্তরে স্তরে ব্যবহার করতে হয়।</p>
+    <p>তবে এই lab-এর আসল শিক্ষা নিয়ম লেখা নয় — <b>যাচাই করা</b>। তিনবার আমরা দেখলাম নিয়ম এক কথা বলছে আর বাস্তব আরেক। প্রতিবারই কারণটা ছিল যুক্তিসঙ্গত: মালিকানা ACL-এর আগে আসে, আর ACL file-এ থাকতে হয় — শুধু folder-এ থাকলে হয় না।</p>
+    <p>তাই নিয়ম বসিয়ে সন্তুষ্ট হয়ো না। <code>sudo -u</code> দিয়ে সত্যিকারের user হয়ে চেষ্টা করে দেখো — অনুমতি ঠিক আছে কিনা সেটা <b>ঐ পরীক্ষাটাই</b> বলে, <code>getfacl</code>-এর output নয়।</p>
+  </div>
+</section>
