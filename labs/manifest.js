@@ -61,16 +61,24 @@ window.LAB_MANIFEST = [
     tag:   "chapter 06",
     time:  "59 মিনিট",
     desc:  "umask, chmod, setfacl — তিন টিমকে একই folder-এ তিন রকম অনুমতি দেওয়া।"
+  },
+  {
+    id:    "l7",
+    file:  "labs/lab-07-performance-analysis.html",
+    title: "Linux Performance Analysis",
+    tag:   "chapter 07",
+    time:  "59 মিনিট",
+    desc:  "vmstat, iostat, sar — \"server slow\" শুনে bottleneck কোথায় সেটা মেপে বের করা।"
   }
 
   /* পরের lab এখানে যোগ করো:
   ,{
-    id:    "l7",
-    file:  "labs/lab-07-process-management.html",
-    title: "Process Management",
-    tag:   "chapter 07",
+    id:    "l8",
+    file:  "labs/lab-08-systemd-services.html",
+    title: "systemd Services",
+    tag:   "chapter 11",
     time:  "50 মিনিট",
-    desc:  "ps, top, kill — কোন program চলছে আর কীভাবে থামাবে।"
+    desc:  "systemctl, journalctl — নিজের service বানানো আর চালু রাখা।"
   }
   */
 ];

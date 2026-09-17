@@ -1,0 +1,742 @@
+<!-- ============================================================
+     lab-07-performance-analysis.html
+     ------------------------------------------------------------
+     এটা একটা lab-এর content। labs.html এটাকে fetch করে দেখায়।
+     Title / tag / সময় / বিবরণ আসে labs/manifest.js থেকে —
+     এখানে আর লিখতে হয় না।
+     ============================================================ -->
+<section class="lab">
+  <div class="ch-head">
+    <div class="ch-meta">
+      <span class="ch-num">Lab 07</span>
+      <span class="layer-tag">chapter 07</span>
+      <span class="layer-tag time">≈ 59 মিনিট</span>
+    </div>
+    <h2>Linux Performance Analysis</h2>
+    <p class="ch-lede">"Server টা slow" — এই একটা বাক্য শুনে কাজ শুরু করতে হয়। কিন্তু slow মানে কী? CPU শেষ, না RAM শেষ, না disk আটকে আছে, না network? এই lab-এ তুমি শিখবে কীভাবে এই প্রশ্নটার উত্তর <b>আন্দাজে নয়, মেপে</b> বের করতে হয়। আর শুধু tool চালিয়ে নয় — নিজের হাতে system টাকে চাপে ফেলে, তারপর সংখ্যাগুলো কীভাবে বদলায় সেটা দেখে।</p>
+  </div>
+
+  <h3>এই lab শেষে যা পারবে</h3>
+  <ul>
+    <li>চারটে subsystem — CPU, memory, disk, network — আলাদা করে মাপতে পারবে।</li>
+    <li><code>vmstat</code>, <code>mpstat</code>, <code>pidstat</code>, <code>iostat</code>, <code>sar</code> পড়তে পারবে।</li>
+    <li>নিজে চাপ তৈরি করে দেখবে কোন সংখ্যাটা কেমন বদলায়।</li>
+    <li>OOM killer নিজের চোখে দেখবে আর log-এ তার প্রমাণ খুঁজে বের করবে।</li>
+    <li>সবচেয়ে জরুরি — <b>bottleneck কোথায়</b> সেটা ৬০ সেকেন্ডে বলে দিতে পারবে।</li>
+  </ul>
+
+  <div class="box note">
+    <div class="box-t">আগে যা জানা থাকলে সুবিধা</div>
+    <p>বইয়ের <b>Chapter 07 — Processes</b>। সেখানে <code>ps</code>, <code>top</code>, <code>kill</code> আর load average পড়ার নিয়মটা আছে। এই lab সেখান থেকেই শুরু করে পরের ধাপে যায় — কোন process CPU খাচ্ছে সেটা নয়, বরং <b>সমস্যাটা আদৌ CPU-র কিনা</b> সেটা বের করা।</p>
+  </div>
+
+  <div class="box warn">
+    <div class="box-t">এই lab ইচ্ছে করে system-কে চাপে ফেলবে</div>
+    <p>আমরা CPU ১০০% করব, RAM ভরে OOM killer ডেকে আনব, disk আটকে দেব। কাজটা <b>নিজের VM, container বা Poridhi Labs VM-এ</b> করো — production server-এ কখনোই নয়। প্রতিটা stress command-এ <code>--timeout</code> দেওয়া আছে, তাই নিজে থেকেই থেমে যাবে।</p>
+  </div>
+
+  <h3>যে প্রশ্নটার উত্তর খুঁজছি</h3>
+  <p>Performance-এর কাজটা আসলে একটা বাদ দেওয়ার খেলা। চারটে জায়গায় সমস্যা হতে পারে, আর প্রতিটার জন্য আলাদা tool আছে:</p>
+
+  <figure class="fig">
+    <img
+      src="https://raw.githubusercontent.com/poridhiEng/lab-asset/refs/heads/main/Linux%20Labs/Lab%2008/images/arch.png"
+      alt="Linux system-এর চারটে subsystem আর তাদের মাপার tool — CPU subsystem-এর জন্য vmstat, mpstat -P ALL, pidstat আর uptime; Memory subsystem-এর জন্য free -m আর vmstat; Disk I/O subsystem-এর জন্য iostat -xz; Network subsystem-এর জন্য sar -n DEV আর sar -n TCP,ETCP। পাশে আলাদা করে dmesg | tail, যেটা kernel-এর সাম্প্রতিক বার্তা দেখায়।"
+      loading="lazy" width="1354" height="571">
+    <figcaption>চারটে subsystem, চার সেট tool। ডান পাশে <code>dmesg</code> আলাদা — সে কোনো একটা subsystem নয়, kernel নিজে যা বলতে চায় সেটা শোনায়।</figcaption>
+  </figure>
+
+  <div class="box confuse">
+    <div class="box-t">একটা tool একাধিক জায়গায় কাজে লাগে</div>
+    <p>ছবিতে খেয়াল করো <code>vmstat</code> তিনবার এসেছে, <code>iostat</code> দুবার। এটা ভুল নয় — এই tool গুলো একসাথে কয়েকটা জিনিস দেখায়। <code>vmstat</code>-এর নামে "vm" (virtual memory) থাকলেও সে CPU, memory আর I/O — তিনটেরই খবর দেয়।</p>
+    <p>এজন্যই ৬০ সেকেন্ডের প্রথম command হিসেবে <code>vmstat</code> এত কাজের — এক নজরেই বোঝা যায় কোন দিকে তদন্ত এগোতে হবে।</p>
+  </div>
+
+  <h3 class="part">Part 1 — যন্ত্রপাতি চেনা</h3>
+
+  <!-- STEP 1 -->
+  <div class="step" data-n="1">
+    <h4>Tool গুলো install করা</h4>
+    <p class="obj">লক্ষ্য: মাপার tool আর চাপ দেওয়ার tool — দুটোই হাতে পাওয়া।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo apt update
+$ sudo apt install -y stress-ng sysstat iperf3 fio htop</pre>
+    </div>
+
+    <table>
+      <tr><th>Package</th><th>কী দেয়</th></tr>
+      <tr><td><code>sysstat</code></td><td><code>mpstat</code>, <code>pidstat</code>, <code>iostat</code>, <code>sar</code> — মাপার মূল tool গুলো</td></tr>
+      <tr><td><code>stress-ng</code></td><td>ইচ্ছেমতো CPU, RAM, disk, network-এ চাপ দেওয়ার যন্ত্র</td></tr>
+      <tr><td><code>iperf3</code></td><td>Network-এর গতি মাপা</td></tr>
+      <tr><td><code>fio</code></td><td>Disk-এর গতি মাপা</td></tr>
+      <tr><td><code>htop</code></td><td>রঙিন, ঘোরাফেরা করা যায় এমন <code>top</code></td></tr>
+    </table>
+
+    <p><b>sysstat-এর background সংগ্রাহক চালু করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo systemctl enable --now sysstat</pre>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">এটা চালু করলে যা পাওয়া যায়</div>
+      <p><code>sar</code>-এর আসল ক্ষমতা এখানেই। চালু থাকলে সে প্রতি ১০ মিনিটে নিজে থেকে সব তথ্য জমা রাখে — তাই <b>কাল রাত ৩টায় কী হয়েছিল</b> সেটাও পরে দেখা যায়:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sar -u              <span class="c"># আজকের CPU-র ইতিহাস</span>
+$ sar -r -f /var/log/sysstat/sa15   <span class="c"># ১৫ তারিখের memory</span></pre>
+      </div>
+      <p>ঘটনা ঘটে যাওয়ার পরে তদন্ত করতে হলে এটাই একমাত্র উপায় — <code>top</code> শুধু <b>এখন</b> কী হচ্ছে দেখায়, অতীত নয়।</p>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ which vmstat mpstat pidstat iostat sar stress-ng
+$ nproc</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>/usr/bin/vmstat
+/usr/bin/mpstat
+/usr/bin/pidstat
+/usr/bin/iostat
+/usr/bin/sar
+/usr/bin/stress-ng
+
+<b>4</b></pre>
+      <div class="note-line"><code>nproc</code>-এর সংখ্যাটা <b>মনে রাখো</b> — পুরো lab জুড়ে এটার সাথেই সব মেলাতে হবে। এখানে ৪।</div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" data-n="2">
+    <h4>৬০ সেকেন্ডের প্রাথমিক পরীক্ষা</h4>
+    <p class="obj">লক্ষ্য: অচেনা একটা server-এ বসে প্রথমে কী কী দেখবে।</p>
+
+    <p>Netflix-এর performance team-এর একটা বিখ্যাত তালিকা আছে — অচেনা slow server-এ বসে প্রথম ৬০ সেকেন্ডে যা চালানো উচিত। আমরা সেটার মূল অংশটা দেখব।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ uptime
+$ dmesg | tail
+$ vmstat 1 5
+$ free -m</pre>
+    </div>
+
+    <p><b>প্রথমে <code>uptime</code>:</b></p>
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre> 14:23:07 up 3 days,  2:11,  2 users,  load average: <b>0.52, 0.31, 0.24</b></pre>
+      <div class="note-line">তিনটে সংখ্যা = শেষ ১, ৫, ১৫ মিনিটের গড়। ৪ core-এ 0.52 মানে system প্রায় খালি।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">তিনটে সংখ্যার ক্রমটাই আসল খবর</div>
+      <p>মানটা কত সেটা যত জরুরি, <b>দিকটা কোনদিকে</b> সেটাও তত:</p>
+      <div class="out">
+        <div class="out-bar">কীভাবে পড়বে</div>
+<pre>0.52, 0.31, 0.24   <span class="o">← ১ মিনিট সবচেয়ে বেশি = চাপ <b>বাড়ছে</b>, এইমাত্র শুরু</span>
+0.24, 0.31, 0.52   <span class="o">← ১৫ মিনিট সবচেয়ে বেশি = ঝড় <b>কেটে গেছে</b></span>
+4.05, 4.02, 4.01   <span class="o">← তিনটেই সমান = <b>স্থায়ী</b> চাপ, এটাই স্বাভাবিক অবস্থা</span></pre>
+      </div>
+      <p>রাত ৩টার alert-এ উঠে যদি দেখো ১৫ মিনিটের সংখ্যাটা সবচেয়ে বড়, তাহলে বুঝবে সমস্যাটা শেষ হয়ে গেছে — এখন তদন্ত করতে হবে log ঘেঁটে, <code>top</code> দেখে নয়।</p>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">Linux-এ load average শুধু CPU-র হিসেব নয়</div>
+      <p>এটা Linux-এর একটা নিজস্ব ব্যাপার, আর এখানেই বেশিরভাগ মানুষ ভুল করে। অন্য Unix-এ load মানে শুধু CPU-র জন্য অপেক্ষা। কিন্তু Linux গোনে <b>CPU-র জন্য অপেক্ষারত + disk-এর জন্য আটকে থাকা</b> (D state) — দুটোই।</p>
+      <p>মানে হলো, load 8 দেখেও CPU পুরো খালি থাকতে পারে — যদি সব process disk-এর জন্য বসে থাকে। তাই <b>load average দেখে কখনো "CPU-র সমস্যা" সিদ্ধান্তে যেয়ো না</b>। ওটা শুধু বলে "কিছু একটা জমছে"। কী জমছে, সেটা বলবে পরের command গুলো।</p>
+    </div>
+
+    <p><b>এবার <code>dmesg | tail</code> — kernel নিজে কী বলছে:</b></p>
+    <div class="out">
+      <div class="out-bar">output — শান্ত system</div>
+<pre>[    3.881092] systemd[1]: Started Journal Service.
+[    4.120441] EXT4-fs (vda1): mounted filesystem with ordered data mode
+[   12.339018] eth0: Link is Up - 1Gbps/Full</pre>
+      <div class="note-line">এখানে শুধু boot-এর সাধারণ বার্তা — কোনো সমস্যা নেই।</div>
+    </div>
+
+    <p>কিন্তু যদি এরকম কিছু দেখো, তাহলে আর কিছু দেখার দরকারই নেই:</p>
+    <div class="out">
+      <div class="out-bar">output — সমস্যা আছে</div>
+<pre>[91234.5] <b>Out of memory: Killed process 84005 (stress-ng-vm)</b>
+[91235.1] <b>TCP: out of memory -- consider tuning tcp_mem</b>
+[91240.7] <b>EXT4-fs error (device vda1): ext4_find_entry: reading directory lblock 0</b></pre>
+      <div class="note-line">OOM killer, TCP-র memory শেষ, filesystem-এর error — তিনটেই গুরুতর।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">dmesg সবার আগে চালানোর কারণ</div>
+      <p>বাকি সব tool <b>সংখ্যা</b> দেয়, যেগুলো তোমাকে ব্যাখ্যা করতে হয়। কিন্তু <code>dmesg</code> দেয় <b>বাক্য</b> — kernel সরাসরি বলে দেয় কী সমস্যা হয়েছে। সমস্যাটা যদি এখানেই লেখা থাকে, তাহলে বাকি তদন্তের দরকারই নেই।</p>
+      <p>নতুন system-এ <code>dmesg -T</code> চালাও — তাতে ঐ <code>[91234.5]</code>-এর বদলে আসল তারিখ-সময় দেখাবে।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 2 — CPU</h3>
+
+  <!-- STEP 3 -->
+  <div class="step" data-n="3">
+    <h4>vmstat — এক নজরে সবকিছু</h4>
+    <p class="obj">লক্ষ্য: একটা command থেকে CPU, memory আর I/O তিনটেরই খবর নেওয়া।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ vmstat 1</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ <b>r</b>  b   swpd   <b>free</b>   buff  cache   <b>si</b>   <b>so</b>    bi    bo   in   cs <b>us</b> <b>sy</b> <b>id</b> <b>wa</b> st
+ 0  0      0 3125644  98304 412008    0    0     3    18   52  104  1  1 98  0  0
+ 0  0      0 3125388  98304 412008    0    0     0     0   61  118  0  1 99  0  0</pre>
+      <div class="note-line"><b>প্রথম লাইনটা বাদ দাও</b> — ওটা boot থেকে এ পর্যন্ত গড়। আসল তথ্য দ্বিতীয় লাইন থেকে।</div>
+    </div>
+
+    <table>
+      <tr><th>ঘর</th><th>মানে</th><th>কখন চিন্তার</th></tr>
+      <tr><td><code>r</code></td><td>CPU-র জন্য অপেক্ষারত process</td><td>core সংখ্যার <b>বেশি</b> হলে CPU-তে জট</td></tr>
+      <tr><td><code>b</code></td><td>I/O-র জন্য আটকে থাকা process</td><td>ধারাবাহিকভাবে শূন্যের বেশি হলে disk-এ সমস্যা</td></tr>
+      <tr><td><code>free</code></td><td>খালি RAM (KB)</td><td>খুব কম — তবে নিচের note দেখো</td></tr>
+      <tr><td><code>si</code> / <code>so</code></td><td>Swap ভেতরে / বাইরে</td><td><b>শূন্যের বেশি হলেই</b> RAM শেষ</td></tr>
+      <tr><td><code>us</code></td><td>User CPU %</td><td>বেশি = application-এর কাজ</td></tr>
+      <tr><td><code>sy</code></td><td>System (kernel) CPU %</td><td>২০%-এর বেশি = kernel-এ অস্বাভাবিক চাপ</td></tr>
+      <tr><td><code>wa</code></td><td>I/O-র অপেক্ষায় CPU %</td><td>বেশি = disk বা network আটকাচ্ছে</td></tr>
+      <tr><td><code>st</code></td><td>Hypervisor কেড়ে নিয়েছে</td><td>VM-এ শূন্যের বেশি = host-এ ভিড়</td></tr>
+    </table>
+
+    <div class="box confuse">
+      <div class="box-t">free কম দেখেই ভয় পেয়ো না</div>
+      <p>Linux খালি RAM-কে <b>অপচয়</b> মনে করে — তাই যতটা পারে file cache দিয়ে ভরে রাখে। <code>free</code> কম কিন্তু <code>cache</code> বেশি মানে system সুস্থ, কারণ cache দরকার হলেই ছেড়ে দেওয়া যায়।</p>
+      <p>RAM সত্যিই শেষ হয়েছে কিনা বোঝার আসল সূচক <code>free</code> নয় — <b><code>si</code> আর <code>so</code></b>। ওগুলো শূন্যের বেশি মানে system RAM-এর অভাবে disk-কে RAM হিসেবে ব্যবহার করছে, যেটা হাজার গুণ ধীর।</p>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">us বনাম sy — দুটো আলাদা রোগ</div>
+      <p><code>us</code> বেশি মানে তোমার application নিজে হিসেব করছে — স্বাভাবিক, যদি সে হিসেবের কাজই করে থাকে।</p>
+      <p>কিন্তু <code>sy</code> বেশি মানে kernel অস্বাভাবিক খাটছে। সাধারণ কারণ — অতিরিক্ত system call, ছোট ছোট অজস্র I/O, বা context switch-এর ঝড়। Scenario 3-এ আমরা ইচ্ছে করে এটা ঘটাবো।</p>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step" data-n="4">
+    <h4>Scenario 1 — CPU-তে চাপ</h4>
+    <p class="obj">লক্ষ্য: সব core ১০০% করে দেখা কোন সংখ্যাগুলো নড়ে।</p>
+
+    <p>দুটো terminal লাগবে। <b>Terminal 1</b>-এ নজরদারি চালু করো:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 1</span><button class="copy">copy</button></div>
+<pre>$ mpstat -P ALL 2</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — চাপের আগে</div>
+<pre>02:31:05 PM  CPU   %usr  %sys %iowait  %idle
+02:31:07 PM  all   0.38  0.25    0.00  <b>99.25</b>
+02:31:07 PM    0   0.50  0.50    0.00   99.00
+02:31:07 PM    1   0.00  0.00    0.00  100.00
+02:31:07 PM    2   0.50  0.00    0.00   99.50
+02:31:07 PM    3   0.50  0.50    0.00   99.00</pre>
+      <div class="note-line">চারটে core-ই প্রায় ১০০% idle।</div>
+    </div>
+
+    <p><b>Terminal 2</b>-এ চাপ দাও — প্রতিটা core-এর জন্য একটা করে process:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 2</span><button class="copy">copy</button></div>
+<pre>$ stress-ng --cpu $(nproc) --timeout 60s --metrics-brief</pre>
+    </div>
+
+    <p>এখন Terminal 1-এ ফিরে দেখো:</p>
+    <div class="out">
+      <div class="out-bar">output — চাপের সময়</div>
+<pre>02:32:11 PM  CPU   %usr  %sys %iowait  %idle
+02:32:13 PM  all  <b>99.75</b>  0.25    0.00   <b>0.00</b>
+02:32:13 PM    0  99.50  0.50    0.00    0.00
+02:32:13 PM    1 100.00  0.00    0.00    0.00
+02:32:13 PM    2  99.50  0.50    0.00    0.00
+02:32:13 PM    3 100.00  0.00    0.00    0.00</pre>
+      <div class="note-line">চারটে core-ই পুরো ব্যস্ত, আর প্রায় পুরোটাই <code>%usr</code> — application-এর নিজের কাজ। <code>%iowait</code> শূন্য, অর্থাৎ disk এখানে জড়িত নয়।</div>
+    </div>
+
+    <p><b>এবার দোষী কে বের করো</b> — তৃতীয় terminal-এ:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 3</span><button class="copy">copy</button></div>
+<pre>$ pidstat 2</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>02:32:15 PM   UID   PID   %usr %system  %CPU   CPU  Command
+02:32:17 PM  1000  8841  <b>99.50</b>    0.00 <b>99.50</b>     1  stress-ng-cpu
+02:32:17 PM  1000  8842  <b>99.50</b>    0.50 <b>100.00</b>    3  stress-ng-cpu
+02:32:17 PM  1000  8843  <b>99.00</b>    0.00 <b>99.00</b>     0  stress-ng-cpu
+02:32:17 PM  1000  8844  <b>100.00</b>   0.00 <b>100.00</b>    2  stress-ng-cpu</pre>
+      <div class="note-line">চারজন অপরাধী, প্রত্যেকে একটা করে core দখল করে বসে আছে।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">%CPU ১০০-র বেশি হতে পারে</div>
+      <p><code>pidstat</code> আর <code>top</code>-এ একটা process-এর <code>%CPU</code> <b>৪০০%</b> দেখাতে পারে — এটা ভুল নয়। ৪ core-এর system-এ সর্বোচ্চ ৪০০% সম্ভব, কারণ একটা multi-threaded process একসাথে কয়েকটা core ব্যবহার করতে পারে।</p>
+      <p>এখানে প্রতিটা <code>stress-ng-cpu</code> single-threaded, তাই কেউ ১০০% ছাড়ায়নি। কিন্তু একটা Java বা nginx process-এ ৩৫০% দেখলে অবাক হয়ো না।</p>
+    </div>
+
+    <p><b>চাপ থামার পরে <code>uptime</code> দেখো:</b></p>
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre> 14:34:02 up 3 days,  2:22,  3 users,  load average: <b>3.71, 1.82, 0.71</b></pre>
+      <div class="note-line">১ মিনিটের সংখ্যাটা সবচেয়ে বড় — Step 2-এর নিয়ম মতো এর মানে চাপটা <b>সদ্য</b> ছিল। আর load কমতে সময় লাগে, সাথে সাথে শূন্য হয় না।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">এই তিনটে ধাপই আসল পদ্ধতি</div>
+      <p>খেয়াল করো কী করলাম — <code>mpstat</code> দিয়ে জানলাম <b>CPU-ই সমস্যা</b> আর <code>%usr</code>-এ চাপ; তারপর <code>pidstat</code> দিয়ে জানলাম <b>কোন process</b>। মোটা দাগ থেকে সূক্ষ্ম দিকে — performance তদন্তের পুরো কাজটাই এই ছাঁচে চলে।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 3 — Memory আর OOM killer</h3>
+
+  <!-- STEP 5 -->
+  <div class="step" data-n="5">
+    <h4>free -m পড়া</h4>
+    <p class="obj">লক্ষ্য: "খালি RAM" আর "পাওয়া যাবে এমন RAM" — পার্থক্যটা বোঝা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ free -m</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>               total   used   <b>free</b>  shared  buff/cache  <b>available</b>
+Mem:            3936    612    <b>489</b>      12        2835       <b>3021</b>
+Swap:           2047      0   2047</pre>
+    </div>
+
+    <p>Chapter 07-এ নিয়মটা পড়েছ — <b><code>free</code> নয়, <code>available</code> দেখো</b>। উপরের output-এ <code>free</code> মাত্র 489 MB কিন্তু <code>available</code> 3021 MB, আর system একদম সুস্থ, কারণ <code>buff/cache</code>-এর 2835 MB দরকার হলেই ছেড়ে দেওয়া যায়।</p>
+
+    <div class="box confuse">
+      <div class="box-t">তাহলে RAM সত্যিই শেষ হয়েছে কিনা বুঝব কীভাবে</div>
+      <p>এখানেই <code>free -m</code>-এর সীমা। সে একটা <b>স্থিরচিত্র</b> দেখায় — এই মুহূর্তে কত আছে। কিন্তু <code>available</code> কমে আসাটা নিজে থেকে সংকট নয়; সংকট হলো system যখন RAM জোগাড় করতে <b>পরিশ্রম</b> শুরু করে।</p>
+      <p>সেই পরিশ্রমটা <code>free</code>-তে দেখা যায় না, দেখা যায় <code>vmstat</code>-এর <b><code>si</code>/<code>so</code></b> ঘরে — অর্থাৎ প্রতি সেকেন্ডে কতটা swap-এ আসা-যাওয়া হচ্ছে।</p>
+      <table>
+        <tr><th>দেখছ</th><th>মানে</th></tr>
+        <tr><td><code>available</code> কম, <code>si</code>/<code>so</code> শূন্য</td><td>ঠিক আছে — cache ভরা, চাইলেই ছাড়বে</td></tr>
+        <tr><td><code>available</code> কম, <code>si</code>/<code>so</code> শূন্যের বেশি</td><td><b>এখন সমস্যা</b> — disk-কে RAM বানিয়ে চালাচ্ছে</td></tr>
+      </table>
+      <p>এজন্যই memory-র তদন্তে <code>free -m</code> শেষ কথা নয়, শুরুর কথা। পরের step-এ দুটোই পাশাপাশি চালিয়ে পার্থক্যটা দেখব।</p>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">Swap ব্যবহার হওয়া মানেই সমস্যা নয়</div>
+      <p><code>Swap: used</code> শূন্যের বেশি দেখলেই আতঙ্কিত হয়ো না। Linux অনেক সময় বহুক্ষণ ধরে অব্যবহৃত page গুলো আগেভাগেই swap-এ পাঠিয়ে RAM খালি রাখে — এটা বুদ্ধিমানের কাজ।</p>
+      <p>আসল সমস্যা হলো <b>swap-এ ক্রমাগত আসা-যাওয়া</b>, যেটা <code>vmstat</code>-এর <code>si</code>/<code>so</code> ঘরে ধরা পড়ে। Swap-এ কিছু জমে থাকা এক জিনিস, আর প্রতি সেকেন্ডে swap-এ লেখালেখি হওয়া সম্পূর্ণ আরেক জিনিস।</p>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step" data-n="6">
+    <h4>Scenario 2 — RAM ভরে OOM killer ডেকে আনা</h4>
+    <p class="obj">লক্ষ্য: RAM শেষ হলে kernel কী করে, নিজের চোখে দেখা।</p>
+
+    <p><b>Terminal 1</b>-এ নজর রাখো:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 1</span><button class="copy">copy</button></div>
+<pre>$ vmstat 1</pre>
+    </div>
+
+    <p><b>Terminal 2</b> — প্রথমে ভদ্রভাবে, ৮০% RAM:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 2</span><button class="copy">copy</button></div>
+<pre>$ stress-ng --vm 1 --vm-bytes 80% --vm-keep --timeout 45s</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — vmstat-এ যা দেখবে</div>
+<pre> r  b   swpd    free   buff  cache   <b>si</b>   <b>so</b>    bi    bo  us sy id wa
+ 1  0      0  <b>512440</b>  98304 412008    0    0     0     0  25  3 72  0
+ 1  0  <b>24576</b>  <b>198220</b>  98304 180044   <b>0</b>  <b>412</b>     0   103  28  9 63  0
+ 1  0  <b>98304</b>   <b>88156</b>  42108  92016 <b>196</b>  <b>884</b>    49   221  31 14 55  0</pre>
+      <div class="note-line"><code>free</code> নামছে, <code>cache</code>-ও কমছে (kernel cache ছেড়ে দিয়ে জায়গা করছে), আর <code>si</code>/<code>so</code> শূন্য থেকে উঠে আসছে — <b>এটাই RAM ফুরানোর আসল লক্ষণ</b>।</div>
+    </div>
+
+    <p>এবার সীমা ছাড়িয়ে যাও — দুটো process, প্রত্যেকে ৯৫%:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 2</span><button class="copy">copy</button></div>
+<pre>$ stress-ng --vm 2 --vm-bytes 95% --timeout 60s</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — stress-ng নিজেই বলবে</div>
+<pre>stress-ng: info:  [9102] dispatching hogs: 2 vm
+stress-ng: error: [9104] <b>stress-ng-vm: gave up trying to allocate</b>
+stress-ng: info:  [9102] <b>unsuccessful run completed</b></pre>
+      <div class="note-line">দুটো process মিলে ১৯০% RAM চাইছে, যেটা দেওয়া অসম্ভব। কেউ একজন মারা পড়বে।</div>
+    </div>
+
+    <p><b>এবার প্রমাণ খোঁজো — kernel-এর log-এ:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo dmesg -T | grep -i -A2 "out of memory"</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — OOM killer-এর স্বাক্ষর</div>
+<pre>[Mon Mar  2 14:41:07 2026] <b>Out of memory: Killed process 9104 (stress-ng-vm)</b>
+  total-vm:3985412kB, anon-rss:<b>3812008kB</b>, file-rss:0kB, shmem-rss:0kB,
+  UID:1000 pgtables:7648kB oom_score_adj:0
+[Mon Mar  2 14:41:07 2026] oom_reaper: reaped process 9104 (stress-ng-vm),
+  now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB</pre>
+      <div class="note-line"><code>anon-rss:3812008kB</code> — ঐ process ৩.৮ GB দখল করেছিল। <code>oom_reaper</code> এসে সেটা পুরো ছাড়িয়ে নিয়েছে।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">OOM killer কাকে মারবে সেটা ঠিক করে কীভাবে</div>
+      <p>সে সবচেয়ে বড় process-কে মারে না, আর যে RAM চেয়েছে তাকেও না। প্রতিটা process-এর একটা <code>oom_score</code> থাকে — মূলত কে কত RAM দখল করে আছে তার উপর ভিত্তি করে। সবচেয়ে বেশি score যার, সে যায়।</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># কোন process সবচেয়ে ঝুঁকিতে</span>
+$ for p in /proc/[0-9]*; do
+&gt;   printf "%s %s\n" "$(cat $p/oom_score 2&gt;/dev/null)" "$(cat $p/comm 2&gt;/dev/null)"
+&gt; done | sort -rn | head -5</pre>
+      </div>
+      <p>এর বাস্তব ফল নিষ্ঠুর — তোমার database সবচেয়ে বেশি RAM নেয় বলে <b>সে-ই সবার আগে মরে</b>, যদিও দোষটা ছিল অন্য কোনো process-এর। জরুরি service-কে বাঁচাতে তার <code>oom_score_adj</code> কমিয়ে রাখা যায় (<code>-1000</code> মানে কখনো মারবে না)।</p>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">Application "কারণ ছাড়াই" মরে গেলে এখানেই দেখো</div>
+      <p>OOM killer-এর মৃত্যুদণ্ড application-এর নিজের log-এ <b>কোনো চিহ্ন রাখে না</b> — সে SIGKILL পায়, তাই কিছু লেখার সুযোগই পায় না। Container হঠাৎ restart নিলে বা service রাতে মরে গেলে সবার আগে <code>dmesg | grep -i "out of memory"</code> চালাও।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 4 — Disk আর Network</h3>
+
+  <!-- STEP 7 -->
+  <div class="step" data-n="7">
+    <h4>Scenario 3 — Disk-এ চাপ</h4>
+    <p class="obj">লক্ষ্য: <code>iostat</code> পড়া, আর "ব্যস্ত" বনাম "ধীর" পার্থক্য করা।</p>
+
+    <p><b>Terminal 1</b>-এ:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 1</span><button class="copy">copy</button></div>
+<pre>$ iostat -xz 2</pre>
+    </div>
+
+    <p><b>Terminal 2</b>-এ চাপ দাও:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 2</span><button class="copy">copy</button></div>
+<pre>$ stress-ng --io 4 --timeout 60s --metrics-brief</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — চাপের সময়</div>
+<pre>avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           1.25    0.00   <b>38.40</b>    <b>9.85</b>    0.00   50.50
+
+Device    r/s     w/s   rkB/s    wkB/s  r_await  <b>w_await</b>  aqu-sz  <b>%util</b>
+vda      0.00  <b>1842.50</b>    0.00   7370.0     0.00     <b>0.52</b>    0.96  <b>99.60</b></pre>
+      <div class="note-line">তিনটে জিনিস একসাথে ঘটছে — <code>%util</code> প্রায় ১০০, <code>%system</code> অস্বাভাবিক বেশি, আর <code>w/s</code> বিশাল কিন্তু <code>wkB/s</code> তুলনায় ছোট।</div>
+    </div>
+
+    <table>
+      <tr><th>ঘর</th><th>মানে</th><th>কখন চিন্তার</th></tr>
+      <tr><td><code>r/s</code>, <code>w/s</code></td><td>সেকেন্ডে কতবার পড়া/লেখা</td><td>সংখ্যাটা বড় হলেই খারাপ নয়</td></tr>
+      <tr><td><code>rkB/s</code>, <code>wkB/s</code></td><td>সেকেন্ডে কত KB</td><td>disk-এর সীমার কাছে গেলে</td></tr>
+      <tr><td><code>r_await</code>, <code>w_await</code></td><td>গড়ে কত ms অপেক্ষা</td><td><b>সবচেয়ে জরুরি ঘর</b> — SSD-তে ১০ms+ মানে সমস্যা</td></tr>
+      <tr><td><code>aqu-sz</code></td><td>অপেক্ষমাণ অনুরোধের সারি</td><td>বড় = জট লেগেছে</td></tr>
+      <tr><td><code>%util</code></td><td>disk কত শতাংশ সময় ব্যস্ত</td><td>১০০ = ব্যস্ত, কিন্তু নিচের note দেখো</td></tr>
+    </table>
+
+    <div class="box confuse">
+      <div class="box-t">%util ১০০% মানে disk শেষ নয়</div>
+      <p>এটা পুরোনো ঘোরানো disk-এর যুগের হিসেব, যখন disk একসাথে একটাই কাজ করতে পারত। আধুনিক SSD আর NVMe <b>সমান্তরালে</b> বহু অনুরোধ সামলায় — তাই <code>%util</code> ১০০% দেখেও তার আরও অনেক ক্ষমতা বাকি থাকতে পারে।</p>
+      <p>Disk সত্যিই আটকে আছে কিনা বোঝার আসল সূচক <b><code>w_await</code>/<code>r_await</code></b> — অর্থাৎ অপেক্ষার সময়। উপরের output-এ <code>w_await</code> মাত্র <code>0.52ms</code>, অর্থাৎ disk দ্রুতই সাড়া দিচ্ছে। সে ব্যস্ত, কিন্তু কাবু হয়নি।</p>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">এখানে আসল দোষী disk নয়</div>
+      <p><code>%system</code> ৩৮% দেখেছ? <code>stress-ng --io</code> অজস্র <b>ছোট ছোট</b> লেখা পাঠাচ্ছে — তাই প্রতি সেকেন্ডে ১৮০০+ operation, অথচ মোট data মাত্র ৭ MB/s।</p>
+      <p>এখানে সময়টা নষ্ট হচ্ছে disk-এ নয়, <b>kernel-এ</b> — প্রতিটা অনুরোধ সামলানোর খরচে। বাস্তবে এই ছাঁচটা দেখলে বুঝবে application ছোট ছোট write করছে, আর সমাধান হলো সেগুলো জড়ো করে (buffer) একসাথে পাঠানো — বড় disk কেনা নয়।</p>
+    </div>
+
+    <p><b>কোন process দায়ী, দেখতে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo apt install -y iotop
+$ sudo iotop -o</pre>
+    </div>
+    <div class="note-line"><code>-o</code> দিলে শুধু যারা সত্যিই I/O করছে তাদের দেখায় — বাকি শত শত নিষ্ক্রিয় process লুকিয়ে থাকে।</div>
+  </div>
+
+  <!-- STEP 8 -->
+  <div class="step" data-n="8">
+    <h4>Scenario 4 — Network</h4>
+    <p class="obj">লক্ষ্য: throughput মাপা, আর retransmission-এর মানে বোঝা।</p>
+
+    <p><b>Terminal 1</b>-এ:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 1</span><button class="copy">copy</button></div>
+<pre>$ sar -n DEV 1</pre>
+    </div>
+
+    <p><b>Terminal 2</b>-এ একটা server চালু করো, <b>Terminal 3</b>-এ তার দিকে traffic পাঠাও:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 2</span><button class="copy">copy</button></div>
+<pre>$ iperf3 -s -p 5001</pre>
+    </div>
+    <div class="code">
+      <div class="code-bar"><span>bash — terminal 3</span><button class="copy">copy</button></div>
+<pre>$ iperf3 -c localhost -p 5001 -t 30 -P 4</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — sar -n DEV 1</div>
+<pre>02:55:14 PM  IFACE  rxpck/s  txpck/s   <b>rxkB/s</b>    <b>txkB/s</b>
+02:55:15 PM     lo  <b>82441</b>    <b>82441</b> <b>3925180</b>  <b>3925180</b>
+02:55:15 PM   eth0      2.00     1.00      0.18     0.14</pre>
+      <div class="note-line"><code>lo</code> (loopback) দিয়ে ৩.৯ GB/s — কারণ data কখনো নেটওয়ার্ক card-এ যাচ্ছেই না, শুধু RAM-এর ভেতরে ঘুরছে।</div>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">localhost দিয়ে network-এর গতি মাপা যায় না</div>
+      <p>উপরের সংখ্যাটা তোমার network-এর ক্ষমতা নয় — ওটা RAM-এর গতি। আসল network মাপতে <code>iperf3 -c &lt;অন্য machine-এর IP&gt;</code> লাগবে।</p>
+      <p>তুলনার জন্য মনে রাখো: <b>1 Gbps ≈ 125,000 kB/s</b>, আর <b>10 Gbps ≈ 1,250,000 kB/s</b>। <code>sar</code>-এর সংখ্যাটা এর কাছাকাছি গেলে বুঝবে তার সীমায় পৌঁছেছ।</p>
+    </div>
+
+    <p><b>এবার TCP-র স্বাস্থ্য দেখো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sar -n TCP,ETCP 1</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>02:56:20 PM  active/s passive/s    iseg/s    oseg/s
+02:56:21 PM     4.00      4.00  41220.00  41219.00
+
+02:56:20 PM  atmptf/s  estres/s  <b>retrans/s</b>  isegerr/s
+02:56:21 PM      0.00      0.00       <b>0.00</b>       0.00</pre>
+    </div>
+
+    <table>
+      <tr><th>ঘর</th><th>মানে</th><th>কখন চিন্তার</th></tr>
+      <tr><td><code>active/s</code></td><td>নিজে থেকে করা connection</td><td>হঠাৎ বেড়ে গেলে</td></tr>
+      <tr><td><code>passive/s</code></td><td>বাইরে থেকে আসা connection</td><td>খুব বেশি = ভিড় বা আক্রমণ</td></tr>
+      <tr><td><code>retrans/s</code></td><td>আবার পাঠাতে হয়েছে</td><td><b>শূন্যের বেশি হলেই</b> খোঁজ নাও</td></tr>
+    </table>
+
+    <div class="box tip">
+      <div class="box-t">retrans/s কেন সবচেয়ে জরুরি ঘর</div>
+      <p>Retransmission মানে পাঠানো data পৌঁছায়নি, তাই আবার পাঠাতে হয়েছে। TCP এটা নিজে সামলে নেয়, তাই application কোনো error দেখে না — শুধু <b>সবকিছু ধীর হয়ে যায়</b>।</p>
+      <p>এজন্যই "কারণ ছাড়াই application slow" জাতীয় সমস্যায় এই ঘরটা সোনার খনি। শূন্যের বেশি মানে কোথাও packet হারাচ্ছে — কেবল, switch, বা মাঝের কোনো firewall।</p>
+    </div>
+
+    <p><b>কে কোন port-এ বসে আছে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ss -tulnp | head</pre>
+    </div>
+    <div class="note-line"><code>-p</code> দিয়ে process-এর নাম দেখতে <code>sudo</code> লাগবে, নাহলে শুধু port দেখাবে।</div>
+  </div>
+
+  <h3>পুরো ব্যাপারটা এক নজরে</h3>
+  <p>এই lab-এর আসল ফসল কোনো একটা command নয় — এই সিদ্ধান্তের গাছটা। "Server slow" শুনলে এই পথে হাঁটো:</p>
+
+  <div class="out">
+    <div class="out-bar">Bottleneck খোঁজার পথ</div>
+<pre>"Server slow"
+     │
+     ▼
+<b>dmesg -T | tail</b>  ── kernel কিছু বলছে? ──→ OOM / I/O error → সেটাই উত্তর
+     │ চুপ
+     ▼
+<b>vmstat 1</b>  ─── একটাই command, চার দিকে ইঙ্গিত
+     │
+     ├─ <b>r</b> &gt; core সংখ্যা ────────→ CPU-তে জট
+     │                              <b>mpstat -P ALL 1</b> (সব core, না একটা?)
+     │                              <b>pidstat 1</b>      (কোন process?)
+     │
+     ├─ <b>si/so</b> &gt; 0 ──────────────→ RAM শেষ, swap চলছে
+     │                              <b>free -m</b>  (available দেখো, free নয়)
+     │                              <b>dmesg | grep -i "out of memory"</b>
+     │
+     ├─ <b>wa</b> বেশি, <b>b</b> &gt; 0 ─────────→ I/O-তে আটকে
+     │                              <b>iostat -xz 1</b> (await দেখো, %util নয়)
+     │                              <b>iotop -o</b>      (কোন process?)
+     │
+     └─ সব স্বাভাবিক, তবু slow ──→ network দেখো
+                                    <b>sar -n DEV 1</b>       (throughput)
+                                    <b>sar -n TCP,ETCP 1</b>  (retrans/s &gt; 0?)</pre>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">তিনটে ভুল যা এই lab-এ ভাঙা হলো</div>
+    <table>
+      <tr><th>যা মনে হয়</th><th>আসলে</th></tr>
+      <tr><td>load average বেশি = CPU-র সমস্যা</td><td>Linux-এ disk-এ আটকে থাকা process-ও গোনা হয়</td></tr>
+      <tr><td><code>free</code> কম = RAM শেষ</td><td><code>available</code> দেখো; আসল লক্ষণ <code>si</code>/<code>so</code></td></tr>
+      <tr><td><code>%util</code> ১০০% = disk শেষ</td><td>SSD-তে অর্থহীন; <code>await</code> দেখো</td></tr>
+    </table>
+    <p>তিনটেরই মূল কথা এক — <b>একটা সংখ্যা দেখে সিদ্ধান্ত নিয়ো না</b>। প্রতিটা উপসর্গের পাশে আরেকটা সংখ্যা দিয়ে মিলিয়ে নাও।</p>
+  </div>
+
+  <h3>নিজে করো — Challenge</h3>
+  <ol>
+    <li>একটা <b>একক</b> CPU-খেকো process চালাও (<code>stress-ng --cpu 1</code>), তারপর <code>mpstat -P ALL 1</code> দেখে বলো কোন core-এ পড়েছে। কিছুক্ষণ পরে আবার দেখো — সে কি একই core-এ আছে?</li>
+    <li><code>fio</code> দিয়ে disk-এর আসল গতি মাপো, তারপর <code>iostat</code>-এ <code>await</code> কত ওঠে দেখো। (ইঙ্গিত: <code>fio --name=t --rw=randwrite --size=256M --bs=4k</code>)</li>
+    <li>একটা process-কে OOM killer-এর হাত থেকে বাঁচাও, তারপর RAM ভরে প্রমাণ করো সে বেঁচে গেছে। (ইঙ্গিত: <code>oom_score_adj</code>)</li>
+    <li><code>sar</code>-এর জমানো তথ্য থেকে আজ সবচেয়ে ব্যস্ত সময়টা বের করো। (ইঙ্গিত: <code>sar -u</code>)</li>
+  </ol>
+
+  <details class="solve">
+    <summary>সমাধান দেখো</summary>
+    <div class="sbody">
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — এক core-এ চাপ</span>
+$ stress-ng --cpu 1 --timeout 60s &amp;
+$ mpstat -P ALL 2</pre>
+      </div>
+      <div class="out">
+        <div class="out-bar">output</div>
+<pre>CPU   %usr  %sys  %idle
+all  25.06  0.19  74.75      <span class="o">← মোট ২৫% = ৪ core-এর ১টা</span>
+  0   0.50  0.00  99.50
+  1 <b>99.50</b>  0.50   0.00      <span class="o">← এখন এখানে</span>
+  2   0.00  0.50  99.50
+  3   0.50  0.00  99.50</pre>
+      </div>
+      <p>কিছুক্ষণ পরে দেখলে process-টা প্রায়ই <b>অন্য core-এ</b> সরে গেছে — kernel-এর scheduler তাপ আর ভার সামলাতে process সরিয়ে নেয়। এজন্যই <code>mpstat -P ALL</code>-এ একটা core স্থায়ীভাবে ১০০% দেখলে সেটা অস্বাভাবিক; সাধারণত চাপ ঘুরে বেড়ায়।</p>
+      <p>আর <code>all</code> সারিতে ২৫% দেখে "system-এ চাপ নেই" ভেবো না — ৪ core-এর একটা পুরো শেষ, আর single-threaded application-এর জন্য সেটাই সীমা।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ২ — disk-এর আসল গতি</span>
+$ fio --name=t --rw=randwrite --size=256M --bs=4k \
+      --ioengine=libaio --iodepth=16 --direct=1 --runtime=30 --time_based</pre>
+      </div>
+      <div class="out">
+        <div class="out-bar">output (সংক্ষেপে)</div>
+<pre>write: IOPS=<b>18.2k</b>, BW=<b>71.1MiB/s</b>
+  lat (usec): min=41, avg=<b>872.15</b>, max=21044
+  clat percentiles (usec):
+     | 50.00th=[  742], <b>99.00th=[ 2114]</b>, 99.99th=[14012]</pre>
+      </div>
+      <p><code>--direct=1</code> জরুরি — নাহলে লেখাগুলো page cache-এ গিয়ে বসবে আর তুমি RAM-এর গতি মাপবে, disk-এর নয়।</p>
+      <p>গড় (<code>avg</code>) নয়, <b>percentile</b> দেখো। ৫০% অনুরোধ ৭৪২µs-এ শেষ, কিন্তু ১% লেগেছে ২১১৪µs-এর বেশি — ঐ ধীর ১%-ই বাস্তবে ব্যবহারকারীর অভিযোগ হয়ে ফেরে।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ৩ — OOM থেকে বাঁচানো</span>
+$ sleep 600 &amp;
+$ PID=$!
+$ echo $PID
+
+<span class="c"># default score দেখো</span>
+$ cat /proc/$PID/oom_score_adj
+<span class="o">0</span>
+
+<span class="c"># অস্পৃশ্য করে দাও</span>
+$ echo -1000 | sudo tee /proc/$PID/oom_score_adj
+$ cat /proc/$PID/oom_score
+<span class="o">0</span>          <span class="c"># score শূন্য — কখনো মারবে না</span></pre>
+      </div>
+      <p><code>oom_score_adj</code>-এর সীমা <code>-1000</code> থেকে <code>+1000</code>। <code>-1000</code> মানে "একে কখনো মেরো না", <code>+1000</code> মানে "দরকার হলে একেই আগে মারো"।</p>
+      <p>বাস্তবে database বা মূল service-কে <code>-500</code>-এর মতো কিছু দেওয়া হয়, আর যেসব কাজ আবার চালানো যায় (batch job, cache) সেগুলোকে ধনাত্মক মান — যাতে সংকটে সেগুলোই আগে যায়। systemd service-এ এটা বসে <code>OOMScoreAdjust=</code> দিয়ে।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ৪ — আজকের ইতিহাস</span>
+$ sar -u | head -20
+$ sar -u | sort -k8 -n | head -3    <span class="c"># সবচেয়ে কম %idle = সবচেয়ে ব্যস্ত</span>
+$ sar -r | tail -5                  <span class="c"># memory-র ইতিহাস</span>
+$ sar -n DEV -f /var/log/sysstat/sa02 | grep eth0 | head</pre>
+      </div>
+      <p>এটাই Step 1-এ <code>systemctl enable sysstat</code> করার ফল। ঘটনা ঘটে যাওয়ার পরে তদন্ত করতে হলে — যেটা বাস্তবে প্রায় সবসময়ই হয় — এই জমানো তথ্যই একমাত্র সাক্ষী।</p>
+    </div>
+  </details>
+
+  <h3>Command গুলো এক নজরে</h3>
+  <table>
+    <tr><th>Command</th><th>কাজ</th></tr>
+    <tr><td><code>uptime</code></td><td>load average — ১, ৫, ১৫ মিনিটের গড়</td></tr>
+    <tr><td><code>dmesg -T | tail</code></td><td>kernel-এর সাম্প্রতিক বার্তা, আসল সময় সহ</td></tr>
+    <tr><td><code>vmstat 1</code></td><td>CPU, memory, I/O — এক নজরে</td></tr>
+    <tr><td><code>mpstat -P ALL 1</code></td><td>প্রতিটা core আলাদা করে</td></tr>
+    <tr><td><code>pidstat 1</code></td><td>কোন process কত CPU খাচ্ছে</td></tr>
+    <tr><td><code>pidstat -d 1</code></td><td>কোন process কত disk I/O করছে</td></tr>
+    <tr><td><code>iostat -xz 1</code></td><td>disk-এর বিস্তারিত — <code>await</code> দেখো</td></tr>
+    <tr><td><code>free -m</code></td><td>RAM — <code>available</code> ঘরটা দেখো</td></tr>
+    <tr><td><code>sar -n DEV 1</code></td><td>network interface-এর throughput</td></tr>
+    <tr><td><code>sar -n TCP,ETCP 1</code></td><td>TCP connection আর retransmission</td></tr>
+    <tr><td><code>sar -u</code></td><td>আজকের জমানো CPU ইতিহাস</td></tr>
+    <tr><td><code>iotop -o</code></td><td>কোন process সত্যিই disk ব্যবহার করছে</td></tr>
+    <tr><td><code>ss -tulnp</code></td><td>কে কোন port-এ বসে আছে</td></tr>
+    <tr><td><code>stress-ng --cpu N</code></td><td>N-টা core-এ চাপ দাও</td></tr>
+    <tr><td><code>stress-ng --vm N --vm-bytes 80%</code></td><td>RAM ভরো</td></tr>
+    <tr><td><code>stress-ng --io N</code></td><td>disk-এ চাপ দাও</td></tr>
+  </table>
+
+  <h3>আটকে গেলে</h3>
+  <table>
+    <tr><th>সমস্যা</th><th>কী হয়েছে / কী করবে</th></tr>
+    <tr><td><code>mpstat: command not found</code></td><td><code>sudo apt install -y sysstat</code> — <code>mpstat</code>, <code>pidstat</code>, <code>iostat</code>, <code>sar</code> সবই ঐ package-এ।</td></tr>
+    <tr><td><code>sar</code> বলছে "Cannot open /var/log/sysstat/..."</td><td>এখনো কোনো তথ্য জমেনি। <code>sudo systemctl enable --now sysstat</code> চালিয়ে ১০ মিনিট অপেক্ষা করো।</td></tr>
+    <tr><td><code>vmstat</code>-এর প্রথম লাইনটা অদ্ভুত</td><td>ওটা boot থেকে এ পর্যন্ত গড় — সবসময় বাদ দাও, দ্বিতীয় লাইন থেকে পড়ো।</td></tr>
+    <tr><td>Container-এ সংখ্যাগুলো পুরো host-এর মতো</td><td><code>/proc</code> host-এর সাথে ভাগ করা। Container-এর নিজের হিসেব <code>/sys/fs/cgroup/</code>-এ, বা <code>systemd-cgtop</code> ব্যবহার করো।</td></tr>
+    <tr><td>OOM killer ডাকতে পারছি না</td><td>swap বড় হলে system আগে swap ব্যবহার করবে। <code>sudo swapoff -a</code> দিয়ে বন্ধ করে আবার চেষ্টা করো (পরে <code>swapon -a</code>)।</td></tr>
+    <tr><td><code>iostat</code>-এ কোনো device দেখাচ্ছে না</td><td><code>-z</code> নিষ্ক্রিয় device লুকায়। কিছু VM-এ disk-এর নাম <code>vda</code>/<code>xvda</code> — <code>lsblk</code> দিয়ে দেখো।</td></tr>
+    <tr><td><code>%steal</code> শূন্যের বেশি</td><td>তোমার দোষ নয় — hypervisor CPU কেড়ে নিচ্ছে, host-এ ভিড়। Cloud provider-কে জানাও বা instance বদলাও।</td></tr>
+    <tr><td><code>stress-ng</code> চাপ দিচ্ছে না মনে হচ্ছে</td><td><code>--timeout</code> শেষ হয়ে গেছে কিনা দেখো। <code>--metrics-brief</code> শেষে হিসেব ছাপে, তখন বোঝা যায় সে কাজ করেছিল।</td></tr>
+  </table>
+
+  <h3>পরিষ্কার করে ফেলা (ঐচ্ছিক)</h3>
+  <div class="code">
+    <div class="code-bar"><span>bash — cleanup</span><button class="copy">copy</button></div>
+<pre><span class="c"># কোনো stress-ng এখনো চললে থামাও</span>
+$ pkill stress-ng
+
+<span class="c"># iperf3 server বন্ধ করো (যে terminal-এ চলছে সেখানে Ctrl+C)</span>
+$ pkill iperf3
+
+<span class="c"># fio-র বানানো test file</span>
+$ rm -f t.0.0
+
+<span class="c"># swap বন্ধ করে থাকলে আবার চালু করো</span>
+$ sudo swapon -a
+
+<span class="c"># মিলিয়ে দেখো — সব শান্ত</span>
+$ uptime
+$ vmstat 1 3</pre>
+  </div>
+
+  <div class="box note">
+    <div class="box-t">sysstat চালু রেখে দাও</div>
+    <p>বাকি সব পরিষ্কার করলেও <code>sysstat</code> বন্ধ কোরো না। সে চুপচাপ প্রতি ১০ মিনিটে তথ্য জমাতে থাকবে, আর পরের বার কিছু গোলমাল হলে <code>sar</code> দিয়ে অতীতে ফিরে দেখতে পারবে। খরচ নগণ্য, উপকার বিশাল।</p>
+  </div>
+
+  <div class="check" data-lab="l7">
+    <div class="ct">Lab 7 — চেকলিস্ট</div>
+    <label><input type="checkbox"><span>Tool গুলো install করে <code>sysstat</code> চালু করেছি</span></label>
+    <label><input type="checkbox"><span><code>nproc</code> দিয়ে core সংখ্যা জেনে নিয়েছি</span></label>
+    <label><input type="checkbox"><span>load average-এর তিনটে সংখ্যার দিক পড়তে পারি</span></label>
+    <label><input type="checkbox"><span><code>vmstat</code>-এর <code>r</code>, <code>si/so</code>, <code>wa</code> ঘরগুলো চিনি</span></label>
+    <label><input type="checkbox"><span>CPU-তে চাপ দিয়ে <code>mpstat</code> ও <code>pidstat</code>-এ দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>free</code> আর <code>available</code>-এর পার্থক্য বুঝেছি</span></label>
+    <label><input type="checkbox"><span>OOM killer ডেকে এনে <code>dmesg</code>-এ প্রমাণ পেয়েছি</span></label>
+    <label><input type="checkbox"><span><code>iostat</code>-এ <code>await</code> দেখেছি, শুধু <code>%util</code> নয়</span></label>
+    <label><input type="checkbox"><span><code>sar -n TCP,ETCP</code>-তে <code>retrans/s</code> দেখেছি</span></label>
+    <label><input type="checkbox"><span>সিদ্ধান্তের গাছটা নিজে একবার অনুসরণ করেছি</span></label>
+    <label><input type="checkbox"><span>Challenge গুলো নিজে করেছি</span></label>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">মূল কথা</div>
+    <p>Performance-এর কাজটা tool মুখস্থ করা নয় — <b>বাদ দেওয়ার খেলা</b>। চারটে জায়গা: CPU, memory, disk, network। প্রতিটার জন্য একটা প্রশ্ন আর একটা command। <code>vmstat 1</code> দিয়ে শুরু করলে প্রথম ইঙ্গিতটা এক নজরেই পাওয়া যায়, তারপর সেই দিকেই গভীরে যাও।</p>
+    <p>আর সবচেয়ে জরুরি অভ্যাসটা হলো — <b>সংকটের সময় নয়, শান্ত সময়ে এই সংখ্যাগুলো দেখে রাখা</b>। তোমার system স্বাভাবিক অবস্থায় কেমন দেখায় সেটা জানা না থাকলে, অস্বাভাবিক অবস্থাটা চিনবে কী দিয়ে?</p>
+  </div>
+</section>

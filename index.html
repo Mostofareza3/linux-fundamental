@@ -316,6 +316,92 @@ th{background:var(--surface-2);font-weight:600;font-size:13.5px}
 td code{font-size:.9em}
 
 /* ============================================================
+   COMMAND REFERENCE
+   ============================================================ */
+.ref-intro{
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  margin:0 0 30px;padding:12px 14px;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);
+  font-size:14px;color:var(--muted);
+}
+.ref-intro kbd{
+  font-family:var(--mono);font-size:11.5px;background:var(--surface);
+  border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:5px;
+  padding:2px 6px;color:var(--text-soft);
+}
+
+/* category — collapsible */
+.cat{
+  margin:0 0 14px;border:1px solid var(--border);border-radius:var(--r);
+  background:var(--surface);overflow:hidden;
+}
+.cat > summary{
+  display:flex;align-items:center;gap:11px;
+  padding:14px 16px;cursor:pointer;list-style:none;
+  font-family:var(--bangla);font-size:17px;font-weight:600;color:var(--text);
+  background:var(--surface-2);border-bottom:1px solid transparent;
+}
+.cat > summary::-webkit-details-marker{display:none}
+.cat > summary:hover{color:var(--accent)}
+.cat[open] > summary{border-bottom-color:var(--border)}
+.cat .twist{
+  flex:0 0 auto;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  transform:rotate(-45deg);transition:transform .16s ease;margin-left:2px;
+}
+.cat[open] .twist{transform:rotate(45deg)}
+.cat .cat-n{
+  flex:0 0 auto;font-family:var(--mono);font-size:11px;color:var(--muted);
+  border:1px solid var(--border-strong);border-radius:5px;padding:1px 6px;
+}
+.cat .cat-hint{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
+.cat-body{padding:18px 16px 6px}
+
+/* reference code block — code-bar ছাড়া, শুধু copy */
+.rc{position:relative;margin:0 0 6px}
+.rc pre{
+  margin:0;background:var(--code-bg);color:var(--code-text);
+  border-radius:var(--r);padding:13px 46px 13px 15px;overflow-x:auto;
+  font-family:var(--mono);font-size:13px;line-height:1.95;white-space:pre;
+}
+.rc .copy{position:absolute;top:8px;right:8px;opacity:0;transition:opacity .13s}
+.rc:hover .copy,.rc .copy:focus{opacity:1}
+@media(hover:none){.rc .copy{opacity:.75}}
+.rc pre .c{color:#7E9A8C}            /* comment */
+.rc pre .v{color:#E8C07D;font-style:italic}  /* যে অংশটা বদলাতে হবে */
+
+/* gotcha note — এক লাইন */
+.g{
+  display:flex;gap:9px;align-items:baseline;
+  margin:0 0 16px;padding:9px 12px;
+  background:var(--amber-soft);border-left:3px solid var(--amber);border-radius:0 6px 6px 0;
+  font-size:14.5px;line-height:1.65;color:var(--text-soft);
+}
+.g::before{content:"⚠";flex:0 0 auto;color:var(--amber);font-size:13px;line-height:1.5}
+.g.hard{background:var(--red-soft);border-left-color:var(--red)}
+.g.hard::before{content:"✕";color:var(--red)}
+.g code{background:transparent;padding:0;color:var(--code-inline-text);font-weight:600}
+.g b{color:var(--text)}
+
+/* sub-heading ভেতরে */
+.cat-body h4{
+  margin:26px 0 10px;font-size:14px;font-family:var(--mono);font-weight:500;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+}
+.cat-body h4:first-child{margin-top:0}
+.cat-body > p{font-size:14.5px;color:var(--muted);margin:0 0 12px}
+
+/* flag grid */
+.flagtbl{font-size:14px}
+.flagtbl td:first-child{white-space:nowrap;font-family:var(--mono);width:1%}
+.flagtbl td:nth-child(2){white-space:nowrap;width:1%}
+@media(max-width:640px){
+  .flagtbl{font-size:13px}
+  .flagtbl td,.flagtbl th{padding:7px 8px}
+  .cat-body{padding:14px 11px 4px}
+  .rc pre{font-size:12px}
+}
+
+/* ============================================================
    PREV / NEXT
    ============================================================ */
 .pager{display:flex;gap:14px;margin-top:64px;padding-top:26px;border-top:1px solid var(--border)}
@@ -4013,6 +4099,518 @@ Host prod
   </p>
 </section>
 
+<section class="chapter" id="ref" data-title="Command Reference" data-layer="reference">
+  <div class="ch-head">
+    <div class="ch-meta">
+      <span class="ch-num">Reference</span>
+      <span class="layer-tag">quick lookup</span>
+    </div>
+    <h2>Command Reference</h2>
+    <p class="ch-lede">কাজ করতে গিয়ে আটকে গেলে এখানে এসো। প্রতিটা entry এক লাইনে বলে দেয় command টা কী করে, আর যেখানে বাস্তবে ফাঁদ আছে সেখানে একটা করে সতর্কবার্তা আছে। এটা শেখার জায়গা না — যেটা একবার শিখেছ কিন্তু ভুলে গেছ, সেটা দ্রুত খুঁজে নেওয়ার জায়গা।</p>
+  </div>
+
+  <div class="ref-intro">
+    <span><kbd>/</kbd> চেপে command-এর নাম লিখে খোঁজো</span>
+    <span>·</span>
+    <span>category-র নামে ক্লিক করলে খোলে ও বন্ধ হয়</span>
+    <span>·</span>
+    <span>code block-এ hover করলে copy button আসে</span>
+  </div>
+
+  <!-- ========== 1. FLAG PATTERNS ========== -->
+  <details class="cat" id="ref-flags" open>
+    <summary><span class="twist"></span><span class="cat-n">01</span>Flag-এর common pattern<span class="cat-hint">-a -l -r -f -v -h -i -p -q</span></summary>
+    <div class="cat-body">
+      <p>বেশিরভাগ flag বহু command-এ একই মানে বহন করে। একবার চিনে নিলে অচেনা command-ও আন্দাজ করা যায়। কিন্তু কিছু জায়গায় একই অক্ষরের মানে সম্পূর্ণ বদলে যায় — ডান দিকের ঘরটাই সবচেয়ে দরকারি।</p>
+
+      <table class="flagtbl">
+        <tr><th>Flag</th><th>সাধারণ মানে</th><th>যেখানে একইভাবে চলে</th><th>যেখানে মানে বদলে যায়</th></tr>
+
+        <tr>
+          <td><code>-a</code></td>
+          <td>all</td>
+          <td><code>ls -a</code> lukono file · <code>ps -a</code> · <code>free -h</code></td>
+          <td><b><code>usermod -aG</code></b> — এখানে <code>-a</code> মানে <b>append</b>। বাদ দিলে আগের সব group মুছে যায়</td>
+        </tr>
+
+        <tr>
+          <td><code>-l</code></td>
+          <td>long / list</td>
+          <td><code>ls -l</code> · <code>ps -l</code></td>
+          <td><code>sudo -l</code> = কী কী চালাতে পারি · <code>chage -l</code> = তারিখ দেখাও · <code>wc -l</code> = লাইন গোনো</td>
+        </tr>
+
+        <tr>
+          <td><code>-r</code> / <code>-R</code></td>
+          <td>recursive</td>
+          <td><code>cp -r</code> · <code>rm -r</code> · <code>chmod -R</code> · <code>chown -R</code> · <code>setfacl -R</code></td>
+          <td><b><code>sort -r</code></b> = reverse · <code>grep -r</code> আর <code>-R</code> আলাদা (নিচে দেখো)</td>
+        </tr>
+
+        <tr>
+          <td><code>-f</code></td>
+          <td>force</td>
+          <td><code>rm -f</code> · <code>cp -f</code> · <code>mv -f</code> · <code>ln -sf</code></td>
+          <td><b><code>tar -f</code></b> = filename · <code>ps -f</code> = full format · <code>tail -f</code> = follow · <code>find -type f</code> = file</td>
+        </tr>
+
+        <tr>
+          <td><code>-v</code></td>
+          <td>verbose</td>
+          <td><code>cp -v</code> · <code>rm -v</code> · <code>tar -v</code> · <code>mv -v</code></td>
+          <td><b><code>grep -v</code></b> = উল্টো, যে লাইনে নেই · <code>-V</code> (বড় হাতের) সাধারণত version</td>
+        </tr>
+
+        <tr>
+          <td><code>-h</code></td>
+          <td>human-readable</td>
+          <td><code>ls -lh</code> · <code>df -h</code> · <code>du -h</code> · <code>free -h</code></td>
+          <td>অনেক command-এ <code>-h</code> = help (<code>sort -h</code> কিন্তু human-numeric sort)</td>
+        </tr>
+
+        <tr>
+          <td><code>-i</code></td>
+          <td>interactive</td>
+          <td><code>rm -i</code> · <code>cp -i</code> · <code>mv -i</code> — লেখার আগে জিজ্ঞেস করে</td>
+          <td><b><code>grep -i</code></b> = ছোট-বড় হাতের বাছবিচার নেই · <code>sed -i</code> = file নিজেই বদলাও</td>
+        </tr>
+
+        <tr>
+          <td><code>-p</code></td>
+          <td>preserve / parents</td>
+          <td><code>mkdir -p</code> মাঝের folder সহ · <code>cp -p</code> সময়-permission রাখো</td>
+          <td><code>ps -p PID</code> = ঐ process · <code>ss -p</code> = process দেখাও</td>
+        </tr>
+
+        <tr>
+          <td><code>-q</code></td>
+          <td>quiet</td>
+          <td><code>grep -q</code> · <code>wget -q</code> — script-এ কাজে লাগে</td>
+          <td><code>grep -q</code> কিছু ছাপে না, শুধু exit code দেয় (<code>if</code>-এর জন্য)</td>
+        </tr>
+      </table>
+
+      <div class="g hard"><span><code>-r</code> সবচেয়ে বিপজ্জনক flag। <code>rm -r</code>, <code>chmod -R</code>, <code>chown -R</code> — এগুলো চালানোর আগে path-টা দুবার পড়ো, বিশেষ করে শুরুর <code>/</code> ঠিক জায়গায় আছে কিনা।</span></div>
+
+      <h4>দুটো নিয়ম যা প্রায় সব command-এ খাটে</h4>
+
+      <div class="rc"><button class="copy">copy</button><pre>ls -l -a -h          <span class="c"># আলাদা করে</span>
+ls -lah              <span class="c"># একসাথে — একই জিনিস</span>
+
+rm -- -oddname       <span class="c"># -- এর পরে যা আছে সব argument, flag না</span>
+grep -- "-v" file    <span class="c"># dash দিয়ে শুরু হওয়া জিনিস খুঁজতে</span></pre></div>
+      <div class="g"><span>একসাথে লেখা যায় শুধু <b>argument নেয় না</b> এমন flag গুলো। <code>tar -xzf file.tar.gz</code> চলে কারণ <code>-f</code> সবার শেষে — <code>tar -fxz</code> লিখলে <code>xz</code> কে filename ভাববে।</span></div>
+
+      <h4>Long form — script-এ এটাই লেখো</h4>
+      <div class="rc"><button class="copy">copy</button><pre>rm --recursive --force dir/     <span class="c"># rm -rf</span>
+cp --archive src/ dst/          <span class="c"># cp -a</span>
+grep --invert-match "x" file    <span class="c"># grep -v</span></pre></div>
+      <div class="g"><span>নিজে টাইপ করার সময় short form, কিন্তু <b>script-এ long form</b> — ছয় মাস পরে নিজের লেখা <code>-rf</code> পড়ার চেয়ে <code>--recursive --force</code> পড়া সহজ।</span></div>
+    </div>
+  </details>
+
+  <!-- ========== 2. FILE & DIRECTORY ========== -->
+  <details class="cat" id="ref-file">
+    <summary><span class="twist"></span><span class="cat-n">02</span>File &amp; Directory<span class="cat-hint">ls cp mv rm find ln</span></summary>
+    <div class="cat-body">
+
+      <h4>দেখা ও ঘোরা</h4>
+      <div class="rc"><button class="copy">copy</button><pre>pwd                      <span class="c"># এখন কোথায় আছি</span>
+ls -lah                  <span class="c"># বিস্তারিত + hidden + পড়ার মতো size</span>
+ls -lt                   <span class="c"># সময় অনুযায়ী, নতুন আগে</span>
+ls -lS                   <span class="c"># size অনুযায়ী, বড় আগে</span>
+ls -ld <span class="v">dir</span>               <span class="c"># folder-এর নিজের তথ্য, ভেতরের না</span>
+cd -                     <span class="c"># আগের directory-তে ফেরত</span>
+tree -L 2                <span class="c"># দুই স্তর পর্যন্ত গাছ</span></pre></div>
+      <div class="g"><span><code>ls -ld</code> বনাম <code>ls -l</code> — permission debug করার সময় <b>folder-এর নিজের</b> permission দেখতে <code>-d</code> লাগবেই, নাহলে ভেতরের file দেখাবে।</span></div>
+
+      <h4>বানানো ও মোছা</h4>
+      <div class="rc"><button class="copy">copy</button><pre>mkdir -p <span class="v">a/b/c</span>           <span class="c"># মাঝের folder গুলোও বানিয়ে নেয়</span>
+mkdir -p <span class="v">proj</span>/{src,docs} <span class="c"># একসাথে কয়েকটা</span>
+touch <span class="v">file</span>               <span class="c"># খালি file, বা সময় হালনাগাদ</span>
+rm -r <span class="v">dir</span>                <span class="c"># folder মোছা</span>
+rmdir <span class="v">dir</span>                <span class="c"># শুধু খালি folder — নিরাপদ</span></pre></div>
+      <div class="g hard"><span><code>rm -rf</code> কিছু জিজ্ঞেস করে না, recycle bin নেই, ফেরানো যায় না। চালানোর আগে <code>rm</code>-এর জায়গায় <code>ls</code> বসিয়ে দেখে নাও ঠিক কী ধরা পড়ছে।</span></div>
+      <div class="g"><span>ভুল এড়াতে <code>rmdir</code> ব্যবহার করো যখন folder-টা খালি থাকার কথা — ভেতরে কিছু থাকলে সে আটকে দেবে, <code>rm -r</code> চুপচাপ মুছে দিত।</span></div>
+
+      <h4>কপি ও সরানো</h4>
+      <div class="rc"><button class="copy">copy</button><pre>cp -r <span class="v">src/</span> <span class="v">dst/</span>          <span class="c"># folder কপি</span>
+cp -a <span class="v">src/</span> <span class="v">dst/</span>          <span class="c"># সব গুণ অক্ষত রেখে (backup-এর জন্য)</span>
+cp -i <span class="v">a</span> <span class="v">b</span>                <span class="c"># থাকলে জিজ্ঞেস করবে</span>
+mv <span class="v">old</span> <span class="v">new</span>               <span class="c"># সরানো, আর নাম বদলানো — একই command</span>
+rsync -av <span class="v">src/</span> <span class="v">dst/</span>      <span class="c"># বড় কাজে; থামলে যেখান থেকে শুরু</span></pre></div>
+      <div class="g"><span><code>cp</code> আর <code>mv</code> গন্তব্যে file থাকলে <b>চুপচাপ মুছে দিয়ে লিখে ফেলে</b>। অভ্যাস করো <code>-i</code> দেওয়ার, বা <code>alias cp='cp -i'</code> বসিয়ে নাও।</span></div>
+      <div class="g"><span><code>rsync src/ dst/</code> আর <code>rsync src dst/</code> — শেষের <code>/</code> থাকলে <b>ভেতরের জিনিস</b> যায়, না থাকলে <b>folder টাই</b> যায়। এক অক্ষরে দুই ফল।</span></div>
+
+      <h4>খোঁজা</h4>
+      <div class="rc"><button class="copy">copy</button><pre>find . -name "*.log"              <span class="c"># নাম দিয়ে</span>
+find . -iname "*.LOG"             <span class="c"># ছোট-বড় হাতের বাছবিচার ছাড়া</span>
+find . -type f -mtime -7          <span class="c"># শেষ ৭ দিনে বদলানো file</span>
+find . -type d -name node_modules <span class="c"># শুধু folder</span>
+find . -size +100M                <span class="c"># ১০০ মেগার বেশি</span>
+find . -name "*.tmp" -delete      <span class="c"># খুঁজে মুছে দাও</span>
+find / -nouser 2&gt;/dev/null        <span class="c"># মালিকহীন file</span>
+
+which <span class="v">command</span>                  <span class="c"># command টা কোথায় আছে</span>
+locate <span class="v">filename</span>                 <span class="c"># দ্রুত, কিন্তু database পুরোনো হতে পারে</span></pre></div>
+      <div class="g"><span><code>find</code>-এ pattern সবসময় <b>quote-এর ভেতরে</b> — <code>find . -name *.log</code> লিখলে shell আগেই <code>*</code> ভেঙে ফেলে, আর ফল অদ্ভুত হয়।</span></div>
+      <div class="g hard"><span><code>-delete</code> বা <code>-exec rm</code> লেখার আগে একবার ঐ অংশটা বাদ দিয়ে চালাও — তালিকাটা দেখে নিশ্চিত হও, তারপর মোছো।</span></div>
+
+      <h4>Link</h4>
+      <div class="rc"><button class="copy">copy</button><pre>ln -s <span class="v">/path/to/file</span> <span class="v">link</span>    <span class="c"># symbolic link</span>
+ln -sf <span class="v">/new/target</span> <span class="v">link</span>     <span class="c"># বিদ্যমান link অন্যদিকে ঘোরাও</span>
+readlink -f <span class="v">link</span>             <span class="c"># আসল path কোথায়</span></pre></div>
+      <div class="g"><span><code>ln -s</code>-এ <b>absolute path</b> দাও। Relative path দিলে link-টা সরানোর সাথে সাথেই ভেঙে যায়।</span></div>
+    </div>
+  </details>
+
+  <!-- ========== 3. USER & GROUP ========== -->
+  <details class="cat" id="ref-user">
+    <summary><span class="twist"></span><span class="cat-n">03</span>User &amp; Group<span class="cat-hint">useradd usermod chage passwd</span></summary>
+    <div class="cat-body">
+
+      <h4>বানানো</h4>
+      <div class="rc"><button class="copy">copy</button><pre>useradd -m -s /bin/bash <span class="v">user1</span>     <span class="c"># home সহ, bash shell দিয়ে</span>
+useradd -m -G <span class="v">dev</span> <span class="v">user1</span>          <span class="c"># বানানোর সময়েই group-এ</span>
+groupadd <span class="v">dev</span>                      <span class="c"># নতুন group</span>
+passwd <span class="v">user1</span>                      <span class="c"># password বসাও</span></pre></div>
+      <div class="g"><span>Ubuntu/Debian-এ <code>-m</code> ছাড়া <b>home directory হয় না</b> (RHEL-এ default-এ হয়)। আর <code>-s</code> না দিলে shell হতে পারে <code>/bin/sh</code>, যেটা <code>.bashrc</code> পড়ে না।</span></div>
+      <div class="g"><span>Password ছাড়া account-এ <code>sudo</code> কাজ করে না, আর <code>passwd -S</code> দেখায় <code>NP</code>।</span></div>
+
+      <h4>বদলানো</h4>
+      <div class="rc"><button class="copy">copy</button><pre>usermod -aG <span class="v">dev</span> <span class="v">user1</span>            <span class="c"># group-এ যোগ করো</span>
+usermod -g <span class="v">dev</span> <span class="v">user1</span>             <span class="c"># primary group বদলাও</span>
+usermod -s /bin/bash <span class="v">user1</span>        <span class="c"># shell</span>
+usermod -l <span class="v">newname</span> <span class="v">oldname</span>       <span class="c"># নাম — নতুনটা আগে</span>
+usermod -d /home/<span class="v">new</span> -m <span class="v">user1</span>    <span class="c"># home সরাও, file সহ</span>
+usermod -L <span class="v">user1</span>                  <span class="c"># lock</span>
+usermod -U <span class="v">user1</span>                  <span class="c"># unlock</span>
+usermod -e <span class="v">2027-12-31</span> <span class="v">user1</span>     <span class="c"># account-এর মেয়াদ</span>
+groupmod -n <span class="v">new</span> <span class="v">old</span>              <span class="c"># group-এর নাম</span></pre></div>
+      <div class="g hard"><span><code>-a</code> না দিলে আগের সব group মুছে যায়, আর কোনো warning দেয় না। এভাবেই মানুষ নিজের <code>sudo</code> access হারায় — আর ফেরাতেও <code>sudo</code> লাগত।</span></div>
+      <div class="g"><span><code>-l</code> শুধু নামটাই বদলায় — home directory, primary group-এর নাম, cron, sudoers-এ লেখা পুরোনো নাম সব <b>আগের মতোই পড়ে থাকে</b>।</span></div>
+      <div class="g"><span><code>-d</code> শুধু ঠিকানা লেখে, <b><code>-m</code> ছাড়া file সরে না</b> — তখন user-এর সব file পুরোনো folder-এ অনাথ হয়ে থাকে।</span></div>
+      <div class="g"><span><code>-L</code> শুধু password-এ login বন্ধ করে। <b>SSH key দিয়ে সে এখনো ঢুকতে পারে</b> — পুরো বন্ধ করতে shell-ও <code>/usr/sbin/nologin</code> করো।</span></div>
+
+      <h4>Password-এর মেয়াদ</h4>
+      <div class="rc"><button class="copy">copy</button><pre>chage -l <span class="v">user1</span>                   <span class="c"># সব তারিখ দেখাও</span>
+chage -d 0 <span class="v">user1</span>                 <span class="c"># পরের login-এ বদলাতেই হবে</span>
+chage -M 90 <span class="v">user1</span>                <span class="c"># password ৯০ দিন টিকবে</span>
+chage -E <span class="v">2027-12-31</span> <span class="v">user1</span>       <span class="c"># account-এর মেয়াদ</span>
+passwd -S <span class="v">user1</span>                  <span class="c"># P = সচল, L = locked, NP = password নেই</span></pre></div>
+      <div class="g"><span><b>Password expire</b> (<code>-M</code>) আর <b>account expire</b> (<code>-E</code>) আলাদা — প্রথমটায় user নিজেই নতুন password দিয়ে ঢুকতে পারে, দ্বিতীয়টায় admin ছাড়া উপায় নেই।</span></div>
+      <div class="g"><span><code>chage -d 0</code> সবসময় <code>passwd</code>-এর <b>পরে</b> চালাও — উল্টো করলে <code>passwd</code> ঐ ০ মুছে আজকের তারিখ বসিয়ে দেয়।</span></div>
+
+      <h4>দেখা</h4>
+      <div class="rc"><button class="copy">copy</button><pre>id <span class="v">user1</span>                         <span class="c"># UID, GID, সব group</span>
+groups <span class="v">user1</span>                     <span class="c"># শুধু group গুলো</span>
+getent passwd <span class="v">user1</span>              <span class="c"># passwd লাইনটা</span>
+getent group <span class="v">dev</span>                 <span class="c"># group-এ কারা আছে</span>
+who / w                            <span class="c"># এখন কারা login করা</span>
+last -5                            <span class="c"># শেষ ৫টা login</span></pre></div>
+      <div class="g"><span><code>grep user /etc/passwd</code>-এর বদলে <code>getent</code> ব্যবহার করো — LDAP/AD থেকে আসা user-ও পাবে, আর <code>user1</code> খুঁজতে গিয়ে <code>user10</code> ধরা পড়বে না।</span></div>
+      <div class="g"><span>Group-এ যোগ করার পর <code>id</code> পুরোনো তথ্য দেখাতে পারে — নতুন group <b>নতুন login session-এ</b> কার্যকর হয়।</span></div>
+
+      <h4>মোছা</h4>
+      <div class="rc"><button class="copy">copy</button><pre>userdel -r <span class="v">user1</span>                 <span class="c"># home directory সহ</span>
+groupdel <span class="v">dev</span></pre></div>
+      <div class="g"><span><code>-r</code> শুধু home আর mail মোছে। বাইরে ছড়ানো file পড়ে থাকে — <code>find / -nouser</code> দিয়ে খুঁজে নাও।</span></div>
+    </div>
+  </details>
+
+  <!-- ========== 4. PERMISSION ========== -->
+  <details class="cat" id="ref-perm">
+    <summary><span class="twist"></span><span class="cat-n">04</span>Permission &amp; Ownership<span class="cat-hint">chmod chown umask setfacl</span></summary>
+    <div class="cat-body">
+
+      <h4>পড়া</h4>
+      <div class="rc"><button class="copy">copy</button><pre>-rwxr-xr--    r=4  w=2  x=1
+ │ │  │  └── others  r--  = 4
+ │ │  └───── group   r-x  = 5
+ │ └──────── owner   rwx  = 7
+ └────────── ধরন: - file, d directory, l link</pre></div>
+
+      <h4>chmod</h4>
+      <div class="rc"><button class="copy">copy</button><pre>chmod 755 <span class="v">file</span>          <span class="c"># rwxr-xr-x — script, folder</span>
+chmod 644 <span class="v">file</span>          <span class="c"># rw-r--r-- — সাধারণ file</span>
+chmod 600 <span class="v">file</span>          <span class="c"># rw------- — গোপন key, config</span>
+chmod 700 <span class="v">dir</span>           <span class="c"># শুধু মালিক ঢুকবে</span>
+chmod +x <span class="v">script.sh</span>      <span class="c"># চালানোর যোগ্য করো</span>
+chmod g+w <span class="v">file</span>          <span class="c"># একটা bit যোগ, বাকি অক্ষত</span>
+chmod -R u+rwX <span class="v">dir/</span>     <span class="c"># বড় হাতের X = শুধু folder-এ x</span></pre></div>
+      <div class="g"><span>Directory-তে <code>x</code> ছাড়া <code>r</code> প্রায় অর্থহীন — নাম দেখা যায়, কিন্তু ভেতরে ঢোকা বা file পড়া যায় না। <b>Read-only মানে folder-এ <code>r-x</code></b>।</span></div>
+      <div class="g"><span><code>-R</code>-এর সাথে ছোট হাতের <code>+x</code> দিলে <b>প্রতিটা file-ও</b> চালানোর যোগ্য হয়ে যায়। বড় হাতের <code>+X</code> শুধু folder-এ বসে।</span></div>
+      <div class="g"><span>SSH key-তে <code>600</code> না হলে SSH নিজেই key মানতে অস্বীকার করে — <code>chmod 600 ~/.ssh/id_rsa</code>, আর <code>~/.ssh</code>-তে <code>700</code>।</span></div>
+
+      <h4>chown</h4>
+      <div class="rc"><button class="copy">copy</button><pre>chown <span class="v">user</span>:<span class="v">group</span> <span class="v">file</span>     <span class="c"># মালিক + group</span>
+chown -R <span class="v">user</span>:<span class="v">group</span> <span class="v">dir/</span>  <span class="c"># ভেতরের সবকিছুতে</span>
+chown :<span class="v">group</span> <span class="v">file</span>          <span class="c"># শুধু group</span>
+chgrp <span class="v">group</span> <span class="v">file</span>           <span class="c"># একই কাজ</span></pre></div>
+      <div class="g"><span>File-এর ভেতরে মালিকের <b>নাম নয়, UID নম্বর</b> লেখা থাকে। তাই UID বদলালে পুরোনো file গুলো অনাথ হয়ে যায় — <code>find / -uid &lt;পুরোনো&gt;</code> দিয়ে খুঁজে ঠিক করতে হয়।</span></div>
+
+      <h4>umask</h4>
+      <div class="rc"><button class="copy">copy</button><pre>umask                    <span class="c"># এখন কত</span>
+umask 022                <span class="c"># file 644, dir 755 (default)</span>
+umask 027                <span class="c"># file 640, dir 750 (others বাদ)</span>
+umask 077                <span class="c"># file 600, dir 700 (শুধু নিজে)</span></pre></div>
+      <div class="g"><span><code>umask</code> অনুমতি <b>দেয় না, কেটে নেয়</b>। File-এর হিসেব <code>666</code> থেকে, directory-র <code>777</code> থেকে — তাই নতুন file কখনো <code>x</code> নিয়ে জন্মায় না।</span></div>
+      <div class="g"><span>শুধু <b>বর্তমান shell-এ</b> খাটে। স্থায়ী করতে <code>~/.bashrc</code>-তে লেখো, আর script থেকে বসাতে <code>./script.sh</code> নয় — <code>source script.sh</code>।</span></div>
+
+      <h4>ACL — একাধিক group-কে আলাদা অনুমতি</h4>
+      <div class="rc"><button class="copy">copy</button><pre>getfacl <span class="v">dir</span>                        <span class="c"># সব নিয়ম দেখাও</span>
+setfacl -m g:<span class="v">ops</span>:rx <span class="v">dir</span>           <span class="c"># group-কে</span>
+setfacl -m u:<span class="v">alice</span>:rw <span class="v">file</span>        <span class="c"># একজন user-কে</span>
+setfacl -R -m g:<span class="v">ops</span>:rx <span class="v">dir</span>        <span class="c"># এখনকার সব file-এ</span>
+setfacl -R -d -m g:<span class="v">ops</span>:rx <span class="v">dir</span>     <span class="c"># ভবিষ্যতের file-এর জন্য</span>
+setfacl -x g:<span class="v">ops</span> <span class="v">dir</span>              <span class="c"># একটা নিয়ম তোলো</span>
+setfacl -b <span class="v">dir</span>                     <span class="c"># সব ACL মুছে দাও</span></pre></div>
+      <div class="g"><span><code>-R</code> শুধু <b>এখনকার</b> file-এ বসে। পরে জন্মানো file কিছুই পায় না — তার জন্য <code>-d</code> (default ACL) আলাদা করে লাগবে। সাধারণত <b>দুটোই</b> চালাতে হয়।</span></div>
+      <div class="g"><span>ক্রম সবসময় <b><code>chmod</code> আগে, <code>setfacl</code> পরে</b>। পরে <code>chmod</code> চালালে mask বদলে গিয়ে ACL গুলো নিঃশব্দে অকেজো হয়ে যায় (<code>getfacl</code>-এ <code>#effective:</code> লেখা দেখলে এটাই ঘটেছে)।</span></div>
+      <div class="g"><span>Linux ক্রম মেনে পরীক্ষা করে: <b>root → owner → user ACL → group → group ACL → others</b>, আর প্রথম যেটা মেলে সেখানেই থামে। তাই file-এর <b>মালিক</b> হলে ACL-এর নিষেধ তার উপর খাটে না।</span></div>
+      <div class="g"><span><code>ls -l</code>-এ permission-এর শেষে <code>+</code> থাকলে বুঝবে ঐ file-এ ACL আছে।</span></div>
+    </div>
+  </details>
+  <!-- ========== 5. PROCESS ========== -->
+  <details class="cat" id="ref-proc">
+    <summary><span class="twist"></span><span class="cat-n">05</span>Process management<span class="cat-hint">ps top kill jobs systemctl</span></summary>
+    <div class="cat-body">
+
+      <h4>দেখা</h4>
+      <div class="rc"><button class="copy">copy</button><pre>ps aux                       <span class="c"># সব process, সব user-এর</span>
+ps aux | grep <span class="v">nginx</span>         <span class="c"># নির্দিষ্ট একটা</span>
+ps -ef --forest              <span class="c"># parent-child গাছ</span>
+ps -eo pid,etime,cmd         <span class="c"># কে কতক্ষণ ধরে চলছে</span>
+pgrep -a <span class="v">nginx</span>               <span class="c"># নাম দিয়ে PID</span>
+pidof <span class="v">nginx</span>                  <span class="c"># শুধু PID</span>
+top                          <span class="c"># সরাসরি দেখা</span>
+htop                         <span class="c"># সুন্দর top (আলাদা install)</span></pre></div>
+      <div class="g"><span><code>ps aux | grep x</code>-এর output-এ <code>grep</code> নিজেই একটা লাইন হয়ে আসে। এড়াতে <code>grep [x]</code> লেখো, বা <code>pgrep</code> ব্যবহার করো।</span></div>
+      <div class="g"><span><code>ps aux</code> (dash ছাড়া, BSD ধরন) আর <code>ps -ef</code> (dash সহ, UNIX ধরন) — দুটোই চলে, column-এর নাম আলাদা। মিশিয়ে ফেলো না।</span></div>
+
+      <h4>থামানো</h4>
+      <div class="rc"><button class="copy">copy</button><pre>kill <span class="v">PID</span>                     <span class="c"># ভদ্রভাবে বলা (SIGTERM)</span>
+kill -9 <span class="v">PID</span>                  <span class="c"># জোর করে (SIGKILL)</span>
+killall <span class="v">nginx</span>                <span class="c"># নাম দিয়ে সব</span>
+pkill -u <span class="v">user1</span>               <span class="c"># ঐ user-এর সব process</span>
+kill -HUP <span class="v">PID</span>                <span class="c"># config আবার পড়ো, না থেমে</span></pre></div>
+      <div class="g"><span>আগে <code>kill</code>, তারপর দরকার হলে <code>kill -9</code>। <code>-9</code> process-কে গুছিয়ে নেওয়ার সুযোগ দেয় না — file নষ্ট হতে পারে, lock পড়ে থাকতে পারে।</span></div>
+      <div class="g hard"><span><code>pkill -u user1</code> ঐ user-এর <b>সব</b> process মারে, তার login session সহ। নিজের user-এ চালালে নিজেই বেরিয়ে যাবে।</span></div>
+
+      <h4>Background</h4>
+      <div class="rc"><button class="copy">copy</button><pre><span class="v">command</span> &amp;                  <span class="c"># background-এ চালাও</span>
+jobs                         <span class="c"># এই shell-এর job গুলো</span>
+fg %1                        <span class="c"># সামনে আনো</span>
+bg %1                        <span class="c"># background-এ পাঠাও</span>
+Ctrl+Z                       <span class="c"># থামাও (suspend)</span>
+nohup <span class="v">command</span> &amp;            <span class="c"># terminal বন্ধ করলেও চলবে</span></pre></div>
+      <div class="g"><span>শুধু <code>&amp;</code> দিলে terminal বন্ধ করার সাথে সাথে process-ও মরে। টিকিয়ে রাখতে <code>nohup</code>, বা ভালো হয় <code>systemd</code> service বানানো।</span></div>
+
+      <h4>Service</h4>
+      <div class="rc"><button class="copy">copy</button><pre>systemctl status <span class="v">nginx</span>       <span class="c"># চলছে কিনা</span>
+systemctl start|stop|restart <span class="v">nginx</span>
+systemctl reload <span class="v">nginx</span>       <span class="c"># config পড়ো, না থেমে</span>
+systemctl enable --now <span class="v">nginx</span> <span class="c"># boot-এ চালু + এখনই</span>
+systemctl list-units --type=service --state=running
+journalctl -u <span class="v">nginx</span> -n 50 -f  <span class="c"># log, শেষ ৫০ লাইন, তারপর সরাসরি</span></pre></div>
+      <div class="g"><span><code>restart</code> আর <code>reload</code> আলাদা — <code>reload</code> চলমান connection ভাঙে না। Production-এ config বদলালে আগে <code>reload</code> চেষ্টা করো।</span></div>
+      <div class="g"><span><code>enable</code> শুধু boot-এর জন্য, <code>start</code> শুধু এখনকার জন্য। দুটোই চাইলে <code>--now</code>।</span></div>
+      <div class="g"><span>Container বা WSL-এ <code>systemctl</code> নাও চলতে পারে — সেখানে systemd থাকে না।</span></div>
+    </div>
+  </details>
+
+  <!-- ========== 6. PACKAGE ========== -->
+  <details class="cat" id="ref-pkg">
+    <summary><span class="twist"></span><span class="cat-n">06</span>Package management<span class="cat-hint">apt dnf dpkg rpm</span></summary>
+    <div class="cat-body">
+
+      <h4>Debian / Ubuntu</h4>
+      <div class="rc"><button class="copy">copy</button><pre>apt update                   <span class="c"># তালিকা হালনাগাদ — install-এর আগে</span>
+apt upgrade                  <span class="c"># package গুলো নতুন করো</span>
+apt install <span class="v">nginx</span>           <span class="c"># install</span>
+apt remove <span class="v">nginx</span>            <span class="c"># সরাও, config রেখে</span>
+apt purge <span class="v">nginx</span>             <span class="c"># config সহ সরাও</span>
+apt search <span class="v">keyword</span>          <span class="c"># খোঁজো</span>
+apt show <span class="v">nginx</span>              <span class="c"># বিস্তারিত</span>
+apt list --installed         <span class="c"># কী কী আছে</span>
+apt autoremove               <span class="c"># অপ্রয়োজনীয় dependency</span></pre></div>
+      <div class="g"><span><code>update</code> আর <code>upgrade</code> এক জিনিস নয় — <code>update</code> শুধু <b>তালিকা</b> আনে, কিছু install করে না। নতুন server-এ <code>apt update</code> না চালিয়ে <code>install</code> দিলে "package not found" পাবে।</span></div>
+      <div class="g"><span>Script-এ <code>apt</code> নয়, <code>apt-get</code> ব্যবহার করো — <code>apt</code>-এর output মানুষের জন্য, version ভেদে বদলায়।</span></div>
+
+      <h4>RHEL / Fedora</h4>
+      <div class="rc"><button class="copy">copy</button><pre>dnf install <span class="v">nginx</span>
+dnf remove <span class="v">nginx</span>
+dnf search <span class="v">keyword</span>
+dnf list installed
+dnf check-update</pre></div>
+      <div class="g"><span><code>dnf</code>-এ আলাদা <code>update</code> ধাপ লাগে না — সে প্রতিবার নিজেই তালিকা দেখে নেয়।</span></div>
+
+      <h4>সরাসরি file থেকে</h4>
+      <div class="rc"><button class="copy">copy</button><pre>dpkg -i <span class="v">pkg.deb</span>              <span class="c"># install</span>
+dpkg -l | grep <span class="v">nginx</span>         <span class="c"># আছে কিনা</span>
+dpkg -L <span class="v">nginx</span>                <span class="c"># কোন কোন file দিয়েছে</span>
+dpkg -S /usr/bin/<span class="v">nginx</span>       <span class="c"># এই file কোন package-এর</span>
+apt install -f                 <span class="c"># ভাঙা dependency ঠিক করো</span></pre></div>
+      <div class="g"><span><code>dpkg -i</code> dependency নিজে আনে না। ভেঙে গেলে তারপর <code>apt install -f</code> চালাও।</span></div>
+    </div>
+  </details>
+
+  <!-- ========== 7. DISK ========== -->
+  <details class="cat" id="ref-disk">
+    <summary><span class="twist"></span><span class="cat-n">07</span>Disk &amp; Filesystem<span class="cat-hint">df du mount lsblk</span></summary>
+    <div class="cat-body">
+
+      <h4>জায়গা কত আছে</h4>
+      <div class="rc"><button class="copy">copy</button><pre>df -h                        <span class="c"># সব filesystem-এ কত ফাঁকা</span>
+df -i                        <span class="c"># inode কত বাকি</span>
+du -sh <span class="v">dir/</span>                 <span class="c"># এই folder কত জায়গা নিয়েছে</span>
+du -sh * | sort -rh | head   <span class="c"># সবচেয়ে বড় ১০টা</span>
+ncdu                         <span class="c"># ঘুরে ঘুরে দেখা (আলাদা install)</span></pre></div>
+      <div class="g"><span><code>df</code> বলছে disk ভর্তি, অথচ <code>du</code> বলছে জায়গা আছে? দুটো কারণ — হয় <b>inode শেষ</b> (<code>df -i</code> দেখো), নয়তো মুছে ফেলা file কোনো process এখনো <b>খুলে রেখেছে</b> (<code>lsof +L1</code>)।</span></div>
+      <div class="g"><span><code>du</code>-তে <code>-sh</code> না দিলে ভেতরের প্রতিটা folder আলাদা করে ছাপে — বড় folder-এ পর্দা ভরে যাবে।</span></div>
+
+      <h4>Disk আর partition</h4>
+      <div class="rc"><button class="copy">copy</button><pre>lsblk                        <span class="c"># disk আর partition-এর গাছ</span>
+blkid                        <span class="c"># UUID আর filesystem-এর ধরন</span>
+mount | column -t            <span class="c"># কী কোথায় mount করা</span>
+mount /dev/<span class="v">sdb1</span> /mnt         <span class="c"># mount করো</span>
+umount /mnt                  <span class="c"># খুলে নাও</span>
+mount -o remount,acl /       <span class="c"># নতুন option সহ আবার</span></pre></div>
+      <div class="g"><span><code>umount</code>-এ "target is busy" এলে বুঝবে কেউ ভেতরে আছে — <code>lsof +D /mnt</code> দিয়ে দেখো কোন process, তারপর সেটা বন্ধ করো। <code>umount -l</code> (lazy) শেষ উপায়।</span></div>
+      <div class="g hard"><span><code>/etc/fstab</code>-এ ভুল লিখলে <b>system boot না-ও করতে পারে</b>। বদলানোর পর reboot-এর আগে <code>mount -a</code> দিয়ে পরীক্ষা করো — কোনো error না এলে তবেই নিরাপদ।</span></div>
+      <div class="g"><span><code>fstab</code>-এ <code>/dev/sdb1</code> নয়, <b>UUID</b> ব্যবহার করো। Disk-এর নাম boot-এ boot-এ বদলে যেতে পারে, UUID বদলায় না।</span></div>
+    </div>
+  </details>
+
+  <!-- ========== 8. NETWORK ========== -->
+  <details class="cat" id="ref-net">
+    <summary><span class="twist"></span><span class="cat-n">08</span>Network<span class="cat-hint">ip ss curl ssh scp</span></summary>
+    <div class="cat-body">
+
+      <h4>নিজের অবস্থা</h4>
+      <div class="rc"><button class="copy">copy</button><pre>ip a                         <span class="c"># IP address গুলো</span>
+ip r                         <span class="c"># routing table</span>
+ss -tulpn                    <span class="c"># কোন port-এ কে বসে আছে</span>
+ss -tn state established     <span class="c"># চলমান connection</span>
+ping -c 4 <span class="v">host</span>              <span class="c"># পৌঁছায় কিনা</span>
+dig <span class="v">domain.com</span> +short       <span class="c"># DNS</span>
+traceroute <span class="v">host</span>             <span class="c"># কোন পথে যাচ্ছে</span></pre></div>
+      <div class="g"><span><code>ifconfig</code>, <code>netstat</code>, <code>route</code> — এগুলো পুরোনো, নতুন system-এ install-ই থাকে না। বদলে <code>ip</code> আর <code>ss</code> শেখো।</span></div>
+      <div class="g"><span><code>ss -tulpn</code>-এ process-এর নাম দেখতে <code>sudo</code> লাগে — নাহলে শুধু port দেখাবে, কে বসে আছে বলবে না।</span></div>
+      <div class="g"><span><code>ping</code> কাজ না করা মানেই server বন্ধ নয় — অনেক firewall ICMP আটকে দেয় কিন্তু port খোলা রাখে। বরং <code>curl</code> বা <code>nc -zv host port</code> দিয়ে দেখো।</span></div>
+
+      <h4>HTTP</h4>
+      <div class="rc"><button class="copy">copy</button><pre>curl -I <span class="v">https://site.com</span>          <span class="c"># শুধু header</span>
+curl -sS <span class="v">url</span> -o <span class="v">file</span>             <span class="c"># নামিয়ে রাখো, চুপচাপ</span>
+curl -L <span class="v">url</span>                      <span class="c"># redirect অনুসরণ করো</span>
+curl -w "%{http_code}\n" -o /dev/null -s <span class="v">url</span>
+wget -c <span class="v">url</span>                      <span class="c"># থেমে গেলে যেখান থেকে</span></pre></div>
+      <div class="g"><span><code>-L</code> ছাড়া <code>curl</code> redirect-এ থেমে যায় আর খালি বা ছোট file দেয়। Download-এ <code>-L</code> প্রায় সবসময় লাগে।</span></div>
+
+      <h4>SSH</h4>
+      <div class="rc"><button class="copy">copy</button><pre>ssh <span class="v">user</span>@<span class="v">host</span>
+ssh -p <span class="v">2222</span> <span class="v">user</span>@<span class="v">host</span>            <span class="c"># অন্য port</span>
+ssh-keygen -t ed25519                <span class="c"># key বানাও</span>
+ssh-copy-id <span class="v">user</span>@<span class="v">host</span>            <span class="c"># key পাঠাও</span>
+scp <span class="v">file</span> <span class="v">user</span>@<span class="v">host</span>:<span class="v">/path/</span>       <span class="c"># file পাঠাও</span>
+scp -r <span class="v">dir/</span> <span class="v">user</span>@<span class="v">host</span>:<span class="v">/path/</span>    <span class="c"># folder</span>
+rsync -avz <span class="v">dir/</span> <span class="v">user</span>@<span class="v">host</span>:<span class="v">/path/</span>
+ssh -L 8080:localhost:80 <span class="v">user</span>@<span class="v">host</span>  <span class="c"># tunnel</span></pre></div>
+      <div class="g"><span><code>Permission denied (publickey)</code>-এর সবচেয়ে সাধারণ কারণ permission — <code>~/.ssh</code> হতে হবে <code>700</code>, key <code>600</code>, <code>authorized_keys</code> <code>600</code>। SSH ঢিলেঢালা permission-এ key মানেই না।</span></div>
+      <div class="g"><span><code>ssh -p</code> কিন্তু <code>scp -P</code> — port-এর flag দুটোতে ছোট-বড় হাতের আলাদা।</span></div>
+      <div class="g"><span>কী ভুল হচ্ছে বুঝতে না পারলে <code>ssh -v</code> (বা <code>-vvv</code>) — সে ধাপে ধাপে বলে দেয় কোথায় আটকাচ্ছে।</span></div>
+    </div>
+  </details>
+
+  <!-- ========== 9. TEXT ========== -->
+  <details class="cat" id="ref-text">
+    <summary><span class="twist"></span><span class="cat-n">09</span>Text processing<span class="cat-hint">grep sed awk cut sort</span></summary>
+    <div class="cat-body">
+
+      <h4>grep</h4>
+      <div class="rc"><button class="copy">copy</button><pre>grep -i <span class="v">"pattern"</span> <span class="v">file</span>       <span class="c"># ছোট-বড় হাত মানবে না</span>
+grep -r <span class="v">"pattern"</span> <span class="v">dir/</span>       <span class="c"># folder জুড়ে</span>
+grep -n <span class="v">"pattern"</span> <span class="v">file</span>       <span class="c"># লাইন নম্বর সহ</span>
+grep -v <span class="v">"pattern"</span> <span class="v">file</span>       <span class="c"># যে লাইনে নেই সেগুলো</span>
+grep -c <span class="v">"pattern"</span> <span class="v">file</span>       <span class="c"># কতগুলো লাইন</span>
+grep -l <span class="v">"pattern"</span> *.log       <span class="c"># শুধু file-এর নাম</span>
+grep -A3 -B3 <span class="v">"error"</span> <span class="v">file</span>    <span class="c"># আগে-পরে ৩ লাইন সহ</span>
+grep -E <span class="v">"a|b"</span> <span class="v">file</span>            <span class="c"># regex</span>
+grep -q <span class="v">"x"</span> <span class="v">file</span> &amp;&amp; echo হ্যাঁ  <span class="c"># script-এ</span></pre></div>
+      <div class="g"><span>Pattern সবসময় <b>quote-এর ভেতরে</b> — নাহলে <code>*</code> বা <code>|</code> shell আগেই খেয়ে ফেলে।</span></div>
+      <div class="g"><span><code>-A</code>/<code>-B</code>/<code>-C</code> log ঘাঁটার সবচেয়ে কাজের flag — error-এর আগে-পরে কী ঘটেছে সেটাই আসল সূত্র।</span></div>
+
+      <h4>sed</h4>
+      <div class="rc"><button class="copy">copy</button><pre>sed 's/<span class="v">old</span>/<span class="v">new</span>/' <span class="v">file</span>          <span class="c"># প্রতি লাইনে প্রথমটা</span>
+sed 's/<span class="v">old</span>/<span class="v">new</span>/g' <span class="v">file</span>         <span class="c"># সবগুলো</span>
+sed -i 's/<span class="v">old</span>/<span class="v">new</span>/g' <span class="v">file</span>      <span class="c"># file নিজেই বদলাও</span>
+sed -i.bak 's/<span class="v">a</span>/<span class="v">b</span>/g' <span class="v">file</span>      <span class="c"># backup রেখে বদলাও</span>
+sed -n '10,20p' <span class="v">file</span>            <span class="c"># ১০-২০ নম্বর লাইন</span>
+sed '/^#/d' <span class="v">file</span>                <span class="c"># comment লাইন বাদ</span></pre></div>
+      <div class="g hard"><span><code>-i</code> file-টা <b>সরাসরি</b> বদলে দেয়, ফেরানো যায় না। আগে <code>-i</code> ছাড়া চালিয়ে output দেখো, তারপর <code>-i.bak</code> দিয়ে backup রেখে চালাও।</span></div>
+      <div class="g"><span>macOS-এর <code>sed</code>-এ <code>-i</code>-র পরে extension বাধ্যতামূলক — <code>sed -i '' 's/a/b/' file</code>। Linux-এ <code>-i</code> একাই চলে।</span></div>
+
+      <h4>awk</h4>
+      <div class="rc"><button class="copy">copy</button><pre>awk '{print $1}' <span class="v">file</span>              <span class="c"># প্রথম ঘর</span>
+awk '{print $1, $3}' <span class="v">file</span>          <span class="c"># নির্দিষ্ট কয়েকটা</span>
+awk -F: '{print $1}' /etc/passwd    <span class="c"># : দিয়ে ভাগ করা</span>
+awk '$3 &gt; 100 {print $1}' <span class="v">file</span>      <span class="c"># শর্ত সহ</span>
+awk '{sum+=$1} END {print sum}' <span class="v">file</span>
+ps aux | awk '{print $2, $11}'      <span class="c"># PID আর command</span></pre></div>
+      <div class="g"><span><code>awk</code> default-এ যেকোনো পরিমাণ <b>space</b> দিয়ে ভাগ করে। CSV-র জন্য <code>-F,</code>, <code>/etc/passwd</code>-র জন্য <code>-F:</code>।</span></div>
+
+      <h4>কাটা ও সাজানো</h4>
+      <div class="rc"><button class="copy">copy</button><pre>cut -d: -f1 /etc/passwd      <span class="c"># : দিয়ে ভেঙে প্রথম ঘর</span>
+cut -c1-10 <span class="v">file</span>              <span class="c"># প্রথম ১০ অক্ষর</span>
+sort <span class="v">file</span>                    <span class="c"># অক্ষর অনুযায়ী</span>
+sort -n <span class="v">file</span>                 <span class="c"># সংখ্যা অনুযায়ী</span>
+sort -rn <span class="v">file</span>                <span class="c"># সংখ্যা, বড় আগে</span>
+sort -u <span class="v">file</span>                 <span class="c"># সাজিয়ে একই লাইন একবার</span>
+sort <span class="v">file</span> | uniq -c           <span class="c"># কোনটা কতবার</span>
+head -20 <span class="v">file</span> / tail -20 <span class="v">file</span>
+tail -f <span class="v">app.log</span>              <span class="c"># সরাসরি দেখতে থাকো</span>
+wc -l <span class="v">file</span>                   <span class="c"># কত লাইন</span></pre></div>
+      <div class="g"><span><code>sort</code> ছাড়া <code>uniq</code> কাজ করে না — <code>uniq</code> শুধু <b>পাশাপাশি</b> একই লাইন ধরে। তাই সবসময় <code>sort | uniq</code>।</span></div>
+      <div class="g"><span><code>sort</code>-এ <code>-n</code> না দিলে <code>10</code> আসবে <code>9</code>-এর আগে, কারণ সে অক্ষর হিসেবে মেলাচ্ছে।</span></div>
+      <div class="g"><span><code>cut</code> একাধিক space সামলাতে পারে না। <code>ls -l</code>-এর মতো output-এ <code>cut</code> নয়, <code>awk</code> ব্যবহার করো।</span></div>
+    </div>
+  </details>
+
+  <!-- ========== 10. ARCHIVE ========== -->
+  <details class="cat" id="ref-arch">
+    <summary><span class="twist"></span><span class="cat-n">10</span>Archive &amp; Compression<span class="cat-hint">tar gzip zip</span></summary>
+    <div class="cat-body">
+
+      <h4>tar</h4>
+      <div class="rc"><button class="copy">copy</button><pre>tar -czf <span class="v">out.tar.gz</span> <span class="v">dir/</span>     <span class="c"># বানাও (create)</span>
+tar -xzf <span class="v">file.tar.gz</span>          <span class="c"># খোলো (extract)</span>
+tar -xzf <span class="v">file.tar.gz</span> -C <span class="v">/dst</span>  <span class="c"># নির্দিষ্ট জায়গায় খোলো</span>
+tar -tzf <span class="v">file.tar.gz</span>          <span class="c"># না খুলে ভেতরে কী দেখো</span>
+tar -czf <span class="v">out.tar.gz</span> --exclude=<span class="v">node_modules</span> <span class="v">dir/</span></pre></div>
+      <div class="g"><span>অক্ষরগুলোর মানে: <code>c</code> create, <code>x</code> extract, <code>t</code> list, <code>z</code> gzip, <code>f</code> filename, <code>v</code> verbose। <b><code>f</code> সবসময় শেষে</b>, কারণ তার ঠিক পরেই file-এর নাম আসে।</span></div>
+      <div class="g"><span>অচেনা archive খোলার আগে <code>-tzf</code> দিয়ে দেখে নাও — কিছু archive ভেতরে folder ছাড়াই file ছড়িয়ে দেয়, তখন বর্তমান directory-টা ভরে যায়।</span></div>
+      <div class="g"><span><code>-C</code> সবসময় ব্যবহার করো <code>cd</code>-র বদলে — script-এ <code>cd</code> করে ফিরতে ভুলে যাওয়া খুব সাধারণ ভুল।</span></div>
+
+      <h4>gzip / zip</h4>
+      <div class="rc"><button class="copy">copy</button><pre>gzip <span class="v">file</span>                    <span class="c"># file → file.gz (আসলটা থাকে না!)</span>
+gzip -k <span class="v">file</span>                 <span class="c"># আসলটা রেখে</span>
+gunzip <span class="v">file.gz</span>
+zcat <span class="v">file.gz</span>                 <span class="c"># না খুলে পড়ো</span>
+zgrep <span class="v">"error"</span> <span class="v">log.gz</span>         <span class="c"># না খুলে খোঁজো</span>
+
+zip -r <span class="v">out.zip</span> <span class="v">dir/</span>          <span class="c"># Windows-এ পাঠাতে</span>
+unzip <span class="v">file.zip</span> -d <span class="v">/dst</span></pre></div>
+      <div class="g"><span><code>gzip</code> default-এ <b>আসল file মুছে ফেলে</b>। রাখতে চাইলে <code>-k</code>।</span></div>
+      <div class="g"><span>পুরোনো <code>.gz</code> log ঘাঁটতে <code>zgrep</code>/<code>zcat</code> — খুলে, খুঁজে, আবার মুছে ফেলার দরকার নেই।</span></div>
+    </div>
+  </details>
+
+  <div class="box tip">
+    <div class="box-t">আটকে গেলে যা মনে রাখবে</div>
+    <p>যেকোনো command-এর নিজের সাহায্য সবসময় হাতের কাছে: <code>man &lt;command&gt;</code> বিস্তারিত, <code>&lt;command&gt; --help</code> দ্রুত, আর কাজটা জানো কিন্তু নাম মনে নেই — <code>man -k &lt;শব্দ&gt;</code>। আর ধ্বংসাত্মক কিছু চালানোর আগে সেটাকে <code>ls</code> বা <code>echo</code> দিয়ে একবার চালিয়ে দেখে নাও কী ধরা পড়ছে।</p>
+  </div>
+</section>
+
       <div class="pager">
         <button class="prevbtn" id="prevBtn"><span class="dir">← আগের</span><span id="prevLbl"></span></button>
         <button class="nextbtn" id="nextBtn"><span class="dir">পরের →</span><span id="nextLbl"></span></button>
@@ -4063,7 +4661,7 @@ Host prod
     var btn = document.createElement("button");
     btn.className = "toc-item";
     btn.type = "button";
-    var label = i === 0 ? "•" : (i > 14 ? "→" : String(i).padStart(2, "0"));
+    var label = sec.id === "ref" ? "⌘" : (i === 0 ? "•" : (i > 14 ? "→" : String(i).padStart(2, "0")));
     btn.innerHTML = '<span class="tocnum">' + label + '</span><span>' + sec.dataset.title + '</span>';
     btn.addEventListener("click", function(){ go(i); });
     li.appendChild(btn);
@@ -4091,6 +4689,58 @@ Host prod
     tocButtons.push(btn);
   });
 
+  /* ---------- hash routing ----------
+     #ch3            → chapter
+     #command-reference (বা #ref) → reference page
+     #ref-perm       → সরাসরি একটা category
+     #ch3-s2         → chapter-এর ভেতরের heading
+  ------------------------------------ */
+  var HASH_ALIAS = { "command-reference": "ref", "reference": "ref" };
+  var hashLock = false;
+
+  function writeHash(secId, anchorId){
+    var want = "#" + (anchorId || (secId === "ref" ? "command-reference" : secId));
+    if (location.hash === want) return;
+    hashLock = true;
+    try { history.replaceState(null, "", want); }
+    catch (e) { location.hash = want; }
+    setTimeout(function(){ hashLock = false; }, 0);
+  }
+
+  function chapterIndexOf(el){
+    for (var i = 0; i < chapters.length; i++) {
+      if (chapters[i] === el || chapters[i].contains(el)) return i;
+    }
+    return -1;
+  }
+
+  /* hash → {ch, anchor}; না মিললে null */
+  function resolveHash(){
+    var raw = decodeURIComponent((location.hash || "").replace(/^#/, "")).trim();
+    if (!raw) return null;
+    var id = HASH_ALIAS[raw.toLowerCase()] || raw;
+
+    var direct = null;
+    try { direct = document.getElementById(id); } catch (e) { return null; }
+    if (!direct) return null;
+
+    var ci = chapterIndexOf(direct);
+    if (ci === -1) return null;
+    /* section নিজেই হলে anchor লাগবে না */
+    return { ch: ci, anchor: (chapters[ci] === direct ? null : id) };
+  }
+
+  function applyHash(){
+    var r = resolveHash();
+    if (r) go(r.ch, r.anchor);
+    return !!r;
+  }
+
+  window.addEventListener("hashchange", function(){
+    if (hashLock) return;
+    applyHash();
+  });
+
   /* ---------- navigation ---------- */
   function go(i, anchorId){
     if (i < 0 || i >= chapters.length) return;
@@ -4110,10 +4760,19 @@ Host prod
     nextLbl.textContent = i < chapters.length - 1 ? chapters[i+1].dataset.title : "";
 
     closeDrawer();
+    writeHash(chapters[i].id, anchorId);
 
     if (anchorId) {
       var el = document.getElementById(anchorId);
-      if (el) { el.scrollIntoView({behavior:"smooth", block:"start"}); updateProgress(); return; }
+      if (el) {
+        /* anchor যদি বন্ধ category-র ভেতরে থাকে, আগে খুলে নাও */
+        var d = el.closest ? el.closest("details") : null;
+        while (d) { d.open = true; d = d.parentElement && d.parentElement.closest ? d.parentElement.closest("details") : null; }
+        if (el.tagName === "DETAILS") el.open = true;
+        el.scrollIntoView({behavior:"smooth", block:"start"});
+        updateProgress();
+        return;
+      }
     }
     window.scrollTo({top:0, behavior:"auto"});
     updateProgress();
@@ -4166,12 +4825,20 @@ Host prod
   /* ---------- copy buttons ---------- */
   document.querySelectorAll(".copy").forEach(function(btn){
     btn.addEventListener("click", function(){
-      var pre = btn.closest(".code").querySelector("pre");
+      var host = btn.closest(".code") || btn.closest(".rc");
+      var pre = host && host.querySelector("pre");
       if (!pre) return;
+      /* reference block-এ শেষের # comment বাদ দাও — paste করে সরাসরি চালানোর জন্য */
+      var strip = host.classList.contains("rc");
       var text = pre.innerText
         .split("\n")
-        .map(function(l){ return l.replace(/^\$\s?/, ""); })
+        .map(function(l){
+          l = l.replace(/^\$\s?/, "");
+          if (strip) l = l.replace(/\s{2,}#.*$/, "");
+          return l;
+        })
         .join("\n")
+        .replace(/\n{3,}/g, "\n\n")
         .trim();
       var done = function(){
         btn.textContent = "copied";
@@ -4217,6 +4884,53 @@ Host prod
       });
     });
   });
+
+  /* ---------- reference: command name দিয়ে খোঁজা ----------
+     প্রতিটা reference code-line আলাদা entry, যাতে "usermod" লিখলেই
+     ঠিক লাইনটা আসে আর ঐ category-তে গিয়ে পৌঁছায়।
+  --------------------------------------------------------- */
+  (function(){
+    var refSec = document.getElementById("ref");
+    if (!refSec) return;
+    var refCh = chapterIndexOf(refSec);
+    if (refCh === -1) return;
+
+    refSec.querySelectorAll(".cat").forEach(function(cat){
+      var sum = cat.querySelector("summary");
+      var catName = sum ? sum.textContent.replace(/^\s*\d+\s*/, "").trim() : "Command Reference";
+      /* hint অংশটা (cat-hint) আলাদা করে নাও — ওখানে command-এর নাম থাকে */
+      var hintEl = sum && sum.querySelector(".cat-hint");
+      var hint = hintEl ? hintEl.textContent.trim() : "";
+      var label = hintEl ? catName.replace(hint, "").trim() : catName;
+
+      /* category নিজেই একটা hit — "permission" লিখলে category-টা আসবে */
+      index.push({
+        ch: refCh, title: label, crumb: "Command Reference",
+        text: label + " " + hint, anchor: cat.id
+      });
+
+      cat.querySelectorAll(".rc pre").forEach(function(pre){
+        pre.innerText.split("\n").forEach(function(line){
+          var t = line.replace(/\s+/g, " ").trim();
+          if (t.length < 3) return;
+          index.push({
+            ch: refCh, title: label, crumb: "Command Reference",
+            text: t, anchor: cat.id
+          });
+        });
+      });
+
+      /* gotcha note গুলোও খুঁজে পাওয়া উচিত */
+      cat.querySelectorAll(".g").forEach(function(g){
+        var t = (g.textContent || "").replace(/\s+/g, " ").trim();
+        if (t.length < 12) return;
+        index.push({
+          ch: refCh, title: label + " — সতর্কতা", crumb: "Command Reference",
+          text: t, anchor: cat.id
+        });
+      });
+    });
+  })();
 
   var overlay = document.getElementById("searchOverlay");
   var input   = document.getElementById("searchInput");
@@ -4312,7 +5026,7 @@ Host prod
   });
 
   /* ---------- init ---------- */
-  go(0);
+  if (!applyHash()) go(0);
 })();
 </script>
 </body>
