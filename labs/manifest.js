@@ -69,16 +69,24 @@ window.LAB_MANIFEST = [
     tag:   "chapter 07",
     time:  "59 মিনিট",
     desc:  "vmstat, iostat, sar — \"server slow\" শুনে bottleneck কোথায় সেটা মেপে বের করা।"
+  },
+  {
+    id:    "l8",
+    file:  "labs/lab-08-logging-monitoring.html",
+    title: "System Logging and Monitoring",
+    tag:   "chapter 11",
+    time:  "59 মিনিট",
+    desc:  "journalctl, logger, logrotate — log ঘেঁটে crash-এর কারণ বের করা আর disk ভরে যাওয়া আটকানো।"
   }
 
   /* পরের lab এখানে যোগ করো:
   ,{
-    id:    "l8",
-    file:  "labs/lab-08-systemd-services.html",
+    id:    "l9",
+    file:  "labs/lab-09-systemd-services.html",
     title: "systemd Services",
     tag:   "chapter 11",
     time:  "50 মিনিট",
-    desc:  "systemctl, journalctl — নিজের service বানানো আর চালু রাখা।"
+    desc:  "systemctl, unit file — নিজের service বানানো আর boot-এ চালু রাখা।"
   }
   */
 ];

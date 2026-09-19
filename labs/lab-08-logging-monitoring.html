@@ -1,0 +1,881 @@
+<!-- ============================================================
+     lab-08-logging-monitoring.html
+     ------------------------------------------------------------
+     এটা একটা lab-এর content। labs.html এটাকে fetch করে দেখায়।
+     Title / tag / সময় / বিবরণ আসে labs/manifest.js থেকে —
+     এখানে আর লিখতে হয় না।
+     ============================================================ -->
+<section class="lab">
+  <div class="ch-head">
+    <div class="ch-meta">
+      <span class="ch-num">Lab 08</span>
+      <span class="layer-tag">chapter 11</span>
+      <span class="layer-tag time">≈ 59 মিনিট</span>
+    </div>
+    <h2>System Logging and Monitoring</h2>
+    <p class="ch-lede">রাত ১১টা ৫৩ মিনিটে একটা service চুপ হয়ে গেছে। কোনো alert আসেনি, কেউ কিছু টের পায়নি। সকালে তুমি বসেছ — হাতে শুধু কিছু log file। এই lab-এ তুমি সেই log থেকে <b>ঘটনাটা ধাপে ধাপে পুনর্গঠন</b> করবে: কখন শুরু হয়েছিল, কী ভেঙেছিল, আর সবচেয়ে গুরুত্বপূর্ণ — <b>আগে থেকে ধরা যেত কিনা</b>।</p>
+  </div>
+
+  <h3>এই lab শেষে যা পারবে</h3>
+  <ul>
+    <li>log কোথা থেকে আসে আর কোথায় জমা হয় — পুরো পথটা চিনবে।</li>
+    <li><code>grep</code>-এর <code>-A</code>/<code>-B</code> দিয়ে error-এর আশপাশ পড়ে <b>timeline</b> বানাতে পারবে।</li>
+    <li><code>logger</code> দিয়ে নিজের script থেকে system log-এ লিখতে পারবে।</li>
+    <li><code>logrotate</code> দিয়ে log file-কে disk খেয়ে ফেলা থেকে আটকাতে পারবে।</li>
+    <li>সবচেয়ে জরুরি — একটা incident-এ <b>কোন প্রশ্নটা আগে করতে হয়</b> সেটা জানবে।</li>
+  </ul>
+
+  <div class="box note">
+    <div class="box-t">আগে যা জানা থাকলে সুবিধা</div>
+    <p>বইয়ের <b>Chapter 11 — Services এবং System Processes</b>। সেখানে <code>journalctl</code>-এর flag গুলো আছে — <code>-u</code>, <code>-f</code>, <code>-n</code>, <code>-p</code>, <code>-b</code>, <code>--since</code>। এই lab সেগুলো আবার শেখাবে না, <b>ব্যবহার</b> করবে। আর <code>grep</code>-এর flag লাগলে <a href="index.html#command-reference">Command Reference</a>-এর Text processing অংশটা খোলা রাখো।</p>
+  </div>
+
+  <h3>ঘটনাটা</h3>
+  <p><b>AppTrack</b> একটা ছোট API server — কোন user কী করছে সেটা হিসেব রাখে। সে <code>systemd</code> service হিসেবে চলে আর নিজের log লেখে <code>/var/log/apptrack/apptrack.log</code>-এ।</p>
+  <p>কাল রাতে সে থেমে গেছে। কোনো error message আসেনি, user-রা শুধু দেখেছে কিছু হচ্ছে না। তিনটে প্রশ্নের উত্তর দিতে হবে:</p>
+  <ol>
+    <li><b>কখন</b> বন্ধ হলো?</li>
+    <li>বন্ধ হওয়ার ঠিক আগে <b>কী হচ্ছিল</b>?</li>
+    <li>পরেরবার <b>আগে থেকে জানব কীভাবে</b>?</li>
+  </ol>
+
+  <div class="box confuse">
+    <div class="box-t">তিন নম্বর প্রশ্নটাই আসল</div>
+    <p>প্রথম দুটোর উত্তর log-এ লেখাই আছে — খুঁজে বের করা শুধু কৌশলের ব্যাপার। কিন্তু তৃতীয়টার উত্তর বেরোয় তখনই, যখন তুমি দেখো <b>crash-এর কত আগে থেকে লক্ষণ দেখা যাচ্ছিল</b>। এই lab-এর শেষে তুমি নিজেই সংখ্যাটা বের করবে — আর সেটা দেখে অবাক হবে।</p>
+  </div>
+
+  <h3>Log কোথা থেকে আসে, কোথায় যায়</h3>
+  <p>তদন্তে নামার আগে মানচিত্রটা দেখে নাও। Linux-এ log একটা জায়গায় থাকে না — চারটে উৎস থেকে এসে দুটো ব্যবস্থার হাত ঘুরে দুই রকম জায়গায় জমা হয়:</p>
+
+  <figure class="fig">
+    <img
+      src="https://raw.githubusercontent.com/poridhiEng/lab-asset/1bc572d6354bd0f165f066ab72b933a5a47457f7/Linux%20Labs/Lab%2009/images/Logging.svg"
+      alt="Linux logging-এর পুরো পথ, চারটে স্তরে। উপরে Log Sources — User Commands, Applications, System Services আর Kernel। তারা লেখে Logging Layer-এ: systemd-journald (Binary Journal) আর rsyslog (Text Logger); kernel আলাদা করে লেখে Ring Buffer-এ। journald জমা রাখে /var/log/journal-এ binary file হিসেবে, আর rsyslog-এর কাছে forward করে, যে লেখে /var/log-এ text file হিসেবে। সবার নিচে Access Tools — journalctl দিয়ে journal পড়া, grep/tail/cat দিয়ে text log পড়া, আর dmesg দিয়ে kernel ring buffer পড়া। বাঁ পাশে Logger Command, যেটা দিয়ে হাতে লেখা বার্তা ঢোকানো যায়।"
+      loading="lazy" width="924" height="853">
+    <figcaption>উপর থেকে নিচে — কে লিখছে, কে জমাচ্ছে, কোথায় জমছে, আর তুমি কী দিয়ে পড়বে। <b>একই ঘটনা দুই জায়গাতেই থাকতে পারে</b>, কারণ <code>journald</code> অনেক কিছু <code>rsyslog</code>-কেও পাঠিয়ে দেয়।</figcaption>
+  </figure>
+
+  <table>
+    <tr><th>স্তর</th><th>কী</th><th>পড়ার tool</th></tr>
+    <tr><td>Kernel</td><td>Ring buffer — kernel নিজে যা বলে</td><td><code>dmesg</code>, <code>journalctl -k</code></td></tr>
+    <tr><td>journald</td><td><code>/var/log/journal/</code> — binary, indexed</td><td><code>journalctl</code></td></tr>
+    <tr><td>rsyslog</td><td><code>/var/log/*.log</code> — সাধারণ text</td><td><code>grep</code>, <code>tail</code>, <code>cat</code></td></tr>
+    <tr><td>Application</td><td>নিজের file, যেমন <code>/var/log/nginx/</code></td><td><code>grep</code>, <code>tail</code></td></tr>
+  </table>
+
+  <div class="box tip">
+    <div class="box-t">Binary বনাম text — পার্থক্যটা কাজের</div>
+    <p><code>journald</code>-র file গুলো <b>binary</b>, তাই <code>cat</code> দিয়ে পড়া যায় না — <code>journalctl</code> লাগে। বিনিময়ে সে প্রতিটা বার্তার সাথে service-এর নাম, PID, user, boot-এর ID — সব আলাদা ঘরে জমা রাখে। তাই <code>journalctl -u nginx -p err -b</code>-র মতো ছাঁকনি সাথে সাথে কাজ করে, পুরো file না পড়েই।</p>
+    <p>আর <code>/var/log/</code>-র text file-এ ঐ কাঠামো নেই — সেখানে <code>grep</code> ছাড়া উপায় নেই। এই lab-এ দুটোই করব, কারণ বাস্তবে দুটোই দরকার হয়।</p>
+  </div>
+
+  <h3 class="part">Part 1 — জায়গাটা চেনা</h3>
+
+  <!-- STEP 1 -->
+  <div class="step" data-n="1">
+    <h4><code>/var/log</code>-এ কী কী আছে</h4>
+    <p class="obj">লক্ষ্য: তোমার system-এ আসলে কোন log গুলো আছে সেটা দেখে নেওয়া।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -lh /var/log/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>drwxr-xr-x 2 root root      4.0K Sep 19 09:12 apt
+-rw-r----- 1 syslog adm      184K Sep 19 14:02 auth.log
+-rw-r--r-- 1 root root       32K Sep 18 11:41 dpkg.log
+drwxr-sr-x 3 root systemd-journal 4.0K Sep 15 08:00 <b>journal</b>
+-rw-r----- 1 syslog adm      1.2M Sep 19 14:02 syslog
+-rw-rw-r-- 1 root utmp       11K Sep 19 13:55 wtmp</pre>
+      <div class="note-line">তোমার তালিকা হুবহু এক হবে না — distro আর configuration ভেদে বদলায়।</div>
+    </div>
+
+    <table>
+      <tr><th>File</th><th>কী থাকে</th></tr>
+      <tr><td><code>syslog</code></td><td>বেশিরভাগ service-এর সাধারণ বার্তা</td></tr>
+      <tr><td><code>auth.log</code></td><td>login, <code>sudo</code>, SSH — কে ঢুকল, কে চেষ্টা করে ব্যর্থ হলো</td></tr>
+      <tr><td><code>kern.log</code></td><td>শুধু kernel-এর বার্তা</td></tr>
+      <tr><td><code>dpkg.log</code></td><td>কোন package কখন install বা remove হয়েছে</td></tr>
+      <tr><td><code>journal/</code></td><td><code>journald</code>-র binary ভাণ্ডার</td></tr>
+      <tr><td><code>wtmp</code> / <code>btmp</code></td><td>সফল / ব্যর্থ login-এর ইতিহাস — <b>binary</b></td></tr>
+    </table>
+
+    <div class="box warn">
+      <div class="box-t"><code>wtmp</code>-তে <code>cat</code> চালিয়ো না</div>
+      <p>ওগুলো text নয়, binary — <code>cat</code> করলে terminal-এ আবর্জনা ছাপবে, আর মাঝে control character থাকলে terminal-ই এলোমেলো হয়ে যেতে পারে (<code>reset</code> দিয়ে ঠিক করতে হয়)। এদের নিজস্ব reader আছে:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ last           <span class="c"># wtmp — কে কখন ঢুকেছিল</span>
+$ lastb          <span class="c"># btmp — ব্যর্থ চেষ্টা (sudo লাগে)</span>
+$ lastlog        <span class="c"># প্রতি user-এর শেষ login</span></pre>
+      </div>
+    </div>
+
+    <p><b>কোন <code>.log</code> file গুলো সত্যিই আছে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo find /var/log -type f -name "*.log" 2&gt;/dev/null</pre>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t"><code>2&gt;/dev/null</code> এখানে কেন</div>
+      <p><code>/var/log</code>-এর কিছু ফোল্ডারে সাধারণ user-এর ঢোকার অনুমতি নেই, তাই <code>find</code> "Permission denied" ছাপতে থাকে আর আসল ফলাফল তার মধ্যে হারিয়ে যায়। <code>2&gt;/dev/null</code> শুধু <b>error স্রোতটা</b> ফেলে দেয়, ফলাফল ঠিকই আসে।</p>
+      <p>খেয়াল করো <code>sudo</code> দেওয়ার পরেও এটা লিখলাম — অভ্যাস হিসেবে ভালো, কারণ <code>sudo</code> ছাড়া চালালেও command টা তখন কাজ করে।</p>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">কিছুই না পেলে ঘাবড়িয়ো না</div>
+      <p>Container বা ছোট cloud image-এ প্রায়ই <code>syslog</code>, <code>auth.log</code>, <code>kern.log</code> কিছুই থাকে না — কারণ <code>rsyslog</code> install-ই করা নেই, সব যায় শুধু journal-এ। সেটা ভাঙা system নয়, আজকাল এটাই স্বাভাবিক। <code>journalctl</code> তখনো কাজ করবে।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 2 — ঘটনাস্থল তৈরি</h3>
+
+  <!-- STEP 2 -->
+  <div class="step" data-n="2">
+    <h4>AppTrack-এর log file বানানো</h4>
+    <p class="obj">লক্ষ্য: তদন্ত করার মতো একটা সত্যিকারের log হাতে পাওয়া।</p>
+
+    <p>আমাদের কাছে তো আসল AppTrack নেই, তাই তার শেষ রাতের log টা নিজেরাই বসিয়ে নিচ্ছি। পুরো block টা একসাথে copy করে চালাও:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo mkdir -p /var/log/apptrack
+$ sudo tee /var/log/apptrack/apptrack.log &gt; /dev/null &lt;&lt; 'EOF'
+2026-03-10 22:01:05 [INFO]  AppTrack v2.3.1 starting up
+2026-03-10 22:01:05 [INFO]  Loading configuration from /etc/apptrack/config.yaml
+2026-03-10 22:01:06 [INFO]  Database connection established (host=db-01, port=5432)
+2026-03-10 22:01:06 [INFO]  Cache layer initialized (Redis 127.0.0.1:6379)
+2026-03-10 22:01:07 [INFO]  HTTP server listening on 0.0.0.0:8080
+2026-03-10 22:01:07 [INFO]  Worker pool started (workers=8)
+2026-03-10 22:05:12 [INFO]  Processed 1200 requests (avg latency: 14ms)
+2026-03-10 22:15:44 [INFO]  Processed 5800 requests (avg latency: 16ms)
+2026-03-10 22:30:21 [INFO]  Processed 12400 requests (avg latency: 15ms)
+2026-03-10 23:00:09 [INFO]  Processed 28900 requests (avg latency: 17ms)
+2026-03-10 23:45:33 [WARN]  Memory usage at 72% (threshold: 80%)
+2026-03-10 23:45:33 [WARN]  Request queue depth increasing (depth=312)
+2026-03-10 23:51:07 [WARN]  Memory usage at 81% — exceeded soft threshold
+2026-03-10 23:51:07 [WARN]  Slow query detected: SELECT * FROM events WHERE user_id=? (took 4821ms)
+2026-03-10 23:51:45 [WARN]  Slow query detected: SELECT * FROM events WHERE user_id=? (took 5103ms)
+2026-03-10 23:52:10 [WARN]  Request queue depth critical (depth=1847)
+2026-03-10 23:52:33 [ERROR] Worker #3 timed out processing request (timeout=30s)
+2026-03-10 23:52:45 [ERROR] Worker #7 timed out processing request (timeout=30s)
+2026-03-10 23:53:01 [ERROR] Worker #1 timed out processing request (timeout=30s)
+2026-03-10 23:53:14 [ERROR] Database connection pool exhausted (pool_size=20, waiting=48)
+2026-03-10 23:53:14 [ERROR] Failed to acquire DB connection after 10s — dropping request
+2026-03-10 23:53:15 [ERROR] Failed to acquire DB connection after 10s — dropping request
+2026-03-10 23:53:20 [WARN]  Memory usage at 94% — approaching hard limit
+2026-03-10 23:53:29 [ERROR] Cache write failure: Redis connection refused (ECONNREFUSED)
+2026-03-10 23:53:29 [ERROR] Cache write failure: Redis connection refused (ECONNREFUSED)
+2026-03-10 23:53:31 [CRITICAL] Memory usage at 99% — emergency shutdown initiated
+2026-03-10 23:53:31 [CRITICAL] Flushing in-flight requests (in-flight=1204)
+2026-03-10 23:53:32 [CRITICAL] Flush incomplete — 847 requests lost
+2026-03-10 23:53:32 [CRITICAL] AppTrack terminated abnormally (exit code: 137)
+EOF</pre>
+    </div>
+
+    <p><b>যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ wc -l /var/log/apptrack/apptrack.log</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre><b>29</b> /var/log/apptrack/apptrack.log</pre>
+      <div class="note-line">২৯ লাইনে একটা service-এর পুরো জীবন — জন্ম থেকে মৃত্যু।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t"><code>&lt;&lt; 'EOF'</code>-এ quote গুলো কেন</div>
+      <p>Heredoc-এর শুরুতে <code>EOF</code> লিখলে shell ভেতরের <code>$</code> আর <code>`</code> গুলোকে ব্যাখ্যা করার চেষ্টা করে। আমাদের log-এ <code>user_id=?</code> আর <code>SELECT *</code> আছে — quote না দিলে <code>*</code> বা কোনো <code>$</code> shell খেয়ে ফেলত, আর log-এর লাইন বদলে যেত।</p>
+      <p><code>&lt;&lt; 'EOF'</code> — quote সহ — মানে "ভেতরের কিছুতেই হাত দিয়ো না, হুবহু পাঠাও"। Config file বা script লেখার সময় এটাই নিরাপদ ধরন।</p>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t"><code>sudo tee</code>, <code>sudo &gt;</code> নয়</div>
+      <p><code>sudo echo ... &gt; /var/log/...</code> কাজ করবে না — redirect টা করে <b>তোমার shell</b>, সে <code>sudo</code>-র ক্ষমতা পায় না, তাই "Permission denied"। <code>tee</code> নিজেই root হিসেবে চলে বলে সে লিখতে পারে।</p>
+      <p>আর <code>&gt; /dev/null</code> শেষে দেওয়া হয়েছে কারণ <code>tee</code> যা লেখে সেটা screen-এও ছাপে — ২৯ লাইন দুবার দেখার দরকার নেই।</p>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" data-n="3">
+    <h4><code>logger</code> — নিজের বার্তা system log-এ পাঠানো</h4>
+    <p class="obj">লক্ষ্য: journal-এ AppTrack-এর crash-এর নথি বসানো, আর <code>logger</code> চেনা।</p>
+
+    <p>আসল service crash করলে systemd সেটা journal-এ লিখে রাখে। আমাদের নকল service-এর হয়ে সেই কাজটা করব <code>logger</code> দিয়ে — যেটা command line থেকে system log-এ লেখার সরকারি উপায়:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo logger -t apptrack -p daemon.err  "AppTrack service crashed — exit code 137 (OOM kill)"
+$ sudo logger -t apptrack -p daemon.warn "AppTrack: memory limit exceeded before shutdown"
+$ sudo logger -t apptrack -p daemon.info "AppTrack: service restart scheduled in 30 seconds"</pre>
+    </div>
+
+    <table>
+      <tr><th>অংশ</th><th>মানে</th></tr>
+      <tr><td><code>-t apptrack</code></td><td>tag — কে লিখছে। এটা দিয়েই পরে ছেঁকে নেওয়া যাবে</td></tr>
+      <tr><td><code>-p daemon.err</code></td><td><code>facility.level</code> — কোন ধরনের, কতটা গুরুতর</td></tr>
+      <tr><td>শেষের লেখাটা</td><td>বার্তা নিজেই</td></tr>
+    </table>
+
+    <div class="box tip">
+      <div class="box-t"><code>logger</code>-এর আসল কাজ script-এ</div>
+      <p>Cron-এ চলা backup script যদি <code>echo</code> দিয়ে কিছু ছাপে, সেটা কোথায় যায়? কোথাও না — cron-এর output সাধারণত হারিয়ে যায় বা mail-এ আটকে থাকে। <code>logger</code> দিয়ে লিখলে সেটা journal-এ যায়, আর তখন <code>journalctl -t backup</code> দিয়ে মাসখানেকের ইতিহাসও দেখা যায়:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre><span class="c"># script-এর ভেতরে এভাবে</span>
+if tar -czf /backup/db.tar.gz /data; then
+    logger -t backup -p daemon.info "backup ok ($(du -h /backup/db.tar.gz | cut -f1))"
+else
+    logger -t backup -p daemon.err "backup FAILED (exit=$?)"
+fi</pre>
+      </div>
+      <p>এক লাইনে যোগ করা যায়, আর তারপর থেকে তোমার script-ও system-এর বাকি সবার মতোই <code>journalctl</code>-এ খুঁজে পাওয়া যায়।</p>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">Facility কী, level কী</div>
+      <p><code>daemon.err</code>-এ দুটো আলাদা জিনিস। <b>Facility</b> (<code>daemon</code>) বলে <i>কে</i> লিখছে — <code>auth</code>, <code>cron</code>, <code>mail</code>, <code>kern</code>, <code>daemon</code>, বা <code>local0</code>–<code>local7</code> (নিজের application-এর জন্য এগুলোই রাখা আছে)। <b>Level</b> (<code>err</code>) বলে <i>কতটা জরুরি</i>।</p>
+      <p>Facility-র কাজটা পুরনো <code>rsyslog</code>-এ ছিল আলাদা file-এ পাঠানো — <code>auth</code>-এর সব কিছু <code>auth.log</code>-এ। journald-তে সেটা কম জরুরি, কিন্তু level এখনো গুরুত্বপূর্ণ, কারণ <code>journalctl -p</code> ওটা ধরেই ছাঁকে।</p>
+    </div>
+  </div>
+
+  <h3 class="part">Part 3 — তদন্ত</h3>
+
+  <!-- STEP 4 -->
+  <div class="step" data-n="4">
+    <h4>শেষ থেকে শুরু করা</h4>
+    <p class="obj">লক্ষ্য: প্রথম প্রশ্নের উত্তর — কখন আর কীভাবে থামল।</p>
+
+    <p>২৯ লাইন পুরোটা পড়ে ফেলা যায়। কিন্তু অভ্যাসটা এখনই ঠিক করে নাও — বাস্তবে log file ২৯ লাইন হয় না, হয় ২৯ লাখ লাইন। তাই <code>cat</code> দিয়ে শুরু কোরো না, <b>শেষ থেকে</b> শুরু করো:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ tail -6 /var/log/apptrack/apptrack.log</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>2026-03-10 23:53:29 [ERROR] Cache write failure: Redis connection refused (ECONNREFUSED)
+2026-03-10 23:53:31 [CRITICAL] Memory usage at 99% — emergency shutdown initiated
+2026-03-10 23:53:31 [CRITICAL] Flushing in-flight requests (in-flight=1204)
+2026-03-10 23:53:32 [CRITICAL] Flush incomplete — 847 requests lost
+2026-03-10 23:53:32 [CRITICAL] <b>AppTrack terminated abnormally (exit code: 137)</b></pre>
+      <div class="note-line">প্রথম প্রশ্নের উত্তর পাওয়া গেল — <b>23:53:32</b>, আর ৮৪৭টা request হারিয়েছে।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">Log সবসময় শেষে লেখা হয়</div>
+      <p>নতুন লাইন file-এর শেষে যোগ হয়, তাই <b>সাম্প্রতিকতম ঘটনা সবসময় নিচে</b>। Crash-এর তদন্তে তাই <code>tail</code>-ই প্রথম command। <code>head</code> লাগে অন্য প্রশ্নে — "service টা ঠিকমতো চালু হয়েছিল তো?"</p>
+    </div>
+
+    <h4 style="margin-top:26px">Exit code 137 — সংখ্যাটা কথা বলছে</h4>
+
+    <p>শেষ লাইনের <code>exit code: 137</code> আসলে একটা সংকেত। বইয়ের <b>Chapter 02</b>-এ দেখেছ exit code 0 মানে সফল, আর <b>Chapter 07</b>-এ দেখেছ <code>kill -9</code> মানে SIGKILL। এই দুটো এখানে এসে মেলে:</p>
+
+    <div class="out">
+      <div class="out-bar">নিয়মটা</div>
+<pre>Signal-এ মারা পড়লে   exit code = <b>128 + signal number</b>
+
+137 = 128 + <b>9</b>   → SIGKILL   <span class="o">← কেউ জোর করে মেরেছে</span>
+143 = 128 + <b>15</b>  → SIGTERM   <span class="o">← ভদ্রভাবে থামতে বলা হয়েছিল</span>
+139 = 128 + <b>11</b>  → SIGSEGV   <span class="o">← memory-র ভুল, program-এর bug</span>
+130 = 128 + <b>2</b>   → SIGINT    <span class="o">← তুমি Ctrl+C চেপেছ</span></pre>
+      <div class="note-line">মনে রাখার দরকার নেই — <code>kill -l</code> চালালে পুরো তালিকা পাওয়া যায়।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">137 দেখলে কী ভাববে</div>
+      <p>SIGKILL ধরা যায় না, ঠেকানো যায় না — process কিছু বলার সুযোগই পায় না। তাই প্রশ্নটা হয়ে যায়: <b>কে মারল?</b> তিনটে সম্ভাবনা:</p>
+      <ol>
+        <li><b>OOM killer</b> — RAM ফুরিয়েছে, kernel সবচেয়ে বড় process-টাকে মেরেছে</li>
+        <li><b>কোনো মানুষ</b> — কেউ <code>kill -9</code> চালিয়েছে</li>
+        <li><b>Container runtime</b> — memory limit ছাড়িয়েছে, Docker/Kubernetes মেরেছে</li>
+      </ol>
+      <p>আমাদের log-এ ঠিক আগের লাইনেই লেখা <code>Memory usage at 99%</code> — তাই এটা এক নম্বর। Kubernetes-এ pod-এর status <code>OOMKilled</code> দেখলে সেটাও একই ঘটনা।</p>
+      <p>আর সাধারণ crash-এ (bug, unhandled exception) exit code সাধারণত <code>1</code> বা <code>2</code> হয়, <code>137</code> নয়। এই পার্থক্যটাই তদন্তের দিক ঠিক করে দেয়।</p>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">এক্ষেত্রে log-এ লেখা থাকাটাই ব্যতিক্রম</div>
+      <p>AppTrack নিজেই লিখতে পেরেছে কারণ সে <b>নিজে থেকে</b> বন্ধ হয়েছিল (emergency shutdown) — OOM killer তাকে ধরার আগেই। কিন্তু সত্যিকারের SIGKILL-এ application কিছু লেখার সুযোগ পায় না, তাই তার log হঠাৎ মাঝপথে থেমে যায়।</p>
+      <p>তখন প্রমাণ খুঁজতে হয় বাইরে — <code>dmesg</code>-এ। সেটা <b>Lab 07</b>-এ বিস্তারিত করা আছে; এখানে শুধু মনে রাখো, <b>application-এর log হঠাৎ থেমে যাওয়া নিজেই একটা সূত্র</b>।</p>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step" data-n="5">
+    <h4>Error-এর আশপাশ পড়া</h4>
+    <p class="obj">লক্ষ্য: দ্বিতীয় প্রশ্নের উত্তর — ভাঙার ঠিক আগে কী হচ্ছিল।</p>
+
+    <p>কী ভেঙেছে সেটা জানা গেছে। কিন্তু <b>কেন</b> ভাঙল? একটা error লাইন একা কিছু বলে না — তার আশপাশটাই গল্প বলে:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ grep -B 4 "CRITICAL" /var/log/apptrack/apptrack.log | head -12</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>2026-03-10 23:53:15 [ERROR] Failed to acquire DB connection after 10s — dropping request
+2026-03-10 23:53:20 [WARN]  <b>Memory usage at 94%</b> — approaching hard limit
+2026-03-10 23:53:29 [ERROR] Cache write failure: Redis connection refused (ECONNREFUSED)
+2026-03-10 23:53:29 [ERROR] Cache write failure: Redis connection refused (ECONNREFUSED)
+2026-03-10 23:53:31 [CRITICAL] Memory usage at 99% — emergency shutdown initiated
+2026-03-10 23:53:31 [CRITICAL] Flushing in-flight requests (in-flight=1204)
+2026-03-10 23:53:32 [CRITICAL] Flush incomplete — 847 requests lost
+2026-03-10 23:53:32 [CRITICAL] AppTrack terminated abnormally (exit code: 137)</pre>
+      <div class="note-line">৯৪% থেকে ৯৯% — মাত্র <b>১১ সেকেন্ড</b>।</div>
+    </div>
+
+    <p>এবার <code>-A</code> দিয়ে উল্টোদিক — সবচেয়ে প্রথম ERROR-টার পরে কী হলো:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ grep -A 3 "Worker #3" /var/log/apptrack/apptrack.log</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>2026-03-10 23:52:33 [ERROR] Worker #3 timed out processing request (timeout=30s)
+2026-03-10 23:52:45 [ERROR] Worker #7 timed out processing request (timeout=30s)
+2026-03-10 23:53:01 [ERROR] Worker #1 timed out processing request (timeout=30s)
+2026-03-10 23:53:14 [ERROR] Database connection pool exhausted (pool_size=20, waiting=48)</pre>
+      <div class="note-line">একটা worker আটকাল, তারপর আরেকটা, তারপর pool শেষ। <b>ধস</b>।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">একই লাইন দুবার — ওটাও খবর</div>
+      <p>খেয়াল করো <code>Redis connection refused</code> লাইনটা <b>হুবহু দুবার</b> এসেছে, একই সেকেন্ডে। Log-এ একই বার্তা বারবার এলে সেটা সাধারণত <b>retry</b> — application হাল ছাড়েনি, বারবার চেষ্টা করছে।</p>
+      <p>এজন্যই <code>sort | uniq -c</code> দিয়ে গোনার সময় সাবধান: ১০০০টা একই রকম লাইন মানে ১০০০টা আলাদা সমস্যা নয়, হয়তো একটাই সমস্যা যেটা ১০০০ বার চেষ্টা করেছে।</p>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">কোন সংখ্যাটা কারণ, কোনটা ফল</div>
+      <p>এখানেই বেশিরভাগ তদন্ত ভুল পথে যায়। Log-এ সবচেয়ে চোখে পড়ে <code>Redis connection refused</code> — তাই মনে হয় "Redis-টা ঠিক করলেই হবে"। কিন্তু সময় মিলিয়ে দেখো: Redis ব্যর্থ হয়েছে <b>23:53:29</b>-এ, আর memory ৮১% ছাড়িয়েছে <b>23:51:07</b>-এ — প্রায় আড়াই মিনিট আগে।</p>
+      <p>মানে Redis <b>ভেঙেছে কারণ</b> system-এ memory ছিল না, উল্টোটা নয়। <b>সময়ের ক্রমই কার্যকারণ ঠিক করে দেয়</b> — যেটা আগে ঘটেছে সেটাই সন্দেহভাজন।</p>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">একটা লাইন বাদ পড়ছে না তো</div>
+      <p><code>grep "ERROR"</code> চালালে শুধু ERROR লাইনগুলো আসে — কিন্তু আমাদের গল্পের সবচেয়ে জরুরি লাইনটা (<code>Memory usage at 94%</code>) আসলে <b>WARN</b>। শুধু ERROR খুঁজলে ঐ সূত্রটা হারিয়ে যেত।</p>
+      <p>তাই তদন্তে দুটো ধাপ: প্রথমে <code>grep</code> দিয়ে <b>কোথায়</b> সমস্যা বুঝে নাও, তারপর <code>-B</code>/<code>-A</code> দিয়ে ঐ জায়গার <b>আশপাশটা পুরো</b> পড়ো। ছাঁকনি যত সরু, সূত্র হারানোর ঝুঁকি তত বেশি।</p>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step" data-n="6">
+    <h4>কতক্ষণ আগে থেকে জানা যেত</h4>
+    <p class="obj">লক্ষ্য: তৃতীয় প্রশ্নের উত্তর — এটাই lab-এর আসল কথা।</p>
+
+    <p>এবার সব সতর্কবার্তা একসাথে দেখো:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ grep "WARN" /var/log/apptrack/apptrack.log</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>2026-03-10 <b>23:45:33</b> [WARN]  Memory usage at 72% (threshold: 80%)
+2026-03-10 23:45:33 [WARN]  Request queue depth increasing (depth=312)
+2026-03-10 23:51:07 [WARN]  Memory usage at 81% — exceeded soft threshold
+2026-03-10 23:51:07 [WARN]  Slow query detected: SELECT * FROM events WHERE user_id=? (took 4821ms)
+2026-03-10 23:51:45 [WARN]  Slow query detected: ... (took 5103ms)
+2026-03-10 23:52:10 [WARN]  Request queue depth critical (depth=1847)
+2026-03-10 23:53:20 [WARN]  Memory usage at 94% — approaching hard limit</pre>
+      <div class="note-line">প্রথম WARN <b>23:45:33</b>, crash <b>23:53:32</b>।</div>
+    </div>
+
+    <div class="box danger">
+      <div class="box-t">৭ মিনিট ৫৯ সেকেন্ড</div>
+      <p>প্রথম সতর্কবার্তা থেকে crash পর্যন্ত <b>প্রায় আট মিনিট</b>। এই আট মিনিটে system টা চিৎকার করে বলছিল কী হতে চলেছে — memory বাড়ছে, queue জমছে, query ধীর হচ্ছে। কেউ শোনেনি, কারণ <b>কেউ শোনার ব্যবস্থা করে রাখেনি</b>।</p>
+      <p>এটাই তৃতীয় প্রশ্নের উত্তর, আর এটাই এই lab-এর মূল কথা: <b>log থাকা আর log দেখা এক জিনিস নয়</b>। যে log কেউ পড়ে না, সেটা শুধু ময়নাতদন্তের কাজে লাগে — প্রাণ বাঁচানোর কাজে নয়।</p>
+    </div>
+
+    <p>ঘটনার পুরো ছকটা এখন এরকম:</p>
+
+    <div class="out">
+      <div class="out-bar">timeline</div>
+<pre>22:01  <span class="o">INFO</span>      চালু হলো, সব স্বাভাবিক
+  │
+23:45  <span class="o">WARN</span>      memory 72% ── <b>প্রথম লক্ষণ</b> ── এখানে alert গেলে সব বেঁচে যেত
+  │                         │
+23:51  <span class="o">WARN</span>      memory 81%    │  ৭ মিনিট ৫৯ সেকেন্ড
+  │              slow query  │  হাতে সময় ছিল
+23:52  <span class="o">ERROR</span>     worker timeout│
+  │                         │
+23:53  <span class="o">ERROR</span>     DB pool শেষ   │
+       <span class="o">ERROR</span>     Redis গেল     │
+       <span class="o">CRIT</span>      memory 99% ───┘
+23:53:32 <b>মৃত্যু</b>   exit 137
+</pre>
+      <div class="note-line">ঊর্ধ্বমুখী memory + জমতে থাকা queue = ধসের আগের চেনা ছবি।</div>
+    </div>
+
+    <p><b>গুনে দেখো কতটা গুরুতর ছিল:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ grep -c "ERROR"    /var/log/apptrack/apptrack.log
+$ grep -c "WARN"     /var/log/apptrack/apptrack.log
+$ grep -c "CRITICAL" /var/log/apptrack/apptrack.log</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>8
+7
+4</pre>
+      <div class="note-line">২৯ লাইনের ১৯টাই সমস্যার — অর্ধেকের বেশি।</div>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">গুনতি দিয়ে তুলনা করা যায়</div>
+      <p>একটা সংখ্যা একা কিছু বলে না — "৮টা error" বেশি না কম? বোঝার উপায় হলো <b>স্বাভাবিক সময়ের সাথে মেলানো</b>। রোজকার log-এ যদি ১-২টা error থাকে, আর আজ ৮টা, তাহলে সেটাই খবর।</p>
+      <p>এজন্যই production-এ <code>grep -c</code> দিয়ে প্রতি ঘণ্টায় error গুনে রাখা হয় — সংখ্যাটা হঠাৎ লাফ দিলে alert যায়। এটাকেই বলে log-based alerting, আর এটাই ঐ আট মিনিটকে কাজে লাগানোর উপায়।</p>
+    </div>
+  </div>
+
+  <!-- STEP 7 -->
+  <div class="step" data-n="7">
+    <h4>Journal-এ দেখা — আর সময় নিয়ে একটা ফাঁদ</h4>
+    <p class="obj">লক্ষ্য: <code>journalctl</code>-এ নিজের বসানো বার্তা খুঁজে বের করা।</p>
+
+    <p>Step 3-এ <code>logger</code> দিয়ে যা পাঠিয়েছিলে, সেগুলো tag দিয়ে ছেঁকে নাও:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo journalctl -t apptrack --no-pager</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>Sep 19 14:31:02 devbox apptrack[4821]: AppTrack service crashed — exit code 137 (OOM kill)
+Sep 19 14:31:02 devbox apptrack[4822]: AppTrack: memory limit exceeded before shutdown
+Sep 19 14:31:02 devbox apptrack[4823]: AppTrack: service restart scheduled in 30 seconds</pre>
+      <div class="note-line">তারিখটা <b>আজকের</b> — 2026-03-10 নয়।</div>
+    </div>
+
+    <div class="box danger">
+      <div class="box-t">দুই রকম সময়, আর এটা গুলিয়ে ফেললে তদন্ত ভুল হবে</div>
+      <p><code>apptrack.log</code>-এর ভেতরের <code>2026-03-10</code> তারিখগুলো <b>আমরা নিজেরাই text হিসেবে লিখেছি</b> — ওগুলো শুধু অক্ষর, system-এর কাছে কোনো মানে নেই।</p>
+      <p>কিন্তু journal প্রতিটা বার্তার সাথে <b>আসল system time</b> বসায় — তুমি command টা যখন চালিয়েছ। তাই <code>--since "2026-03-10"</code> দিয়ে খুঁজলে কিছুই পাবে না।</p>
+      <p>বাস্তবেও এই ফাঁদটা আছে: application তার নিজের timestamp লেখে (হয়তো UTC-তে, হয়তো অন্য timezone-এ), আর journal লেখে system-এর সময়। দুটো log মেলানোর আগে <b>দুই পক্ষ একই ঘড়ি দেখছে কিনা</b> মিলিয়ে নাও।</p>
+    </div>
+
+    <p>তাই এখানে আপেক্ষিক সময় ব্যবহার করো:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo journalctl -t apptrack --since "15 minutes ago" --no-pager
+$ sudo journalctl -t apptrack -p err --no-pager    <span class="c"># শুধু err আর তার উপরে</span></pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output — দ্বিতীয়টা</div>
+<pre>Sep 19 14:31:02 devbox apptrack[4821]: AppTrack service crashed — exit code 137 (OOM kill)</pre>
+      <div class="note-line">তিনটের মধ্যে একটাই — বাকি দুটো <code>warn</code> আর <code>info</code>, <code>err</code>-এর নিচে।</div>
+    </div>
+
+    <h4 style="margin-top:26px">আটটা মাত্রা</h4>
+
+    <p><code>-p err</code> যে "err আর তার চেয়ে গুরুতর" বোঝায়, তার কারণ level গুলো আসলে <b>০ থেকে ৭ পর্যন্ত সংখ্যা</b> — ছোট মানে বেশি জরুরি:</p>
+
+    <table>
+      <tr><th>#</th><th>নাম</th><th>কখন</th></tr>
+      <tr><td>0</td><td><code>emerg</code></td><td>System আর ব্যবহারযোগ্য নয়</td></tr>
+      <tr><td>1</td><td><code>alert</code></td><td>এখনই কাউকে ডাকতে হবে</td></tr>
+      <tr><td>2</td><td><code>crit</code></td><td>গুরুতর — hardware বা মূল service ভেঙেছে</td></tr>
+      <tr><td>3</td><td><code>err</code></td><td>কিছু একটা ব্যর্থ হয়েছে</td></tr>
+      <tr><td>4</td><td><code>warning</code></td><td>এখনো ভাঙেনি, কিন্তু ভাঙতে পারে</td></tr>
+      <tr><td>5</td><td><code>notice</code></td><td>স্বাভাবিক, তবে লক্ষ করার মতো</td></tr>
+      <tr><td>6</td><td><code>info</code></td><td>সাধারণ খবর</td></tr>
+      <tr><td>7</td><td><code>debug</code></td><td>developer-এর জন্য খুঁটিনাটি</td></tr>
+    </table>
+
+    <div class="box tip">
+      <div class="box-t">বাস্তবে তিনটেই কাজে লাগে</div>
+      <p>আটটার মধ্যে <code>err</code>, <code>warning</code> আর <code>info</code> দিয়েই ৯৯% কাজ চলে। <code>emerg</code>/<code>alert</code> প্রায় ব্যবহারই হয় না।</p>
+      <p>আসল কাজের জায়গা: <code>journalctl -p warning -b</code> — এই boot-এ যা কিছু অন্তত সতর্কবার্তা। নতুন server হাতে পেলে এটাই প্রথম চালানোর মতো command, কারণ এক নজরেই বোঝা যায় কী কী নিয়ে অভিযোগ জমছে।</p>
+    </div>
+
+    <p><b>Journal কত জায়গা খাচ্ছে:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ journalctl --disk-usage</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>Archived and active journals take up 184.0M in the file system.</pre>
+    </div>
+
+    <div class="box confuse">
+      <div class="box-t">Reboot দিলে journal থাকবে কিনা</div>
+      <p>এটা নির্ভর করে <code>/var/log/journal/</code> ফোল্ডারটা আছে কিনা তার উপর। থাকলে journal <b>disk-এ</b> জমে, reboot-এর পরেও থাকে (<code>journalctl -b -1</code> দিয়ে আগের boot দেখা যায়)। না থাকলে সব যায় <code>/run/log/journal/</code>-এ, যেটা RAM — <b>reboot দিলেই সব মুছে যায়</b>।</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ ls -d /var/log/journal 2&gt;/dev/null &amp;&amp; echo "স্থায়ী" || echo "RAM-এ, reboot-এ মুছে যাবে"
+
+<span class="c"># স্থায়ী করতে হলে</span>
+$ sudo mkdir -p /var/log/journal &amp;&amp; sudo systemctl restart systemd-journald</pre>
+      </div>
+      <p>হঠাৎ reboot হওয়া server-এ কারণ খুঁজতে গিয়ে "কিছুই নেই" দেখলে সবার আগে এটা মিলিয়ে দেখো — log হারায়নি, সে কখনো disk-এ লেখাই হয়নি।</p>
+    </div>
+  </div>
+  <h3 class="part">Part 4 — Log যেন disk না খায়</h3>
+
+  <!-- STEP 8 -->
+  <div class="step" data-n="8">
+    <h4>সমস্যাটা আগে বুঝে নাও</h4>
+    <p class="obj">লক্ষ্য: rotation কেন দরকার সেটা সংখ্যায় দেখা।</p>
+
+    <p>AppTrack রাতে ৩ ঘণ্টায় ২৯ লাইন লিখেছে। ব্যস্ত production server-এ hisebটা অন্যরকম — একটা মাঝারি nginx দিনে কয়েক লাখ লাইন লেখে। হিসেব করো:</p>
+
+    <div class="out">
+      <div class="out-bar">অঙ্কটা</div>
+<pre>প্রতি লাইন ≈ 150 bytes
+দিনে 500,000 লাইন   →  <b>75 MB / দিন</b>
+এক বছর              →  <b>27 GB</b>   <span class="o">← একটা file-এ</span></pre>
+      <div class="note-line">২৭ GB-র একটা file — <code>grep</code> চালাতে মিনিট লাগবে, আর disk ভরে গেলে service নিজেই বন্ধ।</div>
+    </div>
+
+    <div class="box danger">
+      <div class="box-t">Disk ভরলে যা হয়</div>
+      <p>Log file disk ভরিয়ে ফেললে শুধু log লেখা বন্ধ হয় না — <b>যে service লিখছিল সে নিজেই ভেঙে পড়ে</b>, database লিখতে না পেরে read-only হয়ে যায়, আর নতুন করে কিছু লেখার জায়গা না থাকায় তুমি ssh দিয়ে ঢুকেও কাজ করতে পারো না।</p>
+      <p>রাত ৩টার সবচেয়ে সাধারণ production incident গুলোর একটা এটাই, আর কারণটা প্রায় সবসময় একই — <b>কেউ rotation বসাতে ভুলে গিয়েছিল</b>।</p>
+    </div>
+
+    <p>সমাধান <code>logrotate</code> — যে নিয়ম করে log file কেটে আলাদা করে, পুরনোগুলো compress করে, আর একটা সীমার পরে মুছে ফেলে।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ which logrotate || sudo apt install -y logrotate
+$ logrotate --version</pre>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">এটা কোনো daemon নয়</div>
+      <p><code>logrotate</code> সারাক্ষণ চলে না — সে দিনে একবার চলে, <code>systemd</code>-র একটা timer তাকে ডেকে আনে। দেখতে পারো:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ systemctl list-timers logrotate.timer</pre>
+      </div>
+      <p>এজন্যই <code>daily</code> লেখার মানে "ঠিক ২৪ ঘণ্টা পরপর" নয় — মানে হলো "যখন timer টা চলবে, তখন যদি শেষ rotation একদিনের বেশি আগে হয়ে থাকে, তাহলে করবে"।</p>
+    </div>
+  </div>
+
+  <!-- STEP 9 -->
+  <div class="step" data-n="9">
+    <h4>AppTrack-এর জন্য নিয়ম লেখা</h4>
+    <p class="obj">লক্ষ্য: একটা rotation config বানিয়ে চালিয়ে দেখা।</p>
+
+    <p>প্রথমে দেখো মূল নিয়মগুলো কী:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ grep -v '^\s*#' /etc/logrotate.conf | grep -v '^$'</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>weekly
+su root adm
+rotate 4
+create
+include /etc/logrotate.d</pre>
+      <div class="note-line">শেষ লাইনটাই মূল কথা — প্রতিটা application-এর নিজের নিয়ম বসে <code>/etc/logrotate.d/</code>-তে।</div>
+    </div>
+
+    <p>এবার AppTrack-এর নিয়ম:</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo tee /etc/logrotate.d/apptrack &gt; /dev/null &lt;&lt; 'EOF'
+/var/log/apptrack/apptrack.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root adm
+}
+EOF</pre>
+    </div>
+
+    <table>
+      <tr><th>নিয়ম</th><th>মানে</th></tr>
+      <tr><td><code>daily</code></td><td>দিনে একবার কাটো</td></tr>
+      <tr><td><code>rotate 7</code></td><td>৭টা পুরনো কপি রাখো, তারপর সবচেয়ে পুরনোটা মুছে দাও</td></tr>
+      <tr><td><code>compress</code></td><td>পুরনোগুলো <code>gzip</code> করো — ১০ ভাগের ১ ভাগ জায়গা নেয়</td></tr>
+      <tr><td><code>delaycompress</code></td><td>সবচেয়ে নতুন কপিটা compress কোরো না (কারণ নিচে)</td></tr>
+      <tr><td><code>missingok</code></td><td>File না থাকলে চুপ করে থাকো, error দিয়ো না</td></tr>
+      <tr><td><code>notifempty</code></td><td>File খালি হলে কাটার দরকার নেই</td></tr>
+      <tr><td><code>create 0640 root adm</code></td><td>নতুন file এই permission আর মালিকানা নিয়ে বানাও</td></tr>
+    </table>
+
+    <div class="box confuse">
+      <div class="box-t"><code>delaycompress</code> কেন লাগে</div>
+      <p>Rotation-এর সময় file-টার নাম বদলে যায় (<code>apptrack.log</code> → <code>apptrack.log.1</code>), কিন্তু <b>service তখনো পুরনো file-টাই ধরে বসে আছে</b> — সে নাম নয়, file-এর ভেতরের পরিচয় (inode) ধরে লেখে। তাই কয়েক সেকেন্ড সে নাম-বদলানো file-এই লিখতে থাকে।</p>
+      <p>ঐ মুহূর্তে যদি compress করে ফেলা হয়, সেই শেষ কয়েকটা লাইন হারিয়ে যায়। <code>delaycompress</code> বলে — "এবার থাক, পরেরবার compress কোরো"। তখন service-টা নতুন file ধরে ফেলেছে, পুরনোটায় আর কেউ লিখছে না।</p>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">বইয়ের <code>tail -F</code> এখানে এসে বোঝা যায়</div>
+      <p><b>Chapter 04</b>-এ পড়েছ <code>tail -F</code> rotation সামলাতে পারে, <code>-f</code> পারে না। কারণটা এখন স্পষ্ট: <code>-f</code> ঐ inode ধরে রাখে, তাই rotation-এর পরে সে <b>পুরনো, নাম-বদলানো file</b>-এ তাকিয়ে থাকে আর কিছুই দেখে না। <code>-F</code> নাম ধরে রাখে — file নতুন হলে সে নতুনটায় চলে যায়।</p>
+      <p>রাতে <code>tail -f</code> চালিয়ে রেখে সকালে "কিছুই তো আসছে না" দেখলে এই কারণেই।</p>
+    </div>
+
+    <p><b>চালানোর আগে যাচাই করো:</b></p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo logrotate --debug /etc/logrotate.d/apptrack</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>WARNING: logrotate in debug mode does nothing except printing debug messages!
+reading config file /etc/logrotate.d/apptrack
+Handling 1 logs
+rotating pattern: /var/log/apptrack/apptrack.log  after 1 days (7 rotations)
+empty log files are not rotated, old logs are removed
+considering log /var/log/apptrack/apptrack.log
+  Now: 2026-09-19 14:35
+  Last rotated at 2026-09-19 14:02
+  <b>log does not need rotating</b> (log has already been rotated)</pre>
+      <div class="note-line"><code>--debug</code> কিছুই বদলায় না — শুধু বলে সে কী করত।</div>
+    </div>
+
+    <div class="box note">
+      <div class="box-t">"does not need rotating" এখানে স্বাভাবিক</div>
+      <p>File টা এইমাত্র বানানো, তাই <code>logrotate</code> ধরে নিচ্ছে সদ্য rotate হয়েছে। এটা ভুল নয়। জোর করে করাতে <code>--force</code> লাগবে — যেটা পরের ধাপে।</p>
+      <p><code>--debug</code> অভ্যাস করে নাও: নতুন config লিখে সরাসরি চালিয়ো না, আগে এটা দিয়ে দেখো সে কোন file গুলো ধরছে। ভুল করে <code>*.log</code> লিখে ফেললে এখানেই ধরা পড়বে।</p>
+    </div>
+  </div>
+
+  <!-- STEP 10 -->
+  <div class="step" data-n="10">
+    <h4>নিজের চোখে rotation দেখা</h4>
+    <p class="obj">লক্ষ্য: কেটে দেখা, আর কাটার পরে কী অবস্থা হয় বোঝা।</p>
+
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ sudo logrotate --force /etc/logrotate.d/apptrack
+$ ls -lh /var/log/apptrack/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>-rw-r----- 1 root adm    <b>0</b> Sep 19 14:36 apptrack.log
+-rw-r----- 1 root adm 2.4K Sep 19 14:02 <b>apptrack.log.1</b></pre>
+      <div class="note-line">নতুনটা <b>খালি</b> (0 byte), পুরনো ২৯ লাইন চলে গেছে <code>.1</code>-এ।</div>
+    </div>
+
+    <p>আরেকবার চালালে ছবিটা পরিষ্কার হয়:</p>
+    <div class="code">
+      <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ echo "2026-03-11 02:47:13 [INFO]  AppTrack restarted" | sudo tee -a /var/log/apptrack/apptrack.log
+$ sudo logrotate --force /etc/logrotate.d/apptrack
+$ ls -lh /var/log/apptrack/</pre>
+    </div>
+
+    <div class="out">
+      <div class="out-bar">output</div>
+<pre>-rw-r----- 1 root adm    0 Sep 19 14:38 apptrack.log
+-rw-r----- 1 root adm   58 Sep 19 14:37 apptrack.log.1
+-rw-r----- 1 root adm  680 Sep 19 14:02 <b>apptrack.log.2.gz</b>   <span class="o">← এটা এখন compressed</span></pre>
+      <div class="note-line"><code>delaycompress</code>-এর ফল — <code>.1</code> এখনো সাধারণ text, <code>.2</code> gzip হয়ে গেছে। 2.4K থেকে 680 bytes।</div>
+    </div>
+
+    <div class="box tip">
+      <div class="box-t">Compressed log পড়তে খুলতে হয় না</div>
+      <p><code>gunzip</code> করে, খুঁজে, আবার মুছে ফেলার দরকার নেই — <code>z</code> দিয়ে শুরু হওয়া সংস্করণ গুলো সরাসরি পড়ে:</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>$ zgrep "CRITICAL" /var/log/apptrack/apptrack.log.2.gz
+$ zcat /var/log/apptrack/apptrack.log.2.gz | tail -3</pre>
+      </div>
+      <p>পুরনো incident খুঁজতে গেলে প্রায় সবসময়ই <code>.gz</code> ঘাঁটতে হয়, তাই <code>zgrep</code> হাতে রাখা ভালো। একসাথে সব দিন খুঁজতে: <code>zgrep "ERROR" /var/log/apptrack/*.gz</code>।</p>
+    </div>
+
+    <div class="box warn">
+      <div class="box-t">আসল service হলে আরেকটা ধাপ লাগত</div>
+      <p>উপরের config-এ একটা জিনিস ইচ্ছে করে বাদ দিয়েছি। আসল AppTrack চললে rotation-এর পরে তাকে বলতে হতো "নতুন file ধরো" — নাহলে সে ঐ নাম-বদলানো পুরনো file-এই লিখে যেত, আর <code>apptrack.log</code> চিরকাল খালি থাকত।</p>
+      <div class="code">
+        <div class="code-bar"><span>bash</span><button class="copy">copy</button></div>
+<pre>    postrotate
+        systemctl kill --kill-who=main --signal=USR1 apptrack.service
+    endscript</pre>
+      </div>
+      <p>আমাদের কোনো <code>apptrack.service</code> নেই, তাই এটা বাদ রেখেছি — থাকলে <code>logrotate</code> প্রতিবার error দিত।</p>
+      <p>বিকল্প উপায় <code>copytruncate</code> — file-টা copy করে মূলটা খালি করে দেয়, service-কে কিছু বলতে হয় না। সহজ, কিন্তু copy আর truncate-এর মাঝের ভগ্নাংশ সেকেন্ডে লেখা লাইনগুলো হারায়। <b>যে service signal বোঝে তার জন্য <code>postrotate</code>, যে বোঝে না তার জন্য <code>copytruncate</code></b>।</p>
+    </div>
+  </div>
+
+  <h3>নিজে করো</h3>
+  <ol>
+    <li>Crash-এর ঠিক আগের ৩ মিনিটের সব লাইন বের করো — WARN, ERROR, CRITICAL সব মিলিয়ে, সময়ের ক্রমে। (ইঙ্গিত: <code>grep -E</code>)</li>
+    <li>প্রতি মিনিটে কতগুলো করে সমস্যার লাইন ছিল গুনে বের করো — সংখ্যাটা কি স্থির, নাকি বাড়ছে? (ইঙ্গিত: <code>cut</code> দিয়ে সময়টা কেটে <code>sort | uniq -c</code>)</li>
+    <li>একটা script লেখো যেটা log-এ ERROR গুনে দশটার বেশি হলে <code>logger</code> দিয়ে alert পাঠায়।</li>
+    <li>Rotation চলাকালীন <code>tail -f</code> আর <code>tail -F</code>-এর পার্থক্যটা <b>নিজের চোখে</b> দেখো।</li>
+  </ol>
+
+  <details class="solve">
+    <summary>সমাধান দেখো</summary>
+    <div class="sbody">
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ১ — শেষ ৩ মিনিটের সব গোলমাল</span>
+$ zgrep -E "23:5[123]:" /var/log/apptrack/*.gz | grep -E "WARN|ERROR|CRITICAL"</pre>
+      </div>
+      <p>Rotation করে ফেলেছি বলে মূল file এখন খালি — তাই <code>.gz</code> থেকে পড়তে হচ্ছে। এটাই বাস্তব অভিজ্ঞতা: <b>যখন দরকার পড়ে তখন log প্রায়ই rotate হয়ে গেছে</b>।</p>
+      <p><code>-E</code> দিলে <code>23:5[123]:</code> কাজ করে — মানে 23:51, 23:52 বা 23:53। <code>-E</code> ছাড়া <code>[123]</code>-কে সে আক্ষরিক অক্ষর ধরত।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ২ — ঘণ্টাপ্রতি গোলমাল</span>
+$ zcat /var/log/apptrack/*.gz \
+  | grep -E "WARN|ERROR|CRITICAL" \
+  | cut -c12-13 \
+  | sort | uniq -c</pre>
+      </div>
+      <div class="out">
+        <div class="out-bar">output</div>
+<pre>     19 23</pre>
+      </div>
+      <p>সব ১৯টাই ২৩টার ঘরে — এক ঘণ্টার মধ্যেই সব ঘটেছে। কিন্তু এই ফলাফলটা অকেজো, কারণ <b>ছাঁকনিটা যা মাপতে চাইছি তার চেয়ে মোটা</b>। ঘণ্টার বদলে মিনিট নাও:</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre>$ zcat /var/log/apptrack/*.gz \
+  | grep -E "WARN|ERROR|CRITICAL" \
+  | cut -c12-16 \
+  | sort | uniq -c</pre>
+      </div>
+      <div class="out">
+        <div class="out-bar">output</div>
+<pre>      2 23:45
+      3 23:51
+      3 23:52
+     <b>11 23:53</b>   <span class="o">← শেষ মিনিটে অর্ধেকের বেশি</span></pre>
+      </div>
+      <p>এবার ছবিটা স্পষ্ট — ২, ৩, ৩, তারপর হঠাৎ ১১। এই <b>ত্বরণটাই</b> ধসের স্বাক্ষর। স্থির হারে error এলে সেটা সাধারণত দীর্ঘদিনের চেনা সমস্যা; কিন্তু হার বাড়তে থাকলে বুঝতে হবে কিছু একটা ভেঙে পড়ছে।</p>
+      <p><code>cut -c12-16</code> মানে প্রতি লাইনের ১২-১৬ নম্বর অক্ষর, যেখানে <code>HH:MM</code> বসে। সব লাইনের গঠন এক হলে <code>cut</code> সবচেয়ে সহজ উপায় — <code>awk</code>-এর দরকারই নেই।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ৩ — গুনে alert পাঠানোর script</span>
+$ cat &lt;&lt; 'EOF' &gt; ~/check-apptrack.sh
+#!/bin/bash
+LOG=/var/log/apptrack/apptrack.log
+LIMIT=10
+COUNT=$(grep -c "ERROR" "$LOG" 2&gt;/dev/null || echo 0)
+
+if [ "$COUNT" -gt "$LIMIT" ]; then
+    logger -t apptrack-monitor -p daemon.err \
+        "ERROR সংখ্যা বেশি: $COUNT (সীমা $LIMIT)"
+fi
+EOF
+$ chmod +x ~/check-apptrack.sh
+$ ~/check-apptrack.sh
+$ sudo journalctl -t apptrack-monitor --no-pager</pre>
+      </div>
+      <p>দুটো জিনিস খেয়াল করো। <code>|| echo 0</code> আছে কারণ file না থাকলে <code>grep -c</code> কিছুই ফেরত দেয় না, আর তখন <code>[ "" -gt 10 ]</code> লিখে script ভেঙে যেত। আর <code>"$COUNT"</code> quote-এর ভেতরে — খালি হলেও তখন অন্তত বোধগম্য error দেবে।</p>
+      <p>এটাকে <code>cron</code>-এ বসিয়ে দিলেই সেই আট মিনিটের সুযোগটা কাজে লাগানো যায়। তবে বাস্তবে সীমা স্থির না রেখে <b>স্বাভাবিকের তুলনায় লাফ</b> দেখা হয় — রোজ ৫০টা error হওয়া system-এ <code>LIMIT=10</code> প্রতি মিনিটে alert পাঠাবে, আর তখন কেউ আর alert-এ পাত্তা দেবে না।</p>
+
+      <div class="code">
+        <div class="code-bar"><span>bash — solution</span><button class="copy">copy</button></div>
+<pre><span class="c"># ৪ — terminal 1</span>
+$ tail -f /var/log/apptrack/apptrack.log
+
+<span class="c"># terminal 2</span>
+$ echo "test 1" | sudo tee -a /var/log/apptrack/apptrack.log   <span class="c"># দেখা যাবে</span>
+$ sudo logrotate --force /etc/logrotate.d/apptrack
+$ echo "test 2" | sudo tee -a /var/log/apptrack/apptrack.log   <span class="c"># আর দেখা যাবে না</span></pre>
+      </div>
+      <p><code>tail -f</code> rotation-এর পরে চুপ হয়ে যায় — সে পুরনো inode ধরে বসে আছে। <code>-F</code> দিয়ে একই পরীক্ষা করলে <code>test 2</code> ঠিকই দেখাবে, আর সাথে একটা লাইনও ছাপবে:</p>
+      <div class="out">
+        <div class="out-bar">output — <code>tail -F</code></div>
+<pre>tail: '/var/log/apptrack/apptrack.log' has been replaced;  following new file
+test 2</pre>
+      </div>
+      <p>Server-এ log দেখতে বসলে <code>-F</code> ব্যবহার করো, <code>-f</code> নয়। পার্থক্যটা ঠিক ঐ সময়েই ধরা পড়ে যখন তুমি সবচেয়ে মনোযোগ দিয়ে তাকিয়ে আছ।</p>
+    </div>
+  </details>
+
+  <h3>Command গুলো এক নজরে</h3>
+  <table>
+    <tr><th>Command</th><th>কাজ</th></tr>
+    <tr><td><code>tail -6 file</code></td><td>শেষ কী হয়েছিল — crash তদন্তের প্রথম command</td></tr>
+    <tr><td><code>tail -F file</code></td><td>সরাসরি দেখতে থাকা, rotation সামলে</td></tr>
+    <tr><td><code>grep -B 4 "CRITICAL" file</code></td><td>ভাঙার ঠিক আগে কী হচ্ছিল</td></tr>
+    <tr><td><code>grep -c "ERROR" file</code></td><td>কতটা গুরুতর — গুনে দেখা</td></tr>
+    <tr><td><code>zgrep "x" *.gz</code></td><td>পুরনো, compressed log ঘাঁটা</td></tr>
+    <tr><td><code>logger -t tag -p daemon.err "msg"</code></td><td>নিজের script থেকে system log-এ লেখা</td></tr>
+    <tr><td><code>journalctl -t tag</code></td><td>tag ধরে journal ছাঁকা</td></tr>
+    <tr><td><code>journalctl -p warning -b</code></td><td>এই boot-এ কী কী নিয়ে অভিযোগ</td></tr>
+    <tr><td><code>journalctl --disk-usage</code></td><td>journal কত জায়গা খাচ্ছে</td></tr>
+    <tr><td><code>last</code> / <code>lastb</code></td><td>সফল / ব্যর্থ login-এর ইতিহাস</td></tr>
+    <tr><td><code>logrotate --debug <i>conf</i></code></td><td>কী করত সেটা দেখা, না করে</td></tr>
+    <tr><td><code>logrotate --force <i>conf</i></code></td><td>জোর করে এখনই কাটা</td></tr>
+  </table>
+
+  <h3>আটকে গেলে</h3>
+  <table>
+    <tr><th>সমস্যা</th><th>কী হয়েছে / কী করবে</th></tr>
+    <tr><td><code>journalctl -t apptrack</code> খালি</td><td><code>logger</code> command গুলো <code>sudo</code> ছাড়া চালিয়েছিলে? তাহলে tag user-এর নামে বসেছে। <code>journalctl -t $(whoami)</code> দেখো।</td></tr>
+    <tr><td><code>--since "2026-03-10"</code> কিছুই দেয় না</td><td>ওটা log-এর <b>ভেতরের</b> লেখা তারিখ, journal-এর নয়। আপেক্ষিক সময় ব্যবহার করো।</td></tr>
+    <tr><td>Reboot-এর পরে journal ফাঁকা</td><td><code>/var/log/journal/</code> নেই — সব RAM-এ ছিল। Step 7-এর নিয়মে স্থায়ী করো।</td></tr>
+    <tr><td><code>logrotate</code> "does not need rotating" বলছে</td><td>স্বাভাবিক। <code>--force</code> দাও।</td></tr>
+    <tr><td>Rotation-এর পরে <code>apptrack.log</code> চিরকাল খালি</td><td>Service পুরনো file ধরে আছে। <code>postrotate</code>-এ signal পাঠাও বা <code>copytruncate</code> দাও।</td></tr>
+    <tr><td><code>tail -f</code> হঠাৎ চুপ</td><td>File rotate হয়ে গেছে। <code>Ctrl+C</code> দিয়ে <code>tail -F</code> দিয়ে আবার চালাও।</td></tr>
+    <tr><td><code>sudo echo "x" &gt; /var/log/...</code> — Permission denied</td><td>Redirect করে তোমার shell, <code>sudo</code> নয়। <code>sudo tee -a</code> ব্যবহার করো।</td></tr>
+    <tr><td>Disk ভরে গেছে, জায়গা লাগবে এখনই</td><td><code>journalctl --vacuum-size=200M</code> — journal ছেঁটে সাথে সাথে জায়গা খালি করে।</td></tr>
+  </table>
+
+  <h3>পরিষ্কার করে ফেলা (ঐচ্ছিক)</h3>
+  <div class="code">
+    <div class="code-bar"><span>bash — cleanup</span><button class="copy">copy</button></div>
+<pre><span class="c"># AppTrack-এর log আর rotation-এর নিয়ম</span>
+$ sudo rm -rf /var/log/apptrack
+$ sudo rm -f /etc/logrotate.d/apptrack
+
+<span class="c"># logrotate-এর জমানো হিসেব থেকেও মুছে দাও</span>
+$ sudo sed -i '/apptrack/d' /var/lib/logrotate/status
+
+<span class="c"># challenge-এর script</span>
+$ rm -f ~/check-apptrack.sh
+
+<span class="c"># journal-এর বার্তা গুলো থাকুক — ক্ষতি নেই, নিজেই মেয়াদ শেষে যাবে</span></pre>
+  </div>
+
+  <div class="box note">
+    <div class="box-t"><code>logrotate</code>-এর স্মৃতি কোথায় থাকে</div>
+    <p>কোন file কবে শেষ rotate হয়েছে সেটা <code>logrotate</code> মনে রাখে <code>/var/lib/logrotate/status</code>-এ (কিছু distro-তে <code>/var/lib/logrotate.status</code>)। Config মুছলেও ঐ ঘরটা থেকে যায় — তাই উপরে <code>sed</code> দিয়ে সেটাও সরিয়েছি।</p>
+    <p>কখনো "rotation হচ্ছে না কেন" বুঝতে না পারলে এই file টা খুলে দেখো — তারিখটা ভুল থাকলে সে ভাবে কাজটা সদ্য করা হয়ে গেছে।</p>
+  </div>
+
+  <div class="check" data-lab="l8">
+    <div class="ct">Lab 8 — চেকলিস্ট</div>
+    <label><input type="checkbox"><span><code>/var/log</code>-এ কী কী আছে দেখেছি, binary file গুলো চিনি</span></label>
+    <label><input type="checkbox"><span>journald আর rsyslog-এর পার্থক্য বুঝেছি</span></label>
+    <label><input type="checkbox"><span><code>logger</code> দিয়ে journal-এ নিজের বার্তা পাঠিয়েছি</span></label>
+    <label><input type="checkbox"><span><code>exit 137 = 128 + 9</code> — সংখ্যাটা পড়তে পারি</span></label>
+    <label><input type="checkbox"><span><code>-B</code>/<code>-A</code> দিয়ে error-এর আশপাশ পড়ে timeline বানিয়েছি</span></label>
+    <label><input type="checkbox"><span>কারণ আর ফলের পার্থক্যটা সময়ের ক্রম দিয়ে ধরেছি</span></label>
+    <label><input type="checkbox"><span>crash-এর কত আগে প্রথম লক্ষণ ছিল বের করেছি</span></label>
+    <label><input type="checkbox"><span>আটটা priority level আর <code>-p</code>-র নিয়ম জানি</span></label>
+    <label><input type="checkbox"><span>journal স্থায়ী না RAM-এ — মিলিয়ে দেখেছি</span></label>
+    <label><input type="checkbox"><span><code>logrotate</code> config লিখে <code>--force</code> দিয়ে চালিয়েছি</span></label>
+    <label><input type="checkbox"><span><code>tail -f</code> আর <code>-F</code>-এর পার্থক্য নিজের চোখে দেখেছি</span></label>
+  </div>
+
+  <div class="box tip">
+    <div class="box-t">মূল কথা</div>
+    <p>Log পড়ার কাজটা command মুখস্থ করা নয় — <b>সময়ের ক্রম সাজানো</b>। যে ঘটনা আগে ঘটেছে সেটাই সন্দেহভাজন; যেটা পরে, সেটা সাধারণত ফল। তাই <code>grep</code>-এ এক লাইন পেলে থেমো না, <code>-B</code>/<code>-A</code> দিয়ে আশপাশটা পড়ো।</p>
+    <p>আর AppTrack-এর আসল শিক্ষাটা হলো — <b>সে আট মিনিট ধরে বলছিল যে সে মরতে চলেছে</b>। Log ছিল, লেখা ছিল, সব ঠিকঠাক জমা হয়েছিল। শুধু কেউ দেখছিল না। তাই log ব্যবস্থার শেষ ধাপটা file নয়, rotation-ও নয় — <b>কেউ বা কিছু একটা যেন ঐ WARN গুলো দেখে</b>, সেই ব্যবস্থাটা।</p>
+  </div>
+</section>
